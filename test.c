@@ -1,3 +1,14 @@
+/**
+ * *****************************************************************************
+ * \file test.c
+ * \author Greg Law
+ * \brief L3: Lightweight Logging Library Unit-test
+ * \version 0.1
+ * \date 2023-12-24
+ *
+ * \copyright Copyright (c) 2023
+ * *****************************************************************************
+ */
 #define _POSIX_C_SOURCE 199309L
 
 #include <stdlib.h>
@@ -7,41 +18,73 @@
 
 #include "l3.h"
 
+// Useful constants
+#define L3_MILLION      (1000 * 1000)
+#define L3_NS_IN_SEC    (1000 * 1000 * 1000)
+
+// Convert timespec value to nanoseconds units.
+static uint64_t inline
+timespec_to_ns(struct timespec *ts)
+{
+    return ((ts->tv_sec * L3_NS_IN_SEC) + ts->tv_nsec);
+}
+
 int
 main(void)
 {
     int e = l3_init("/tmp/l3_test");
-    if (e) abort();
+    if (e) {
+        abort();
+    }
 
-    struct timespec ts0, ts1;
-    if (clock_gettime(CLOCK_REALTIME, &ts0)) abort();
+    struct timespec ts0;
+    struct timespec ts1;
+    if (clock_gettime(CLOCK_REALTIME, &ts0)) {
+        abort();
+    }
 
+    int nMil = 300;
+    printf("\nExercise in-memory logging performance benchmarking: "
+           "%d Mil simple/fast log msgs\n",
+            nMil);
     unsigned long n;
-    for (n = 0; n < 300000000; n++)
-        l3_log_simple("hello world", 0, 0);
+    for (n = 0; n < (nMil * L3_MILLION); n++) {
+        l3_log_simple("300-Mil Simple l3-log msgs", 0, 0);
+    }
 
-    if (clock_gettime(CLOCK_REALTIME, &ts1)) abort();
-    uint64_t nsec0 = ts0.tv_sec * 1000000000 + ts0.tv_nsec;
-    uint64_t nsec1 = ts1.tv_sec * 1000000000 + ts1.tv_nsec;
+    if (clock_gettime(CLOCK_REALTIME, &ts1)) {
+        abort();
+    }
+    uint64_t nsec0 = timespec_to_ns(&ts0);
+    uint64_t nsec1 = timespec_to_ns(&ts1);
 
-    printf("simple: %" PRIu64 "ns\n", (nsec1 - nsec0) / n);
+    printf("%d Mil simple log msgs: %" PRIu64 "ns/msg (avg)\n",
+            nMil, (nsec1 - nsec0) / n);
 
-    if (clock_gettime(CLOCK_REALTIME, &ts0)) abort();
+    if (clock_gettime(CLOCK_REALTIME, &ts0)) {
+        abort();
+    }
 
-    for (n = 0; n < 300000000; n++)
-        l3_log_fast("hello world");
+    for (n = 0; n < (300 * L3_MILLION); n++) {
+        l3_log_fast("300-Mil Fast l3-log msgs");
+    }
 
-    if (clock_gettime(CLOCK_REALTIME, &ts1)) abort();
-    nsec0 = ts0.tv_sec * 1000000000 + ts0.tv_nsec;
-    nsec1 = ts1.tv_sec * 1000000000 + ts1.tv_nsec;
+    if (clock_gettime(CLOCK_REALTIME, &ts1)) {
+        abort();
+    }
+    nsec0 = timespec_to_ns(&ts0);
+    nsec1 = timespec_to_ns(&ts1);
 
-    printf("fast: %" PRIu64 "ns\n", (nsec1 - nsec0) / n);
+    printf("%d Mil fast log msgs  : %" PRIu64 "ns/msg (avg)\n",
+            nMil, (nsec1 - nsec0) / n);
 
     e = l3_init("/tmp/l3_small_test");
-    if (e) abort();
-    l3_log_simple("test1", 1, 2);
-    l3_log_simple("test2", 2, 3);
-    l3_log_simple("test3", 3, 4);
+    if (e) {
+        abort();
+    }
+    l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);
+    l3_log_simple("Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
+    l3_log_simple("Invalid buffer handle (addr)", 0xbeefabcd, 0);
 
     return 0;
 }
