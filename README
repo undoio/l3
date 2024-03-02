@@ -1,0 +1,29 @@
+L3: the Lightweight Logging Library
+
+printf debugging often leads to "Heisenbugs" -- the addition of the printf causes the bug to go
+away or change. This is especially common when trying to root-cause race conditions. This is because
+printf() is relatively slow, and usually involves acquiring a lock, so it becomes a kind of
+synchronisation point.
+
+The Lightweight Logging Library has a fast printf: l3_log_simple() takes about 15ns, and an even
+faster one: l3_log_fast() which takes about 8ns. Both routines are lockless. Simply include l3.h and
+link against l3.c and l3.S (the latter is available only for x86-64 right now), and call l3_init()
+to configure the filename to which the logs will be written.
+
+The logs generated need to be post-processed in order to get out the strings. Do this by running
+l3_dump.py and passing the logfile and the executable as its command-line arguments, e.g.
+
+l3_dump.py mylog a.out
+
+It is very simple. The log structure is an array of:
+    struct {pid_t tid; const char *msg; uint64_t arg1, uint64_t arg2};
+
+This resides on the memory mapped file. The logging routines simply do an atomic fetch-and-increment
+of a global index to get a slot in the array, and write in the log. We store just the pointer to the
+string rather than string because this is usually a lot faster. The pointer should be to a string
+literal.
+
+The l3_dump.py utility will look at the pointer and find the string literal to which it points from
+the executable, and so give a (vaguely) human-readable dump of the log.
+
+Simple, but effective. (And fast.)
