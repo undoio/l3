@@ -23,7 +23,7 @@ for line in stdout.split('\n')[2:]:
 with open(sys.argv[1], 'rb') as file:
     data = file.read(32)
     idx, fibase, _, _ = struct.unpack('<QQQQ', data)
-    print(f"{idx=} {fibase=:x}")
+    # print(f"{idx=} {fibase=:x}")
 
     for _ in range(3):
         row = file.read(32)

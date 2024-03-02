@@ -16,7 +16,7 @@ l3_log_fast:
     lock xadd %rdx, (%rcx)
     and $0x3fff, %edx           // idx -> rdx
 
-    add 32, %rcx
+    add $32, %rcx
     shl $5, %rdx
     add %rdx, %rcx
     mov %rax, (%rcx)  // tid
