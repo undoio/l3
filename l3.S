@@ -27,4 +27,3 @@ l3_log_fast:
     add $8, %rcx
     movq $0, (%rcx)  // arg1
     ret
-
