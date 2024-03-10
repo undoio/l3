@@ -19,6 +19,18 @@ L3 package with a small collection of `.c`, and C++, `.cpp` or
 
 Check `make` help / usage: `$ make help`
 
+## Dependencies
+
+The L3 package depends on the [LineOfCode](https://github.com/Soft-Where-Inc/LineOfCode)
+package, as a submodule.
+
+Run the following commands before doing the L3 build.
+
+```
+$ git submodule init
+$ git submodule update
+```
+
 ## Build usage
 
 - We support building in `release` (default) or `debug` mode,

@@ -1,0 +1,6 @@
+*.swp
+# Skip build/ areas
+build*
+# Skip LOC-generated files
+loc*h
+loc_filenames.c

@@ -31,11 +31,14 @@ for line in stdout.split('\n')[2:]:
 
 with open(sys.argv[1], 'rb') as file:
     data = file.read(32)
-    idx, fibase, _, _ = struct.unpack('<QQQQ', data)
+    idx, loc, fibase, _, _ = struct.unpack('<iiQQQ', data)
     # print(f"{idx=} {fibase=:x}")
 
     for _ in range(3):
         row = file.read(32)
-        tid, ptr, arg1, arg2 = struct.unpack('<QQQQ', row)
+        tid, loc, ptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
         offs = ptr - fibase - rodata_offs
-        print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
+        if loc == 0:
+            print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
+        else:
+            print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")

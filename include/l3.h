@@ -81,7 +81,7 @@ void l3__log_simple(const uint32_t loc, const char *msg,
  *
  * Like l3_log_simple() but does not take arguments. Only available on x86-64.
  */
- #ifdef __cplusplus
+#ifdef __cplusplus
 extern "C"
 #endif
 void l3_log_fast(const char *msg);
