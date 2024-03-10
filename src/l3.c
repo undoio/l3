@@ -23,12 +23,19 @@
 
 #include "l3.h"
 
+#ifdef L3_LOC_ENABLED
+#include "loc.h"
+#endif  // L3_LOC_ENABLED
+
 /**
  * L3 Log entry Structure definitions:
  */
 struct l3_entry
 {
     pid_t       tid;
+#ifdef L3_LOC_ENABLED
+    loc_t       loc;
+#endif  // L3_LOC_ENABLED
     const char *msg;
     uint64_t    arg1;
     uint64_t    arg2;
@@ -101,10 +108,13 @@ l3_mytid(void)
 
 // ****************************************************************************
 void
-l3_log_simple(const char *msg, const uint64_t arg1, const uint64_t arg2)
+l3__log_simple(uint32_t loc, const char *msg, const uint64_t arg1, const uint64_t arg2)
 {
     int idx = __sync_fetch_and_add(&l3_log->idx, 1) % L3_MAX_SLOTS;
     l3_log->slots[idx].tid = l3_mytid();
+#ifdef L3_LOC_ENABLED
+    l3_log->slots[idx].loc = (loc_t) loc;
+#endif
     l3_log->slots[idx].msg = msg;
     l3_log->slots[idx].arg1 = arg1;
     l3_log->slots[idx].arg2 = arg2;

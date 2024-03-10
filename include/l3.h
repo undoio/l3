@@ -13,6 +13,15 @@
 
 #include <stdint.h>
 
+#ifdef L3_LOC_ENABLED
+#include "loc.h"
+#endif  // L3_LOC_ENABLED
+
+/**
+ * Macro to identify unused function argument.
+ */
+#define L3_ARG_UNUSED (0)
+
 /**
  * Size of circular ring-buffer to track log entries.
  */
@@ -37,6 +46,17 @@
 int l3_init(const char *path);
 
 /**
+ * \brief Caller-macro to invoke L3 simple logging.
+ */
+#ifdef L3_LOC_ENABLED
+#define l3_log_simple(msg, arg1, arg2)                          \
+        l3__log_simple(__LOC__, (msg), (arg1), (arg2))
+#else   // L3_LOC_ENABLED
+#define l3_log_simple(msg, arg1, arg2)                          \
+        l3__log_simple(L3_ARG_UNUSED, (msg), (arg1), (arg2))
+#endif  //
+
+/**
  * \brief Log a literal string and two arguments.
  *
  * \param msg  A literal string to log. (Note: Do -NOT- pass regular char*
@@ -48,7 +68,13 @@ int l3_init(const char *path);
  * l3_init(). To see the log output, run the l3_dump.py utility passing in
  * the names of the log file and the executable.
  */
-void l3_log_simple(const char *msg, const uint64_t arg1, const uint64_t arg2);
+#ifdef L3_LOC_ENABLED
+void l3__log_simple(loc_t loc, const char *msg,
+                    const uint64_t arg1, const uint64_t arg2);
+#else
+void l3__log_simple(const uint32_t loc, const char *msg,
+                    const uint64_t arg1, const uint64_t arg2);
+#endif  // L3_LOC_ENABLED
 
 /**
  * \brief Log a message in as fast a way as possible.
