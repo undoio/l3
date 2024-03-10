@@ -1,0 +1,3 @@
+[submodule "LineOfCode"]
+	path = LineOfCode
+	url = git@github.com:gapisback/LineOfCode.git

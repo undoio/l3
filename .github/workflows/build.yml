@@ -20,6 +20,10 @@ jobs:
         echo " "
         which pylint
 
+        echo " "
+        ls -aFlrt
+        echo " "
+
     - name: Makefile-help
       run: make help
 
@@ -40,3 +44,12 @@ jobs:
 
     - name: Test-CC-Samples
       run: BUILD_MODE=${{ matrix.build_type }} make run-cc-tests
+
+    - name: Build-and-Run-C-Samples-with-LOC
+      run: BUILD_MODE=${{ matrix.build_type }} make clean && BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ L3_LOC_ENABLED=1 make run-c-tests
+
+    - name: Build-and-Run-Cpp-Samples-with-LOC
+      run: BUILD_MODE=${{ matrix.build_type }} make clean-l3 && BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make run-cpp-tests
+
+    - name: Build-and-Run-CC-Samples-with-LOC
+      run: BUILD_MODE=${{ matrix.build_type }} make clean-l3 && BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make run-cc-tests
