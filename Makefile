@@ -25,15 +25,20 @@
 .DEFAULT_GOAL := all
 
 help::
-	@echo 'You need multiple invocations in this series to build all sources:'
 	@echo ' '
 	@echo 'Usage:'
+	@echo ' '
+	@echo 'To build all sample programs and run all unit-tests:'
+	@echo ' make clean && CC=g++ CXX=g++ LD=g++ make all'
+	@echo ' make run-tests'
+	@echo ' '
+	@echo 'Alternatively, you may use multiple invocations in this sequence to build all sources:'
 	@echo ' '
 	@echo 'To build C-sample programs and run unit-tests:'
 	@echo ' make clean && CC=gcc LD=g++ make all-c-tests'
 	@echo ' make run-c-tests'
 	@echo ' '
-	@echo 'To build C++-sample programs and run unit-tests:'
+	@echo 'To build C++-sample .cpp programs and run unit-tests:'
 	@echo ' make clean-l3 && CC=g++ CXX=g++ LD=g++ make all-cpp-tests'
 	@echo ' make run-cpp-tests'
 	@echo ' '
@@ -80,12 +85,12 @@ LD  ?= gcc
 # SOURCE DIRECTORIES AND FILES, Generator Package
 # ###################################################################
 #
-L3PACKAGE   = l3
-SRCDIR      = src
-INCDIR      = include
-L3_SRCDIR   = $(SRCDIR)
-L3_INCDIR   = $(INCDIR)
-TESTSDIR    = test-use-cases
+L3PACKAGE   := l3
+SRCDIR      := src
+INCDIR      := include
+L3_SRCDIR   := $(SRCDIR)
+L3_INCDIR   := $(INCDIR)
+TESTS       := test-use-cases
 
 # ###################################################################
 # BUILD DIRECTORIES AND FILES
@@ -103,9 +108,13 @@ ifndef BUILD_MODE
 endif
 BUILD_DIR := $(BUILD_MODE)
 
+# E.g., will result in one of: `build/release`, `build/debug`
 BUILD_PATH=$(BUILD_ROOT)/$(BUILD_DIR)
 
+# Will result in `build/release/obj`, build/debug/obj`
 OBJDIR = $(BUILD_PATH)/obj
+
+# Will result in `build/release/bin`, build/debug/bin`
 BINDIR = $(BUILD_PATH)/bin
 
 # ###################################################################
@@ -133,53 +142,114 @@ L3_CC_SMALL_DATA    := $(TMPDIR)/$(L3PACKAGE).cc-small-$(TEST_DATA_SUFFIX)
 # ---- Symbols to build test-code sample programs
 # ###################################################################
 
-# -- Pick-up both C and C++ sources in separate lists, named by a symbol.
-TEST_C_CODE_SRC := $(shell find $(L3_SRCDIR) $(TESTSDIR) -type f \( -name *.c \) -print)
-
-# Need to pick-up l3.c also. (Support both *.cpp and *.cc for C++).
-TEST_CPP_CODE_SRC := $(shell find $(L3_SRCDIR) $(TESTSDIR) -type f \( -name l3.c -o -name *.cpp -o -name *.cc \) -print)
-TEST_CC_CODE_SRC  := $(shell find $(L3_SRCDIR) $(TESTSDIR) -type f \( -name l3.c -o -name *.cc -o -name *.cc \) -print)
-
-# Uncomment this to see symbol, for debugging.
-# $(info $$TEST_C_CODE_SRC     = [${TEST_C_CODE_SRC} ])
-# $(info $$TEST_CPP_CODE_SRC   = [${TEST_CPP_CODE_SRC} ])
-
-# ----------------------------------------------------------------------------
-# Generate location / name of test-use-cases sample program binary, using
-# built-in substitution references. test-use-cases/ has sources like:
+# ##############################################################################
+# These symbols and lists generate the  dependencies for each test-use-cases/
+# sample program. We have a small collection of C, C++ (.cpp and .cc) sample
+# programs as our test "use-cases". In future, more multi-file programs will
+# be added to the test-bed, in which case, there will be more than one .o's
+# linked to create a test-use-cases example program.
 #
-#   test-use-cases/single-file-C-program/test-main.c
-#   test-use-cases/single-file-Cpp-program/test-main.cpp
+# The goal is to build each sample program as its own binary.
 #
-# Convert this list of *main.c to generate test-code program binary names,
-# using the src-dir's name as the program name.
+# To keep the enumeration easy to follow, the rules for building each binary
+# are listed separately.
 #
-# Generate, respectively:
-#
-#   build/release/bin/test-use-cases/single-file-C-program
-#   build/release/bin/test-use-cases/single-file-Cpp-program
-#
-TEST_C_CODE_BINS_TMP := $(TEST_C_CODE_SRC:$(TESTSDIR)/%-main.c=$(BINDIR)/$(TESTSDIR)/%-program)
-TEST_C_CODE_BINS=$(patsubst %program/, %program, $(dir $(TEST_C_CODE_BINS_TMP)) )
+# Every example program of the form bin/test-use-cases/<eg-prog> depends on
+# obj/test-use-cases/<eg-prog>/*.o -> *.c
+# ##############################################################################
 
-# Uncomment this to see symbol, for debugging.
-# $(info $$TEST_C_CODE_BINS     = [${TEST_C_CODE_BINS} ])
+# ---- -------------------------------------------------------------------------
+# ---- The rules for all stand-alone sample programs follow the same pattern
+# ---- as documented here for building the single-file-C-program.
+# ---- -------------------------------------------------------------------------
+# The top-level dir-name also becomes the name of the resulting binary.
+SINGLE_FILE_C_PROGRAM := $(TESTS)/single-file-C-program
 
-TEST_CPP_CODE_BINS_TMP := $(TEST_CPP_CODE_SRC:$(TESTSDIR)/%-main.cpp=$(BINDIR)/$(TESTSDIR)/%-program)
-TEST_CPP_CODE_BINS_TMP := $(TEST_CPP_CODE_BINS_TMP:$(TESTSDIR)/%-main.cc=$(BINDIR)/$(TESTSDIR)/%-program)
-TEST_CPP_CODE_BINS=$(patsubst %program/, %program, $(dir $(TEST_CPP_CODE_BINS_TMP)) )
+# Find all sources in that top-level dir. There may be more than one in future.
+SINGLE_FILE_C_PROGRAM_SRCS := $(wildcard $(SINGLE_FILE_C_PROGRAM)/*.c)
 
-TEST_CC_CODE_BINS_TMP := $(TEST_CPP_CODE_SRC:$(TESTSDIR)/%-main.cpp=$(BINDIR)/$(TESTSDIR)/%-program)
-TEST_CC_CODE_BINS_TMP := $(TEST_CPP_CODE_BINS_TMP:$(TESTSDIR)/%-main.cc=$(BINDIR)/$(TESTSDIR)/%-program)
-TEST_CC_CODE_BINS=$(patsubst %program/, %program, $(dir $(TEST_CPP_CODE_BINS_TMP)) )
+# Add L3 package's library file to list of sources to be compiled.
+SINGLE_FILE_C_PROGRAM_SRCS += $(L3_SRCS)
 
-# Uncomment this to see symbol, for debugging.
-# $(info $$TEST_CPP_CODE_BINS     = [${TEST_CPP_CODE_BINS} ])
+# Map the list of sources to resulting list-of-objects
+SINGLE_FILE_C_PROGRAM_OBJS := $(SINGLE_FILE_C_PROGRAM_SRCS:%.c=$(OBJDIR)/%.o)
 
-# Build symbol for single C & C++ unit-test binary that we run
-C_UNIT_TEST_BIN     := $(BUILD_ROOT)/$(BUILD_MODE)/bin/test-use-cases/single-file-C-program
-CPP_UNIT_TEST_BIN   := $(BUILD_ROOT)/$(BUILD_MODE)/bin/test-use-cases/single-file-Cpp-program
-CC_UNIT_TEST_BIN    := $(BUILD_ROOT)/$(BUILD_MODE)/bin/test-use-cases/single-file-CC-program
+# Define a dependency of this sample program's binary to its list of objects
+SINGLE_FILE_C_PROGRAM_BIN := $(BINDIR)/$(SINGLE_FILE_C_PROGRAM)
+$(SINGLE_FILE_C_PROGRAM_BIN): $(SINGLE_FILE_C_PROGRAM_OBJS)
+
+TEST_C_CODE_BINS := $(SINGLE_FILE_C_PROGRAM_BIN)
+
+ifeq "$(BUILD_VERBOSE)" "1"
+    $(info )
+    $(info ---- Debug ----)
+    $(info $$SINGLE_FILE_C_PROGRAM_SRCS = [${SINGLE_FILE_C_PROGRAM_SRCS} ])
+    $(info $$SINGLE_FILE_C_PROGRAM_BIN = [${SINGLE_FILE_C_PROGRAM_BIN} ])
+    $(info ... <- depends on ...)
+    $(info $$SINGLE_FILE_C_PROGRAM_OBJS = [${SINGLE_FILE_C_PROGRAM_OBJS} ])
+    $(info $$TEST_C_CODE_BINS = [${TEST_C_CODE_BINS} ])
+    $(info )
+endif
+
+# ---- -------------------------------------------------------------------------
+# ---- Definitions for stand-alone C++ .cpp sample program.
+# ---- -------------------------------------------------------------------------
+SINGLE_FILE_CPP_PROGRAM := $(TESTS)/single-file-Cpp-program
+
+# Find all sources in that top-level dir. There may be more than one in future.
+SINGLE_FILE_CPP_PROGRAM_SRCS := $(wildcard $(SINGLE_FILE_CPP_PROGRAM)/*.cpp)
+
+# Add L3 package's library file to list of sources to be compiled.
+SINGLE_FILE_CPP_PROGRAM_SRCS += $(L3_SRCS)
+
+# Map the list of sources to resulting list-of-objects
+SINGLE_FILE_CPP_PROGRAM_TMPS := $(SINGLE_FILE_CPP_PROGRAM_SRCS:%.cpp=$(OBJDIR)/%.o)
+SINGLE_FILE_CPP_PROGRAM_OBJS := $(SINGLE_FILE_CPP_PROGRAM_TMPS:%.c=$(OBJDIR)/%.o)
+
+# Define a dependency of this sample program's binary to its list of objects
+SINGLE_FILE_CPP_PROGRAM_BIN := $(BINDIR)/$(SINGLE_FILE_CPP_PROGRAM)
+$(SINGLE_FILE_CPP_PROGRAM_BIN): $(SINGLE_FILE_CPP_PROGRAM_OBJS)
+
+TEST_CPP_CODE_BINS := $(SINGLE_FILE_CPP_PROGRAM_BIN)
+
+ifeq "$(BUILD_VERBOSE)" "1"
+    $(info )
+    $(info ---- Debug ----)
+    $(info $$SINGLE_FILE_CPP_PROGRAM_SRCS = [${SINGLE_FILE_CPP_PROGRAM_SRCS} ])
+    $(info $$SINGLE_FILE_CPP_PROGRAM_BIN = [${SINGLE_FILE_CPP_PROGRAM_BIN} ])
+    $(info ... <- depends on ...)
+    $(info $$SINGLE_FILE_CPP_PROGRAM_OBJS = [${SINGLE_FILE_CPP_PROGRAM_OBJS} ])
+    $(info $$TEST_CPP_CODE_BINS = [${TEST_CPP_CODE_BINS} ])
+    $(info )
+endif
+
+# ---- -------------------------------------------------------------------------
+# ---- Definitions for stand-alone C++ .cc sample program.
+# ---- -------------------------------------------------------------------------
+SINGLE_FILE_CC_PROGRAM := $(TESTS)/single-file-CC-program
+
+# Find all sources in that top-level dir. There may be more than one in future.
+SINGLE_FILE_CC_PROGRAM_SRCS := $(wildcard $(SINGLE_FILE_CC_PROGRAM)/*.cc)
+
+# Add L3 package's library file to list of sources to be compiled.
+SINGLE_FILE_CC_PROGRAM_SRCS += $(L3_SRCS)
+
+# Map the list of sources to resulting list-of-objects
+SINGLE_FILE_CC_PROGRAM_TMPS := $(SINGLE_FILE_CC_PROGRAM_SRCS:%.cc=$(OBJDIR)/%.o)
+SINGLE_FILE_CC_PROGRAM_OBJS := $(SINGLE_FILE_CC_PROGRAM_TMPS:%.c=$(OBJDIR)/%.o)
+
+# Define a dependency of this sample program's binary to its list of objects
+SINGLE_FILE_CC_PROGRAM_BIN := $(BINDIR)/$(SINGLE_FILE_CC_PROGRAM)
+$(SINGLE_FILE_CC_PROGRAM_BIN): $(SINGLE_FILE_CC_PROGRAM_OBJS)
+
+TEST_CC_CODE_BINS := $(SINGLE_FILE_CC_PROGRAM_BIN)
+
+# ##############################################################################
+# Build symbols for single C & C++ unit-test binary that we run
+# ##############################################################################
+C_UNIT_TEST_BIN     := $(SINGLE_FILE_C_PROGRAM_BIN)
+CPP_UNIT_TEST_BIN   := $(SINGLE_FILE_CPP_PROGRAM_BIN)
+CC_UNIT_TEST_BIN    := $(SINGLE_FILE_CC_PROGRAM_BIN)
 
 # ###################################################################
 # Report build machine details and compiler version for troubleshooting,
@@ -189,23 +259,25 @@ CC_UNIT_TEST_BIN    := $(BUILD_ROOT)/$(BUILD_MODE)/bin/test-use-cases/single-fil
 clean:
 	uname -a
 	$(CC) --version
-	rm -rf $(BUILD_ROOT)
+	rm -rf $(BUILD_ROOT) $(TMPDIR)/$(L3PACKAGE)*$(TEST_DATA_SUFFIX)
 
 # Delete l3.o object as it needs to be recompiled for inclusion w/C++ sources
 clean-l3:
 	rm -rf $(OBJDIR)/src/l3.o
 
-# ###################################################################
-# Make build targets begin here
-# ###################################################################
+# ##############################################################################
+# Make build targets begin here. Make definitions below these targets synthesize
+# lists of targets and dependencies that will fulfill this target.
+# ##############################################################################
 
-all-c-tests:   $(TEST_C_CODE_BINS)
-all-cpp-tests: $(TEST_CPP_CODE_BINS)
-all-cc-tests:  $(TEST_CC_CODE_BINS)
+all-c-tests:    $(TEST_C_CODE_BINS)
+all-cpp-tests:  $(TEST_CPP_CODE_BINS)
+all-cc-tests:   $(TEST_CC_CODE_BINS)
+all: all-c-tests all-cpp-tests all-cc-tests
 
-# ###################################################################
+# ##############################################################################
 # CFLAGS, LDFLAGS, ETC
-# ###################################################################
+# ##############################################################################
 #
 
 # -----------------------------------------------------------------------------
@@ -214,15 +286,12 @@ all-cc-tests:  $(TEST_CC_CODE_BINS)
 INCLUDE = -I ./$(L3_INCDIR)
 INCLUDE += -I ./$(dir $<)
 
-# use += here, so that extra flags can be provided via the environment
-
-# CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
 CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
 
-# ###################################################################
+# ##############################################################################
 # Automatically create directories, based on
 # http://ismail.badawi.io/blog/2017/03/28/automatic-directory-creation-in-make/
-# ###################################################################
+# ##############################################################################
 #
 .SECONDEXPANSION:
 
@@ -239,45 +308,9 @@ $(BINDIR)/.:
 $(BINDIR)/%/.:
 	$(COMMAND) mkdir -p $@
 
-# ###################################################################
-# The dependencies for each test-use-cases/ sample program.
-# Every example program of the form bin/test-use-cases/<eg-prog> depends on
-# obj/test-use-cases/<eg-prog>/*.o -> *.c
-# There can be more than one .o's linked to create test-use-cases example
-# program.
-
-# ----
-SINGLE_FILE_C_PROGRAM_TESTSRC := $(shell find $(TESTSDIR)/single-file-C-program -type f -name *.c -print)
-
-SINGLE_FILE_C_PROGRAM_TESTSRC += $(L3_SRCS)
-
-SINGLE_FILE_C_PROGRAM_OBJS := $(SINGLE_FILE_C_PROGRAM_TESTSRC:%.c=$(OBJDIR)/%.o)
-
-$(BINDIR)/$(TESTSDIR)/single-file-C-program: $(SINGLE_FILE_C_PROGRAM_OBJS)
-
-# ----
-SINGLE_FILE_CPP_PROGRAM_TESTSRC := $(shell find $(TESTSDIR)/single-file-Cpp-program -type f -name *.cpp -print)
-SINGLE_FILE_CPP_PROGRAM_TESTSRC += $(L3_SRCS)
-
-# For C++ sources, have to go back and replace l3.c -> l3.o
-SINGLE_FILE_CPP_PROGRAM_OBJS := $(SINGLE_FILE_CPP_PROGRAM_TESTSRC:%.cpp=$(OBJDIR)/%.o)
-SINGLE_FILE_CPP_PROGRAM_OBJS := $(SINGLE_FILE_CPP_PROGRAM_OBJS:%.c=$(OBJDIR)/%.o)
-
-$(BINDIR)/$(TESTSDIR)/single-file-Cpp-program: $(SINGLE_FILE_CPP_PROGRAM_OBJS)
-
-# ----
-SINGLE_FILE_CC_PROGRAM_TESTSRC := $(shell find $(TESTSDIR)/single-file-CC-program -type f -name *.cc -print)
-SINGLE_FILE_CC_PROGRAM_TESTSRC += $(L3_SRCS)
-
-# For C++ sources, have to go back and replace l3.c -> l3.o
-SINGLE_FILE_CC_PROGRAM_OBJS := $(SINGLE_FILE_CC_PROGRAM_TESTSRC:%.cc=$(OBJDIR)/%.o)
-SINGLE_FILE_CC_PROGRAM_OBJS := $(SINGLE_FILE_CC_PROGRAM_OBJS:%.c=$(OBJDIR)/%.o)
-
-$(BINDIR)/$(TESTSDIR)/single-file-CC-program: $(SINGLE_FILE_CC_PROGRAM_OBJS)
-
-# ###################################################################
+# ##############################################################################
 # RECIPES:
-# ###################################################################
+# ##############################################################################
 #
 # For all-test-code, we need to use -I test-code/<subdir>
 # Dependencies for the main executables
@@ -321,8 +354,12 @@ $(BINDIR)/%: | $$(@D)/.
 
 .PHONY: install
 
+run-tests: run-c-tests run-cpp-tests run-cc-tests
+
 run-c-tests: all-c-tests
 	pylint l3_dump.py
+	@echo
+	@echo '---- Run C unit-tests: ----'
 	./$(C_UNIT_TEST_BIN)
 	@echo
 	./l3_dump.py
@@ -332,6 +369,8 @@ run-c-tests: all-c-tests
 	python3 l3_dump.py $(L3_C_SMALL_DATA) ./$(C_UNIT_TEST_BIN)
 
 run-cpp-tests: all-cpp-tests
+	@echo
+	@echo '---- Run C++ .cpp unit-tests: ----'
 	./$(CPP_UNIT_TEST_BIN)
 	@echo
 	./l3_dump.py
@@ -341,6 +380,8 @@ run-cpp-tests: all-cpp-tests
 	python3 l3_dump.py $(L3_CPP_SMALL_DATA) ./$(CPP_UNIT_TEST_BIN)
 
 run-cc-tests: all-cc-tests
+	@echo
+	@echo '---- Run Cpp *.cc unit-tests: ----'
 	./$(CC_UNIT_TEST_BIN)
 	@echo
 	./l3_dump.py
