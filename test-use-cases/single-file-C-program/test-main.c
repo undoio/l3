@@ -1,6 +1,6 @@
 /**
  * *****************************************************************************
- * \file test.c
+ * \file test.c -> test-main.c
  * \author Greg Law
  * \brief L3: Lightweight Logging Library Unit-test
  * \version 0.1
@@ -19,8 +19,8 @@
 #include "l3.h"
 
 // Useful constants
-#define L3_MILLION      (1000 * 1000)
-#define L3_NS_IN_SEC    (1000 * 1000 * 1000)
+#define L3_MILLION      ((uint32_t) (1000 * 1000))
+#define L3_NS_IN_SEC    ((uint32_t) (1000 * 1000 * 1000))
 
 // Convert timespec value to nanoseconds units.
 static uint64_t inline
@@ -32,7 +32,7 @@ timespec_to_ns(struct timespec *ts)
 int
 main(void)
 {
-    int e = l3_init("/tmp/l3_test");
+    int e = l3_init("/tmp/l3.c-test.dat");
     if (e) {
         abort();
     }
@@ -78,7 +78,7 @@ main(void)
     printf("%d Mil fast log msgs  : %" PRIu64 "ns/msg (avg)\n",
             nMil, (nsec1 - nsec0) / n);
 
-    e = l3_init("/tmp/l3_small_test");
+    e = l3_init("/tmp/l3.c-small-test.dat");
     if (e) {
         abort();
     }

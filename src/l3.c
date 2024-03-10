@@ -9,8 +9,7 @@
  * \copyright Copyright (c) 2023
  * *****************************************************************************
  */
-#define _GNU_SOURCE
-#include <dlfcn.h>
+#include <dlfcn.h> // Makefile supplies required -D_GNU_SOURCE flag.
 
 #include <errno.h>
 #include <unistd.h>
@@ -20,6 +19,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
+#include <threads.h>
 
 #include "l3.h"
 
@@ -37,14 +37,16 @@ struct l3_entry
 /**
  * L3 Log Structure definitions:
  */
-struct l3_log
+typedef struct l3_log
 {
     uint64_t idx;
     uint64_t fbase_addr;
     uint64_t pad0;
     uint64_t pad1;
     struct l3_entry slots[L3_MAX_SLOTS];
-} *l3_log;
+} L3_LOG;
+
+L3_LOG *l3_log;
 
 // ****************************************************************************
 int
@@ -66,7 +68,8 @@ l3_init(const char *path)
         }
     }
 
-    l3_log = mmap(NULL, sizeof(*l3_log), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    l3_log = (L3_LOG *) mmap(NULL, sizeof(*l3_log), PROT_READ|PROT_WRITE,
+                             MAP_SHARED, fd, 0);
     if (l3_log == MAP_FAILED) {
         return -1;
     }
@@ -85,10 +88,10 @@ l3_init(const char *path)
 }
 
 // ****************************************************************************
-pid_t
+static pid_t
 l3_mytid(void)
 {
-    static _Thread_local pid_t tid;
+    static thread_local pid_t tid;
     if (!tid) {
         tid = syscall(SYS_gettid);
     }

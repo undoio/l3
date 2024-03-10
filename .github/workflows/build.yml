@@ -1,0 +1,36 @@
+name: Build and test
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        build_type: [release, debug]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        submodules: recursive
+    - name: Install dependencies
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y pylint
+        set -x
+        echo " "
+        which pylint
+
+    - name: Makefile-help
+      run: make help
+    - name: Build-C-Samples
+      run: BUILD_MODE=${{ matrix.build_type }} make clean && BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ make all-c-tests
+    - name: Test-C-Samples
+      run: BUILD_MODE=${{ matrix.build_type }} make run-c-tests
+    - name: Build-Cpp-Samples
+      run: BUILD_MODE=${{ matrix.build_type }} make clean-l3 && BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make all-cpp-tests
+    - name: Test-Cpp-Samples
+      run: BUILD_MODE=${{ matrix.build_type }} make run-cpp-tests
+    - name: Build-CC-Samples
+      run: BUILD_MODE=${{ matrix.build_type }} make clean-l3 && BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make all-cc-tests
+    - name: Test-CC-Samples
+      run: BUILD_MODE=${{ matrix.build_type }} make run-cc-tests
