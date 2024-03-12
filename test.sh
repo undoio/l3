@@ -12,6 +12,17 @@ set -euo pipefail
 # Currently, this is a simplistic driver, just executing basic `make` commands
 # to ensure that all code / tools build correctly in release mode.
 
+echo " "
+echo "${Me}: Run build-and-test for core L3 integration with LOC package and tests"
+echo " "
+set -x
+make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1 make all-c-tests
+make run-c-tests
+
+set +x
+echo " "
+echo "${Me}: Run build-and-test for core L3 package and tests"
+echo " "
 set -x
 make clean && CC=gcc LD=g++ make all-c-tests
 make run-c-tests
