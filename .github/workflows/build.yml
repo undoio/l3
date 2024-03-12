@@ -20,6 +20,9 @@ jobs:
         echo " "
         which pylint
 
+        # To pull-in LineOfCode repo as sub-module
+        git submodule update
+
     - name: Makefile-help
       run: make help
 
