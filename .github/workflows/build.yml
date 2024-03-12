@@ -23,6 +23,9 @@ jobs:
         # To pull-in LineOfCode repo as sub-module
         git submodule update
 
+        echo " "
+        ls -aFlrt
+
     - name: Makefile-help
       run: make help
 
