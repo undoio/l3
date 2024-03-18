@@ -49,3 +49,9 @@ literal to which it points from the executable, to generate a human-readable
 dump of the log.
 
 The technique is simple, but effective. And fast.
+
+## Documentation
+
+See [Documentation](Docs/README.md) for preliminary documentation.
+
+See [Build](Docs/build.md) for instructions on building L3 from source.
