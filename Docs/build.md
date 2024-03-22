@@ -64,6 +64,38 @@ $ make run-cc-tests
 
 To see verbose build outputs use: `$ BUILD_VERBOSE=1 make ...`
 
+## Integration with the LOC package
+
+To integrate with the Line-of-Code (LOC) package, enable the `L3_LOC_ENABLED=1`
+environment variable.  Example `make` commands to build the library
+and to run the sample programs are shown below:
+
+```
+$ make clean
+
+$ L3_LOC_ENABLED=1 CC=gcc LD=g++ make all-c-tests
+
+$ L3_LOC_ENABLED=1 make run-c-tests
+```
+
+```
+$ make clean-l3
+
+$ L3_LOC_ENABLED=1 CC=g++ CXX=g++ LD=g++ make all-cpp-tests
+
+$ L3_LOC_ENABLED=1 make run-cpp-tests
+```
+
+```
+$ make clean-l3
+
+$ L3_LOC_ENABLED=1 CC=g++ CXX=g++ LD=g++ make all-cc-tests
+
+$ L3_LOC_ENABLED=1 make run-cc-tests
+
+```
+
+
 ## CI-Support
 
 The [build.yml](../.github/workflows/build.yml) exercises these
