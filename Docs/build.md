@@ -64,6 +64,71 @@ $ make run-cc-tests
 
 To see verbose build outputs use: `$ BUILD_VERBOSE=1 make ...`
 
+## Integration with the LOC package
+
+To integrate with the Line-of-Code (LOC) package, enable the `L3_LOC_ENABLED=1`
+environment variable.  Example `make` commands to build the library
+and to run the sample programs are shown below:
+
+```
+$ make clean
+
+$ L3_LOC_ENABLED=1 CC=gcc LD=g++ make all-c-tests
+
+$ L3_LOC_ENABLED=1 make run-c-tests
+```
+
+```
+$ make clean-l3
+
+$ L3_LOC_ENABLED=1 CC=g++ CXX=g++ LD=g++ make all-cpp-tests
+
+$ L3_LOC_ENABLED=1 make run-cpp-tests
+```
+
+```
+$ make clean-l3
+
+$ L3_LOC_ENABLED=1 CC=g++ CXX=g++ LD=g++ make all-cc-tests
+
+$ L3_LOC_ENABLED=1 make run-cc-tests
+
+```
+
+------
+
+The standalone `l3_dump.py` Python script, invoked under the `make` targets also
+recognizes the `L3_LOC_ENABLED=1` to unpack the encoded code-location ID to the
+file-name / line number.
+
+As an example, if you run this tool, by default, the LOC-ID value is reported by itself.
+See, e.g., `loc=65620` in the output below.
+
+```
+$ ./l3_dump.py /tmp/l3.cc-small-test.dat ./build/release/bin/test-use-cases/single-file-CC-program
+tid=10550 loc=65620 'Simple-log-msg-Args(1,2)' arg1=1 arg2=2
+tid=10550 loc=65621 'Potential memory overwrite (addr, size)' arg1=3735927486 arg2=1024
+tid=10550 loc=65622 'Invalid buffer handle (addr)' arg1=3203378125 arg2=0
+```
+
+To decode the code-location, run with the `L3_LOC_ENABLED=1` environment variable, as
+shown below. Under this environment-variable, the Python script requires a
+LOC-generated decoder binary named `<_program-name_>_loc`, to perform the decoding.
+
+In the example below, a decoder binary named
+`./build/release/bin/test-use-cases/single-file-CC-program_loc`
+is expected to be found in the `build/` area.
+
+See the decoded `single-file-CC-program/test-main.cc:84` in the output below:
+
+```
+$ L3_LOC_ENABLED=1 ./l3_dump.py /tmp/l3.cc-small-test.dat ./build/release/bin/test-use-cases/single-file-CC-program
+tid=10550 single-file-CC-program/test-main.cc:84  'Simple-log-msg-Args(1,2)' arg1=1 arg2=2
+tid=10550 single-file-CC-program/test-main.cc:85  'Potential memory overwrite (addr, size)' arg1=3735927486 arg2=1024
+tid=10550 single-file-CC-program/test-main.cc:86  'Invalid buffer handle (addr)' arg1=3203378125 arg2=0
+```
+
+
 ## CI-Support
 
 The [build.yml](../.github/workflows/build.yml) exercises these
