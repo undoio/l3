@@ -45,11 +45,35 @@ jobs:
     - name: Test-CC-Samples
       run: BUILD_MODE=${{ matrix.build_type }} make run-cc-tests
 
+    # -------------------------------------------------------------------------
     - name: Build-and-Run-C-Samples-with-LOC
-      run: BUILD_MODE=${{ matrix.build_type }} make clean && BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ L3_LOC_ENABLED=1 make run-c-tests
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} make clean
+        BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ L3_LOC_ENABLED=1 make run-c-tests
 
+    # Just re-run the tests on data that was generated with LOC-enabled, but
+    # without the required env-var. This should exercise code in the Python
+    # dump script to skip decoding LOC-ID values.
+    # You need to execute this run tests target immediately after doing the
+    # build; otherwise, other test execution commands will `clean` stuff
+    # which will cause this run to need re-builds.
+    - name: Run-C-Samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ make run-c-tests
+
+    # -------------------------------------------------------------------------
     - name: Build-and-Run-Cpp-Samples-with-LOC
-      run: BUILD_MODE=${{ matrix.build_type }} make clean-l3 && BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make run-cpp-tests
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} make clean-l3
+        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make run-cpp-tests
 
+    - name: Run-Cpp-Samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make run-cpp-tests
+
+    # -------------------------------------------------------------------------
     - name: Build-and-Run-CC-Samples-with-LOC
-      run: BUILD_MODE=${{ matrix.build_type }} make clean-l3 && BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make run-cc-tests
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} make clean-l3
+        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make run-cc-tests
+
+    - name: Run-CC-Samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make run-cc-tests

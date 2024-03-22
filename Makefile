@@ -52,9 +52,10 @@ help::
 	@echo ' L3_LOC_ENABLED=1'
 	@echo ' '
 	@echo 'To build L3-sample programs with LOC-enabled and run unit-tests:'
-	@echo ' make clean    && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests && make run-c-tests'
-	@echo ' make clean-l3 && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cpp-tests && make run-cpp-tests'
-	@echo ' make clean-l3 && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cc-tests && make run-cc-tests'
+	@echo ' make clean    && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests   && L3_LOC_ENABLED=1 make run-c-tests'
+	@echo ' make clean-l3 && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cpp-tests && L3_LOC_ENABLED=1 make run-cpp-tests'
+	@echo ' make clean-l3 && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cc-tests  && L3_LOC_ENABLED=1 make run-cc-tests'
+	@echo ' '
 
 #
 # Verbosity
@@ -317,29 +318,41 @@ all-c-tests:    $(SINGLE_FILE_C_PROGRAM_GENSRC) $(TEST_C_CODE_BINS)
 #   b) --gen-includes-dir  $(L3_INCDIR) - which will generate the loc*.h files in
 #           common include/ dir.
 #
-# We do the latter as src/l3.c also needs access to the LOC-definitions, which it
+# We do (b) as src/l3.c also needs access to the LOC-definitions, which it
 # can't get to if these LOC headers were generated in the sample-program's dir.
 #
-$(SINGLE_FILE_C_PROGRAM_GENSRC):
+# Additionally, generate using:
+#
+#   c) --loc-decoder-dir, to specify the dir where the LOC-decoder binary,
+#      specific to the sample program being built, should be generated.
+#      (The l3_dump.py will later look for this LOC-decoder binary
+#       to unpack the LOC-ID value.)
+#
+#      To make this work, specify a dependency of the generated-sources on the
+#      output bin/ dir that is specified for --loc-decoder-dir, below.
+#      The .SECONDEXPANSION specified later on will ensure that the output dir
+#      gets created -before- the LOC-Python generator script is invoked.
+#
+$(SINGLE_FILE_C_PROGRAM_GENSRC): | $(BINDIR)/$(TESTS)/.
 	@echo
 	@echo "Invoke LOC-generator triggered by: " $@
-	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --verbose
+	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(TESTS) --verbose
 	@echo
 
 all-cpp-tests:  $(SINGLE_FILE_CPP_PROGRAM_GENSRC) $(TEST_CPP_CODE_BINS)
 
-$(SINGLE_FILE_CPP_PROGRAM_GENSRC):
+$(SINGLE_FILE_CPP_PROGRAM_GENSRC): | $(BINDIR)/$(TESTS)/.
 	@echo
 	@echo "Invoke LOC-generator triggered by: " $@
-	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --verbose
+	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(TESTS) --verbose
 	@echo
 
 all-cc-tests:  $(SINGLE_FILE_CC_PROGRAM_GENSRC) $(TEST_CC_CODE_BINS)
 
-$(SINGLE_FILE_CC_PROGRAM_GENSRC):
+$(SINGLE_FILE_CC_PROGRAM_GENSRC): | $(BINDIR)/$(TESTS)/.
 	@echo
 	@echo "Invoke LOC-generator triggered by: " $@
-	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --verbose
+	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(TESTS) --verbose
 	@echo
 
 all: all-c-tests all-cpp-tests all-cc-tests
@@ -367,7 +380,6 @@ ifdef L3_LOC_ENABLED
     CFLAGS += -DLOC_FILE_INDEX=LOC_$(subst .,_,$(subst -,_,$(notdir $<)))
 endif
 CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
-
 
 # ##############################################################################
 # Automatically create directories, based on
