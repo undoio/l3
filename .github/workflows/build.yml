@@ -27,6 +27,9 @@ jobs:
     - name: Makefile-help
       run: make help
 
+    - name: Build-and-Run-Unit-tests
+      run: BUILD_MODE=${{ matrix.build_type }} make clean && BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ make run-unit-tests
+
     - name: Build-C-Samples
       run: BUILD_MODE=${{ matrix.build_type }} make clean && BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ make all-c-tests
 
