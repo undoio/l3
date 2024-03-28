@@ -48,18 +48,6 @@ main(void)
            "%d Mil simple/fast log msgs\n",
             nMil);
     unsigned long n;
-    for (n = 0; n < (nMil * L3_MILLION); n++) {
-        l3_log_simple("300-Mil Simple l3-log msgs", 0, 0);
-    }
-
-    if (clock_gettime(CLOCK_REALTIME, &ts1)) {
-        abort();
-    }
-    uint64_t nsec0 = timespec_to_ns(&ts0);
-    uint64_t nsec1 = timespec_to_ns(&ts1);
-
-    printf("%d Mil simple log msgs: %" PRIu64 "ns/msg (avg)\n",
-            nMil, (nsec1 - nsec0) / n);
 
     if (clock_gettime(CLOCK_REALTIME, &ts0)) {
         abort();
@@ -72,10 +60,23 @@ main(void)
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
         abort();
     }
+    uint64_t nsec0 = timespec_to_ns(&ts0);
+    uint64_t nsec1 = timespec_to_ns(&ts1);
+
+    printf("%d Mil fast log msgs  : %" PRIu64 "ns/msg (avg)\n",
+            nMil, (nsec1 - nsec0) / n);
+
+    for (n = 0; n < (nMil * L3_MILLION); n++) {
+        l3_log_simple("300-Mil Simple l3-log msgs", n, 0);
+    }
+
+    if (clock_gettime(CLOCK_REALTIME, &ts1)) {
+        abort();
+    }
     nsec0 = timespec_to_ns(&ts0);
     nsec1 = timespec_to_ns(&ts1);
 
-    printf("%d Mil fast log msgs  : %" PRIu64 "ns/msg (avg)\n",
+    printf("%d Mil simple log msgs: %" PRIu64 "ns/msg (avg)\n",
             nMil, (nsec1 - nsec0) / n);
 
     e = l3_init("/tmp/l3.c-small-test.dat");
