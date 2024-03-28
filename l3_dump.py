@@ -42,12 +42,15 @@ with open(sys.argv[1], 'rb') as file:
     idx, loc, fibase, _, _ = struct.unpack('<iiQQQ', data)
     # print(f"{idx=} {fibase=:x}")
 
+    # pylint: disable-next=invalid-name
+    nentries = 0
     # Keep reading chunks of log-entries from file ...
     while True:
         row = file.read(L3_ENTRY_SZ)
+        len_row = len(row)
 
         # Deal with eof
-        if len(row) == 0:
+        if not row or len_row == 0 or len_row < L3_ENTRY_SZ:
             break
 
         tid, loc, ptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
@@ -61,3 +64,7 @@ with open(sys.argv[1], 'rb') as file:
             print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
         else:
             print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
+
+        nentries += 1
+
+print(f"Unpacked {nentries=} Log-entries.")
