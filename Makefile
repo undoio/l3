@@ -299,27 +299,28 @@ CC_UNIT_TEST_BIN    := $(SINGLE_FILE_CC_PROGRAM_BIN)
 # Generate symbols and dependencies to build unit-test sources
 # ##############################################################################
 
-# All the stand-alone unit-tests depend on the core L3 file
-#
-# $(UNIT_TESTBINS): $(OBJDIR)/$(SRCDIR)/l3.o
-
 UNIT_TESTBIN_SRCS := $(filter %-test.c, $(UNIT_TESTSRC))
 UNIT_TESTBINS    := $(UNIT_TESTBIN_SRCS:$(TESTS_DIR)/%-test.c=$(BINDIR)/%-test)
 $(info $$UNIT_TESTBINS = [${UNIT_TESTBINS} ])
 
+# All the stand-alone unit-tests depend on the core L3 file, so add those objects, too.
 # Given <x>, this macro generates a line of Makefile of the form
 # bin/unit/<x>: obj/unit/<x>.o
-# define unit_test_self_dependency =
-# $(1): $(patsubst $(BINDIR)/$(UNIT_DIR)/%,$(OBJDIR)/$(UNITTESTS_DIR)/%.o, $(1)) \
-#       $(L3_OBJS)
-# endef
+define unit_test_self_dependency =
+$(1): $(patsubst $(BINDIR)/$(UNIT_DIR)/%,$(OBJDIR)/$(UNITTESTS_DIR)/%.o, $(1)) \
+        $(L3_OBJS)
+endef
 
+# ---------------------------------------------------------------------------------
+# This invocation will generate makefile-snippets specifying the dependency of
+# each unit-test binary on its sources and required objects. This way, we do not
+# have to enumerate dependency for each unit-test binary built, such as:
+#
+# $(BINDIR)/$(UNIT_DIR)/l3_dump.py-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3_dump.py-test.o \
+#                                        $(OBJDIR)/$(SRCDIR)/l3.o
 # See https://www.gnu.org/software/make/manual/html_node/Eval-Function.html
-# $(foreach unit,$(UNIT_TESTBINS),$(eval $(call unit_test_self_dependency,$(unit))))
-
-$(BINDIR)/$(UNIT_DIR)/l3_dump.py-test: $(OBJDIR)/$(SRCDIR)/l3.o                  \
-                                      $(OBJDIR)/$(UNITTESTS_DIR)/l3_dump.py-test.o
-
+# ---------------------------------------------------------------------------------
+$(foreach unit,$(UNIT_TESTBINS),$(eval $(call unit_test_self_dependency,$(unit))))
 
 # ###################################################################
 # Report build machine details and compiler version for troubleshooting,

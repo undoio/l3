@@ -19,13 +19,14 @@
 #include "l3.h"
 
 int
-main()
+main(const int argc, const char **argv)
 {
-    int e = l3_init("/tmp/l3.c-small-test.dat");
+    int e = l3_init("/tmp/l3.c-small-unit-test.dat");
     if (e) {
         abort();
     }
     l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);
+    l3_log_simple("Simple-log-msg-Args(3,4)", 3, 4);
     l3_log_simple("Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
     l3_log_simple("Invalid buffer handle (addr)", 0xbeefabcd, 0);
 

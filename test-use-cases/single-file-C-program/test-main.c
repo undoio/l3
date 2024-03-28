@@ -49,7 +49,7 @@ main(void)
             nMil);
     unsigned long n;
     for (n = 0; n < (nMil * L3_MILLION); n++) {
-        l3_log_simple("300-Mil Simple l3-log msgs", 0, 0);
+        l3_log_simple("300-Mil Simple l3-log msgs", n, 0);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
