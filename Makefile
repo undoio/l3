@@ -97,7 +97,7 @@ SRCDIR      := src
 INCDIR      := include
 L3_SRCDIR   := $(SRCDIR)
 L3_INCDIR   := $(INCDIR)
-TESTS       := test-use-cases
+USE_CASES   := use-cases
 
 # Symbols needed to integrate with LineOfCode (LOC) package
 LOCPACKAGE      := LineOfCode/loc
@@ -159,19 +159,19 @@ L3_CC_SMALL_DATA    := $(TMPDIR)/$(L3PACKAGE).cc-small-$(TEST_DATA_SUFFIX)
 # ###################################################################
 
 # ##############################################################################
-# These symbols and lists generate the  dependencies for each test-use-cases/
+# These symbols and lists generate the  dependencies for each use-cases/
 # sample program. We have a small collection of C, C++ (.cpp and .cc) sample
 # programs as our test "use-cases". In future, more multi-file programs will
 # be added to the test-bed, in which case, there will be more than one .o's
-# linked to create a test-use-cases example program.
+# linked to create a use-cases example program.
 #
 # The goal is to build each sample program as its own binary.
 #
 # To keep the enumeration easy to follow, the rules for building each binary
 # are listed separately.
 #
-# Every example program of the form bin/test-use-cases/<eg-prog> depends on
-# obj/test-use-cases/<eg-prog>/*.o -> *.c
+# Every example program of the form bin/use-cases/<eg-prog> depends on
+# obj/use-cases/<eg-prog>/*.o -> *.c
 # ##############################################################################
 
 # ---- -------------------------------------------------------------------------
@@ -179,7 +179,7 @@ L3_CC_SMALL_DATA    := $(TMPDIR)/$(L3PACKAGE).cc-small-$(TEST_DATA_SUFFIX)
 # ---- as documented here for building the single-file-C-program.
 # ---- -------------------------------------------------------------------------
 # The top-level dir-name also becomes the name of the resulting binary.
-SINGLE_FILE_C_PROGRAM := $(TESTS)/single-file-C-program
+SINGLE_FILE_C_PROGRAM := $(USE_CASES)/single-file-C-program
 
 # Find all sources in that top-level dir. There may be more than one in future.
 SINGLE_FILE_C_PROGRAM_SRCS := $(wildcard $(SINGLE_FILE_C_PROGRAM)/*.c)
@@ -216,7 +216,7 @@ endif
 # ---- -------------------------------------------------------------------------
 # ---- Definitions for stand-alone C++ .cpp sample program.
 # ---- -------------------------------------------------------------------------
-SINGLE_FILE_CPP_PROGRAM := $(TESTS)/single-file-Cpp-program
+SINGLE_FILE_CPP_PROGRAM := $(USE_CASES)/single-file-Cpp-program
 
 # Find all sources in that top-level dir. There may be more than one in future.
 SINGLE_FILE_CPP_PROGRAM_SRCS := $(wildcard $(SINGLE_FILE_CPP_PROGRAM)/*.cpp)
@@ -254,7 +254,7 @@ endif
 # ---- -------------------------------------------------------------------------
 # ---- Definitions for stand-alone C++ .cc sample program.
 # ---- -------------------------------------------------------------------------
-SINGLE_FILE_CC_PROGRAM := $(TESTS)/single-file-CC-program
+SINGLE_FILE_CC_PROGRAM := $(USE_CASES)/single-file-CC-program
 
 # Find all sources in that top-level dir. There may be more than one in future.
 SINGLE_FILE_CC_PROGRAM_SRCS := $(wildcard $(SINGLE_FILE_CC_PROGRAM)/*.cc)
@@ -294,7 +294,7 @@ clean:
 	uname -a
 	$(CC) --version
 	rm -rf $(BUILD_ROOT) $(TMPDIR)/$(L3PACKAGE)*$(TEST_DATA_SUFFIX)
-	rm -rf $(L3_INCDIR)/loc*.h $(shell find $(TESTS) \( -name loc*.h -or -name loc_file*.c \) -print)
+	rm -rf $(L3_INCDIR)/loc*.h $(shell find $(USE_CASES) \( -name loc*.h -or -name loc_file*.c \) -print)
 
 # Delete l3.o object as it needs to be recompiled for inclusion w/C++ sources
 clean-l3:
@@ -333,26 +333,26 @@ all-c-tests:    $(SINGLE_FILE_C_PROGRAM_GENSRC) $(TEST_C_CODE_BINS)
 #      The .SECONDEXPANSION specified later on will ensure that the output dir
 #      gets created -before- the LOC-Python generator script is invoked.
 #
-$(SINGLE_FILE_C_PROGRAM_GENSRC): | $(BINDIR)/$(TESTS)/.
+$(SINGLE_FILE_C_PROGRAM_GENSRC): | $(BINDIR)/$(USE_CASES)/.
 	@echo
 	@echo "Invoke LOC-generator triggered by: " $@
-	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(TESTS) --verbose
+	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(USE_CASES) --verbose
 	@echo
 
 all-cpp-tests:  $(SINGLE_FILE_CPP_PROGRAM_GENSRC) $(TEST_CPP_CODE_BINS)
 
-$(SINGLE_FILE_CPP_PROGRAM_GENSRC): | $(BINDIR)/$(TESTS)/.
+$(SINGLE_FILE_CPP_PROGRAM_GENSRC): | $(BINDIR)/$(USE_CASES)/.
 	@echo
 	@echo "Invoke LOC-generator triggered by: " $@
-	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(TESTS) --verbose
+	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(USE_CASES) --verbose
 	@echo
 
 all-cc-tests:  $(SINGLE_FILE_CC_PROGRAM_GENSRC) $(TEST_CC_CODE_BINS)
 
-$(SINGLE_FILE_CC_PROGRAM_GENSRC): | $(BINDIR)/$(TESTS)/.
+$(SINGLE_FILE_CC_PROGRAM_GENSRC): | $(BINDIR)/$(USE_CASES)/.
 	@echo
 	@echo "Invoke LOC-generator triggered by: " $@
-	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(TESTS) --verbose
+	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(USE_CASES) --verbose
 	@echo
 
 all: all-c-tests all-cpp-tests all-cc-tests
@@ -485,9 +485,9 @@ run-cc-tests: all-cc-tests
 
 # ###################################################################
 #
-test-old: test-use-cases/single-file-C-program/test-main.c src/l3.c l3.S include/l3.h
+test-old: use-cases/single-file-C-program/test-main.c src/l3.c l3.S include/l3.h
 	pylint l3_dump.py
-	g++ -I./include -Wall -o test -g -O3 -D_GNU_SOURCE test-use-cases/single-file-C-program/test-main.c src/l3.c l3.S
+	g++ -I./include -Wall -o test -g -O3 -D_GNU_SOURCE use-cases/single-file-C-program/test-main.c src/l3.c l3.S
 	./test
 	@echo
 	./l3_dump.py
