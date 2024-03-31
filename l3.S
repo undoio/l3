@@ -1,8 +1,7 @@
-.globl l3_log_fast // l3_log_fast(msg)
+.globl l3__log_fast // l3__log_fast(msg)
 .extern l3_log
-.extern mytid
 
-l3_log_fast:
+l3__log_fast:
     mov %fs:0xfffffffffffffffc,%eax
     test %rax,%rax
     jnz .gotid

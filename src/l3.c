@@ -73,7 +73,7 @@ typedef struct l3_log
     L3_ENTRY slots[L3_MAX_SLOTS];
 } L3_LOG;
 
-L3_LOG *l3_log;
+L3_LOG *l3_log; // Also referenced in l3.S for fast-logging.
 
 // ****************************************************************************
 int

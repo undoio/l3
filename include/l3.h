@@ -77,6 +77,15 @@ void l3__log_simple(const uint32_t loc, const char *msg,
 #endif  // L3_LOC_ENABLED
 
 /**
+ * \brief Caller-macro to invoke L3 Fast logging.
+ */
+#ifdef L3_LOC_ENABLED
+#define l3_log_fast(msg) l3__log_fast(__LOC__, (msg))
+#else   // L3_LOC_ENABLED
+#define l3_log_fast(msg) l3__log_fast((msg), L3_ARG_UNUSED)
+#endif  //
+
+/**
  * \brief Log a message in as fast a way as possible.
  *
  * Like l3_log_simple() but does not take arguments. Only available on x86-64.
@@ -84,4 +93,9 @@ void l3__log_simple(const uint32_t loc, const char *msg,
 #ifdef __cplusplus
 extern "C"
 #endif
-void l3_log_fast(const char *msg);
+
+#ifdef L3_LOC_ENABLED
+void l3__log_fast(const char *msg);
+#else
+void l3__log_fast(const char *msg, uint32_t loc);
+#endif  // L3_LOC_ENABLED
