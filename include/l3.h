@@ -80,7 +80,7 @@ void l3__log_simple(const uint32_t loc, const char *msg,
  * \brief Caller-macro to invoke L3 Fast logging.
  */
 #ifdef L3_LOC_ENABLED
-#define l3_log_fast(msg) l3__log_fast(__LOC__, (msg))
+#define l3_log_fast(msg) l3__log_fast((msg), __LOC__)
 #else   // L3_LOC_ENABLED
 #define l3_log_fast(msg) l3__log_fast((msg), L3_ARG_UNUSED)
 #endif  //
@@ -95,7 +95,7 @@ extern "C"
 #endif
 
 #ifdef L3_LOC_ENABLED
-void l3__log_fast(const char *msg);
+void l3__log_fast(const char *msg, loc_t loc);
 #else
 void l3__log_fast(const char *msg, uint32_t loc);
 #endif  // L3_LOC_ENABLED
