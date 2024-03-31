@@ -73,7 +73,7 @@ typedef struct l3_log
     L3_ENTRY slots[L3_MAX_SLOTS];
 } L3_LOG;
 
-L3_LOG *l3_log;
+L3_LOG *l3_log; // Also referenced in l3.S for fast-logging.
 
 // ****************************************************************************
 int
@@ -130,7 +130,7 @@ l3_mytid(void)
 
 // ****************************************************************************
 void
-l3__log_simple(uint32_t loc, const char *msg, const uint64_t arg1, const uint64_t arg2)
+l3__log_simple(const uint32_t loc, const char *msg, const uint64_t arg1, const uint64_t arg2)
 {
     int idx = __sync_fetch_and_add(&l3_log->idx, 1) % L3_MAX_SLOTS;
     l3_log->slots[idx].tid = l3_mytid();
