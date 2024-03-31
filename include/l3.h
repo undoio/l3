@@ -38,7 +38,7 @@
 
 /**
  * \brief Initialise the logging library.
- * 
+ *
  * \param path [opt] A filename to back the map where the log will be stored.
  *
  * \return 0 on success, or -1 on failure with \c errno set to something appropriate.
@@ -69,12 +69,21 @@ int l3_init(const char *path);
  * the names of the log file and the executable.
  */
 #ifdef L3_LOC_ENABLED
-void l3__log_simple(loc_t loc, const char *msg,
+void l3__log_simple(const loc_t loc, const char *msg,
                     const uint64_t arg1, const uint64_t arg2);
 #else
 void l3__log_simple(const uint32_t loc, const char *msg,
                     const uint64_t arg1, const uint64_t arg2);
 #endif  // L3_LOC_ENABLED
+
+/**
+ * \brief Caller-macro to invoke L3 Fast logging.
+ */
+#ifdef L3_LOC_ENABLED
+#define l3_log_fast(msg, arg1, arg2) l3__log_fast(__LOC__, (msg), (arg1), (arg2))
+#else   // L3_LOC_ENABLED
+#define l3_log_fast(msg, arg1, arg2) l3__log_fast(L3_ARG_UNUSED, (msg), (arg1), (arg2))
+#endif  //
 
 /**
  * \brief Log a message in as fast a way as possible.
@@ -84,4 +93,11 @@ void l3__log_simple(const uint32_t loc, const char *msg,
 #ifdef __cplusplus
 extern "C"
 #endif
-void l3_log_fast(const char *msg);
+
+#ifdef L3_LOC_ENABLED
+void l3__log_fast(const loc_t loc, const char *msg,
+                  const uint64_t arg1, const uint64_t arg2);
+#else
+void l3__log_fast(const uint32_t loc, const char *msg,
+                  const uint64_t arg1, const uint64_t arg2);
+#endif  // L3_LOC_ENABLED

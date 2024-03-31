@@ -173,7 +173,8 @@ L3_CC_DATA          := $(TMPDIR)/$(L3PACKAGE).cc-$(TEST_DATA_SUFFIX)
 L3_CC_SMALL_DATA    := $(TMPDIR)/$(L3PACKAGE).cc-small-$(TEST_DATA_SUFFIX)
 
 # Name the data file created by unit-test program: l3.c-small-unit-test.dat
-L3_C_UNIT_TEST_DATA := $(TMPDIR)/$(L3PACKAGE).c-small-unit-$(TEST_DATA_SUFFIX)
+L3_C_UNIT_SLOW_LOG_TEST_DATA := $(TMPDIR)/$(L3PACKAGE).c-small-unit-$(TEST_DATA_SUFFIX)
+L3_C_UNIT_FAST_LOG_TEST_DATA := $(TMPDIR)/$(L3PACKAGE).c-fast-unit-$(TEST_DATA_SUFFIX)
 
 # ###################################################################
 # ---- Symbols to build test-code sample programs
@@ -435,6 +436,7 @@ endif
 ifdef L3_LOC_ENABLED
     CFLAGS += -DL3_LOC_ENABLED
     CFLAGS += -DLOC_FILE_INDEX=LOC_$(subst .,_,$(subst -,_,$(notdir $<)))
+    LDFLAGS += -DL3_LOC_ENABLED
 endif
 CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
 
@@ -545,7 +547,9 @@ run-unit-tests: all-unit-tests
 	@echo '---- Run L3 unit-tests: ----'
 	./$(L3_C_UNIT_TEST_BIN)
 	@echo
-	python3 l3_dump.py $(L3_C_UNIT_TEST_DATA) ./$(L3_C_UNIT_TEST_BIN)
+	python3 l3_dump.py $(L3_C_UNIT_SLOW_LOG_TEST_DATA) ./$(L3_C_UNIT_TEST_BIN)
+	@echo
+	python3 l3_dump.py $(L3_C_UNIT_FAST_LOG_TEST_DATA) ./$(L3_C_UNIT_TEST_BIN)
 
 # ###################################################################
 #
