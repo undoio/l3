@@ -39,7 +39,7 @@
 /**
  * L3 Log entry Structure definitions:
  */
-struct l3_entry
+typedef struct l3_entry
 {
     pid_t       tid;
 #ifdef L3_LOC_ENABLED
@@ -50,7 +50,7 @@ struct l3_entry
     const char *msg;
     uint64_t    arg1;
     uint64_t    arg2;
-};
+} L3_ENTRY;
 
 /**
  * Cross-check LOC's data structures. We need this to be true to ensure
@@ -70,7 +70,7 @@ typedef struct l3_log
     uint64_t fbase_addr;
     uint64_t pad0;
     uint64_t pad1;
-    struct l3_entry slots[L3_MAX_SLOTS];
+    L3_ENTRY slots[L3_MAX_SLOTS];
 } L3_LOG;
 
 L3_LOG *l3_log;
