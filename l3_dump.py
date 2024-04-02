@@ -10,6 +10,12 @@ import struct
 import subprocess
 import os
 
+# ##############################################################################
+# Constants that tie the unpacking logic to L3's core structure's layout
+# ##############################################################################
+L3_LOG_HEADER_SZ = 32  # bytes; offsetof(L3_LOG, slots)
+L3_ENTRY_SZ = 32       # bytes; sizeof(L3_ENTRY)
+
 if len(sys.argv) != 3:
     print(f"Usage: {sys.argv[0]} <logfile> <program-binary>")
     print(" ")
@@ -79,13 +85,29 @@ for line in stdout.split('\n')[2:]:
         strings[offs] = s
 
 with open(sys.argv[1], 'rb') as file:
-    data = file.read(32)
+    # Unpack the 1st n-bytes as an L3_LOG{} struct to get a hold
+    # of the fbase-address stashed by the l3_init() call.
+    data = file.read(L3_LOG_HEADER_SZ)
     idx, loc, fibase, _, _ = struct.unpack('<iiQQQ', data)
     # print(f"{idx=} {fibase=:x}")
 
-    for _ in range(3):
-        row = file.read(32)
+    # pylint: disable-next=invalid-name
+    nentries = 0
+    # Keep reading chunks of log-entries from file ...
+    while True:
+        row = file.read(L3_ENTRY_SZ)
+        len_row = len(row)
+
+        # Deal with eof
+        if not row or len_row == 0 or len_row < L3_ENTRY_SZ:
+            break
+
         tid, loc, ptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
+
+        # If no entry was logged, ptr to message's string is expected to be NULL
+        if ptr == 0:
+            break
+
         offs = ptr - fibase - rodata_offs
 
         if loc == 0:
@@ -95,3 +117,7 @@ with open(sys.argv[1], 'rb') as file:
         elif DECODE_LOC_ID == 1:
             UNPACK_LOC = exec_binary([LOC_DECODER, '--brief', str(loc)])
             print(f"{tid=} {UNPACK_LOC} '{strings[offs]}' {arg1=} {arg2=}")
+
+        nentries += 1
+
+print(f"Unpacked {nentries=} log-entries.")
