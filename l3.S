@@ -28,7 +28,7 @@ l3__log_fast:
 #endif
     mov %rdi, (%r8)  // msg
     add $8, %r8
-    movq $0, (%r8)  // arg1
+    movq %rdx, (%r8)  // arg1
     add $8, %r8
-    movq $0, (%r8)  // arg2
+    movq %rcx, (%r8)  // arg2
     ret
