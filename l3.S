@@ -18,8 +18,14 @@ l3__log_fast:
     add $32, %r8
     shl $5, %r9
     add %r9, %r8
-    mov %rax, (%r8)  // tid
+    mov %eax, (%r8)  // tid
+#ifdef L3_LOC_ENABLED
+    add $4, %r8
+    mov %esi, (%r8)  // loc
+    add $4, %r8
+#else
     add $8, %r8
+#endif
     mov %rdi, (%r8)  // msg
     add $8, %r8
     movq $0, (%r8)  // arg1
