@@ -9,20 +9,20 @@ l3__log_fast:
     syscall
     mov %eax, %fs:0xfffffffffffffffc
 .gotid:
-    mov l3_log(%rip), %rcx      // l3_log -> rcx
+    mov l3_log(%rip), %r8      // l3_log -> r8
 
-    mov  $1, %edx
-    lock xadd %rdx, (%rcx)
-    and $0x3fff, %edx           // idx -> rdx
+    mov  $1, %r9
+    lock xadd %r9, (%r8)
+    and $0x3fff, %r9           // idx -> r9
 
-    add $32, %rcx
-    shl $5, %rdx
-    add %rdx, %rcx
-    mov %rax, (%rcx)  // tid
-    add $8, %rcx
-    mov %rdi, (%rcx)  // msg
-    add $8, %rcx
-    movq $0, (%rcx)  // arg1
-    add $8, %rcx
-    movq $0, (%rcx)  // arg1
+    add $32, %r8
+    shl $5, %r9
+    add %r9, %r8
+    mov %rax, (%r8)  // tid
+    add $8, %r8
+    mov %rdi, (%r8)  // msg
+    add $8, %r8
+    movq $0, (%r8)  // arg1
+    add $8, %r8
+    movq $0, (%r8)  // arg2
     ret
