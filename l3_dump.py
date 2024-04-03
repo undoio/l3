@@ -100,14 +100,12 @@ with open(sys.argv[1], 'rb') as file:
 
         # Deal with eof
         if not row or len_row == 0 or len_row < L3_ENTRY_SZ:
-            print("Eof ..")
             break
 
         tid, loc, ptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
 
         # If no entry was logged, ptr to message's string is expected to be NULL
         if ptr == 0:
-            print("ptr == 0")
             break
 
         offs = ptr - fibase - rodata_offs
