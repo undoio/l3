@@ -91,8 +91,9 @@ with open(sys.argv[1], 'rb') as file:
     idx, loc, fibase, _, _ = struct.unpack('<iiQQQ', data)
     # print(f"{idx=} {fibase=:x}")
 
-    # pylint: disable-next=invalid-name
+    # pylint: disable=invalid-name
     nentries = 0
+    loc_prev = 0
     # Keep reading chunks of log-entries from file ...
     while True:
         row = file.read(L3_ENTRY_SZ)
@@ -110,12 +111,24 @@ with open(sys.argv[1], 'rb') as file:
 
         offs = ptr - fibase - rodata_offs
 
+        # No location-ID will be recorded in log-files if L3_LOC_ENABLED is OFF.
         if loc == 0:
             print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
         elif DECODE_LOC_ID == 0:
             print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
         elif DECODE_LOC_ID == 1:
-            UNPACK_LOC = exec_binary([LOC_DECODER, '--brief', str(loc)])
+            # ----------------------------------------------------------------
+            # Minor optimization to speed-up unpacking of L3 log-dumps from
+            # tests that log millions of log-entries from the same line-of-code.
+            # If we found a new location-ID, unpack it.
+            if loc != loc_prev:
+                UNPACK_LOC = exec_binary([LOC_DECODER, '--brief', str(loc)])
+
+                # Save-off location-ID and unpacked string for next loop
+                unpack_loc_prev = UNPACK_LOC
+                loc_prev = loc
+            else:
+                UNPACK_LOC = unpack_loc_prev
             print(f"{tid=} {UNPACK_LOC} '{strings[offs]}' {arg1=} {arg2=}")
 
         nentries += 1
