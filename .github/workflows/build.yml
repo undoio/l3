@@ -24,87 +24,100 @@ jobs:
         ls -aFlrt
         echo " "
 
-    - name: Makefile-help
-      run: make help
+    #! -------------------------------------------------------------------------
+    - name: test-test-sh-usages
+      run: |
+        ./test.sh --help
+        ./test.sh --list
 
-    - name: Build-and-Run-Unit-tests
-      run: BUILD_MODE=${{ matrix.build_type }} make clean && BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ make run-unit-tests
+    #! -------------------------------------------------------------------------
+    - name: test-code-formatting
+      run: |
+        ./test.sh test-pylint-check
+        shellcheck ./test.sh
 
-    - name: Build-C-Samples
-      run: BUILD_MODE=${{ matrix.build_type }} make clean && BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ make all-c-tests
+    #! -------------------------------------------------------------------------
+    - name: test-make-help
+      run: ./test.sh test-make-help
 
-    - name: Test-C-Samples
-      run: BUILD_MODE=${{ matrix.build_type }} make run-c-tests
+    #! -------------------------------------------------------------------------
+    - name: test-build-and-run-unit-tests
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-unit-tests
 
-    - name: Build-Cpp-Samples
-      run: BUILD_MODE=${{ matrix.build_type }} make clean-l3 && BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make all-cpp-tests
+    - name: test-build-C-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-C-samples
 
-    - name: Test-Cpp-Samples
-      run: BUILD_MODE=${{ matrix.build_type }} make run-cpp-tests
+    - name: test-run-C-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-C-samples
 
-    - name: Build-CC-Samples
-      run: BUILD_MODE=${{ matrix.build_type }} make clean-l3 && BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make all-cc-tests
+    - name: test-build-Cpp-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-Cpp-samples
 
-    - name: Test-CC-Samples
-      run: BUILD_MODE=${{ matrix.build_type }} make run-cc-tests
+    - name: test-run-Cpp-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-Cpp-samples
+
+    - name: test-build-Cc-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-Cc-samples
+
+    - name: test-run-Cc-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-Cc-samples
 
     # -------------------------------------------------------------------------
-    - name: Build-and-Run-C-Samples-with-LOC
+    - name: test-build-and-run-C-samples-with-LOC
       run: |
-        BUILD_MODE=${{ matrix.build_type }} make clean
-        BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ L3_LOC_ENABLED=1 make run-c-tests
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-C-samples-with-LOC
 
-    # Just re-run the tests on data that was generated with LOC-enabled, but
-    # without the required env-var. This should exercise code in the Python
-    # dump script to skip decoding LOC-ID values.
-    # You need to execute this run tests target immediately after doing the
-    # build; otherwise, other test execution commands will `clean` stuff
-    # which will cause this run to need re-builds.
-    - name: Run-C-Samples-with-LOC-wo-L3_LOC_ENABLED
-      run: BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ make run-c-tests
+    - name: test-run-C-samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-C-samples-with-LOC-wo-L3_LOC_ENABLED
+
+    # NOTE: This test should occur immediately after previous one.
+    - name: test-l3_dump_py-missing-loc_decoder
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-l3_dump_py-missing-loc_decoder
 
     # -------------------------------------------------------------------------
-    - name: Build-and-Run-Cpp-Samples-with-LOC
+    - name: test-build-and-run-Cpp-samples-with-LOC
       run: |
-        BUILD_MODE=${{ matrix.build_type }} make clean-l3
-        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make run-cpp-tests
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cpp-samples-with-LOC
 
-    - name: Run-Cpp-Samples-with-LOC-wo-L3_LOC_ENABLED
-      run: BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make run-cpp-tests
+    - name: test-run-Cpp-samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-Cpp-samples-with-LOC-wo-L3_LOC_ENABLED
 
     # -------------------------------------------------------------------------
-    - name: Build-and-Run-CC-Samples-with-LOC
+    - name: test-build-and-run-Cc-samples-with-LOC
       run: |
-        BUILD_MODE=${{ matrix.build_type }} make clean-l3
-        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make run-cc-tests
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cc-samples-with-LOC
 
-    - name: Run-CC-Samples-with-LOC-wo-L3_LOC_ENABLED
-      run: BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make run-cc-tests
+    - name: test-run-Cc-samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-Cc-samples-with-LOC-wo-L3_LOC_ENABLED
 
     # -------------------------------------------------------------------------
-    - name: Build-and-Run-LOC-unit-test
+    - name: test-build-and-run-LOC-unit-test
       run: |
-        BUILD_MODE=${{ matrix.build_type }} make clean
-        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-loc-tests
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-LOC-unit-test
 
     # -------------------------------------------------------------------------
     # For easier debugging: run following LOC-ELF build-and-test jobs with
     # verbose Make outputs: BUILD_VERBOSE=1
-    - name: Build-and-Run-C-Samples-with-LOC-ELF
+    - name: test-build-and-run-C-samples-with-LOC-ELF
       run: |
-        BUILD_MODE=${{ matrix.build_type }} make clean
-        BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-c-tests
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-C-samples-with-LOC-ELF
 
     # -------------------------------------------------------------------------
-    - name: Build-and-Run-Cpp-Samples-with-LOC-ELF
+    - name: test-build-and-run-Cpp-samples-with-LOC-ELF
       run: |
         # Do 'clean' here rather than 'clean-l3', so we do full rebuilds
-        BUILD_MODE=${{ matrix.build_type }} make clean
-        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-cpp-tests
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cpp-samples-with-LOC-ELF
 
     # -------------------------------------------------------------------------
-    - name: Build-and-Run-CC-Samples-with-LOC-ELF
+    - name: test-build-and-run-Cc-samples-with-LOC-ELF
       run: |
         # Do 'clean' here rather than 'clean-l3', so we do full rebuilds
-        BUILD_MODE=${{ matrix.build_type }} make clean
-        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-cc-tests
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cc-samples-with-LOC-ELF
+
+    # -------------------------------------------------------------------------
+    # Exercise the --from-test interface to verify that it still works to
+    # run thru last pair of code-formatting tests. (Minor duplication of
+    # these two low-impact tests.)
+    # -------------------------------------------------------------------------
+    - name: test-from-test-interface
+      run: ./test.sh --from-test test-pylint-check
