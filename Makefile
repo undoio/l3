@@ -436,6 +436,7 @@ endif
 ifdef L3_LOC_ENABLED
     CFLAGS += -DL3_LOC_ENABLED
     CFLAGS += -DLOC_FILE_INDEX=LOC_$(subst .,_,$(subst -,_,$(notdir $<)))
+    LDFLAGS += -DL3_LOC_ENABLED
 endif
 CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
 
