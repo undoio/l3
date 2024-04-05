@@ -332,9 +332,6 @@ LOC_MACRO_TEST_CPP_PROGRAM_SRCS := $(wildcard $(LOC_MACRO_TEST_CPP_PROGRAM)/*.cp
 # Map the list of sources to resulting list-of-objects
 LOC_MACRO_TEST_CPP_PROGRAM_OBJS := $(LOC_MACRO_TEST_CPP_PROGRAM_SRCS:%.cpp=$(OBJDIR)/%.o)
 
-$(info $$LOC_MACRO_TEST_CPP_PROGRAM_SRCS = [ ${LOC_MACRO_TEST_CPP_PROGRAM_SRCS} ])
-$(info $$LOC_MACRO_TEST_CPP_PROGRAM_OBJS = [ ${LOC_MACRO_TEST_CPP_PROGRAM_OBJS} ])
-
 # Define a dependency of this sample program's binary to its list of objects
 LOC_MACRO_TEST_CPP_PROGRAM_BIN := $(BINDIR)/$(LOC_MACRO_TEST_CPP_PROGRAM)
 $(LOC_MACRO_TEST_CPP_PROGRAM_BIN): $(LOC_MACRO_TEST_CPP_PROGRAM_OBJS)
@@ -609,7 +606,6 @@ $(BINDIR)/%: | $$(@D)/.
 # run-tests: run-c-tests run-cpp-tests run-cc-tests run-unit-tests
 
 run-c-tests: all-c-tests
-	pylint l3_dump.py
 	@echo
 	@echo '---- Run C unit-tests: ----'
 	./$(C_UNIT_TEST_BIN)
@@ -655,16 +651,3 @@ run-loc-tests: all-loc-tests
 	@echo
 	@echo '---- Run LOC unit-test: ----'
 	./$(LOC_MACRO_TEST_BIN)
-
-# ###################################################################
-#
-test-old: use-cases/single-file-C-program/test-main.c src/l3.c l3.S include/l3.h
-	pylint l3_dump.py
-	g++ -I./include -Wall -o test -g -O3 -D_GNU_SOURCE use-cases/single-file-C-program/test-main.c src/l3.c l3.S
-	./test
-	@echo
-	./l3_dump.py
-	@echo
-	python3 l3_dump.py /tmp/l3_test ./test
-	@echo
-	python3 l3_dump.py /tmp/l3_small_test ./test
