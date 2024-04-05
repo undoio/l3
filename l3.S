@@ -2,33 +2,31 @@
 .extern l3_log
 
 l3__log_fast:
-    mov %fs:0xfffffffffffffffc,%eax
+    mov %fs:0xfffffffffffffffc,%eax // did we already stuff the tid in TLS?
     test %rax,%rax
-    jnz .gotid
-    mov $186, %rax
-    syscall
-    mov %eax, %fs:0xfffffffffffffffc
+    jnz .gotid              // yup - avoid the syscall because doing so is slow.
+    mov $186, %rax          // mov __NR_gettid into %rax (i.e. the syscall number)
+    syscall                 // get the tid.
+    mov %eax, %fs:0xfffffffffffffffc        // stuff the tid in TLS
 .gotid:
-    mov l3_log(%rip), %r8      // l3_log -> r8
-
+    mov l3_log(%rip), %r8   // fetch ptr to the global l3_log into register r8
     mov  $1, %r9
-    lock xadd %r9, (%r8)
-    and $0x3fff, %r9           // idx -> r9
-
-    add $32, %r8
-    shl $5, %r9
-    add %r9, %r8
-    mov %eax, (%r8)  // tid
+    lock xadd %r9, (%r8)    // atomically increment-and-fetch the index field in l3_log.
+    and $0x3fff, %r9        // idx %= L3_NUM_SLOTS
+    add $32, %r8            // point r8 at the beginning of the l3_log.slots array.
+    shl $5, %r9             // scale the index by sizeof(L3_ENTRY)
+    add %r9, %r8            // point r9 at our entry in the slots array.
+    mov %eax, (%r8)         // The tid is in %eax from the call to to gettid above.
 #ifdef L3_LOC_ENABLED
-    add $4, %r8
-    mov %esi, (%r8)  // loc
-    add $4, %r8
+    add $4, %r8             // Point r8 at the loc field of the slot.
+    mov %esi, (%r8)         // Stash the LOC value.
+    add $4, %r8             // Point r8 at the msg field of the slot.
 #else
-    add $8, %r8
-#endif
-    mov %rdi, (%r8)  // msg
-    add $8, %r8
-    movq %rdx, (%r8)  // arg1
-    add $8, %r8
-    movq %rcx, (%r8)  // arg2
+    add $8, %r8             // Point r8 at the msg field of the slot.
+#endif // L3_LOC_ENABLED
+    mov %rdi, (%r8)         // Stash the msg arg in the slot.
+    add $8, %r8             // Point r8 at the arg1 field in the slot.
+    movq %rdx, (%r8)        // Stash arg1 in the slot
+    add $8, %r8             // Point r8 at the arg2 field in the slot.
+    movq %rcx, (%r8)        // Stash arg2 in the slot.
     ret
