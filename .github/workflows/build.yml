@@ -80,3 +80,31 @@ jobs:
 
     - name: Run-CC-Samples-with-LOC-wo-L3_LOC_ENABLED
       run: BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ make run-cc-tests
+
+    # -------------------------------------------------------------------------
+    - name: Build-and-Run-LOC-unit-test
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} make clean
+        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-loc-tests
+
+    # -------------------------------------------------------------------------
+    # For easier debugging: run following LOC-ELF build-and-test jobs with
+    # verbose Make outputs: BUILD_VERBOSE=1
+    - name: Build-and-Run-C-Samples-with-LOC-ELF
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} make clean
+        BUILD_MODE=${{ matrix.build_type }} CC=gcc LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-c-tests
+
+    # -------------------------------------------------------------------------
+    - name: Build-and-Run-Cpp-Samples-with-LOC-ELF
+      run: |
+        # Do 'clean' here rather than 'clean-l3', so we do full rebuilds
+        BUILD_MODE=${{ matrix.build_type }} make clean
+        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-cpp-tests
+
+    # -------------------------------------------------------------------------
+    - name: Build-and-Run-CC-Samples-with-LOC-ELF
+      run: |
+        # Do 'clean' here rather than 'clean-l3', so we do full rebuilds
+        BUILD_MODE=${{ matrix.build_type }} make clean
+        BUILD_MODE=${{ matrix.build_type }} CC=g++ CXX=g++ LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-cc-tests

@@ -130,7 +130,11 @@ l3_mytid(void)
 
 // ****************************************************************************
 void
-l3__log_simple(const uint32_t loc, const char *msg, const uint64_t arg1, const uint64_t arg2)
+#ifdef L3_LOC_ENABLED
+l3__log_simple(loc_t loc, const char *msg, const uint64_t arg1, const uint64_t arg2)
+#else
+l3__log_simple(uint32_t loc, const char *msg, const uint64_t arg1, const uint64_t arg2)
+#endif
 {
     int idx = __sync_fetch_and_add(&l3_log->idx, 1) % L3_MAX_SLOTS;
     l3_log->slots[idx].tid = l3_mytid();
