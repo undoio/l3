@@ -61,10 +61,10 @@ void test_l3_fast_log(void)
     if (e) {
         abort();
     }
-    l3_log_fast("Fast-log-msg: Args(1,2)");
-    l3_log_fast("Fast-log-msg: Args(3,4)");
-    l3_log_fast("Fast-log-msg: Potential memory overwrite (addr, size)");
-    l3_log_fast("Fast-log-msg: Invalid buffer handle (addr)");
+    l3_log_fast("Fast-log-msg: Args(1,2)", 1, 2);
+    l3_log_fast("Fast-log-msg: Args(3,4)", 3, 4);
+    l3_log_fast("Fast-log-msg: Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
+    l3_log_fast("Fast-log-msg: Invalid buffer handle (addr)", 0xbeefabcd, 0);
 
     printf("Generated fast log-entries to log-file: %s\n", log);
 }

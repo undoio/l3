@@ -65,7 +65,7 @@ main(void)
     }
 
     for (n = 0; n < (300 * L3_MILLION); n++) {
-        l3_log_fast("300-Mil Fast l3-log msgs");
+        l3_log_fast("300-Mil Fast l3-log msgs", n, 0);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
