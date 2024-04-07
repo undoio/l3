@@ -2,12 +2,12 @@
 .extern l3_log
 
 l3__log_fast:
-    mov %fs:0xfffffffffffffffc,%eax // did we already stuff the tid in TLS?
-    test %rax,%rax
-    jnz .gotid              // yup - avoid the syscall because doing so is slow.
-    mov $186, %rax          // mov __NR_gettid into %rax (i.e. the syscall number)
-    syscall                 // get the tid.
-    mov %eax, %fs:0xfffffffffffffffc        // stuff the tid in TLS
+    mov %fs:0xfffffffffffffffc,%eax // Fetch the TLS-stashed TID into %eax
+    test %rax,%rax          // Did we already stash something?
+    jnz .gotid              //      Yes: avoid the syscall because doing so is slow.
+    mov $186, %rax          //      No: 1. do the syscall. First mov __NR_gettid into %rax (i.e. the syscall number)
+    syscall                 //          2. do the actual syscall
+    mov %eax, %fs:0xfffffffffffffffc // 3. and stuff the tid in TLS so that we don't need to do the syscall next time.
 .gotid:
     mov l3_log(%rip), %r8   // fetch ptr to the global l3_log into register r8
     mov  $1, %r9
