@@ -19,12 +19,12 @@ l3__log_fast:
     mov %eax, (%r8)         // The tid is in %eax from the call to to gettid above.
 #ifdef L3_LOC_ENABLED
     add $4, %r8             // Point r8 at the loc field of the slot.
-    mov %esi, (%r8)         // Stash the LOC value.
+    mov %edi, (%r8)         // Stash the LOC value.
     add $4, %r8             // Point r8 at the msg field of the slot.
 #else
     add $8, %r8             // Point r8 at the msg field of the slot.
 #endif // L3_LOC_ENABLED
-    mov %rdi, (%r8)         // Stash the msg arg in the slot.
+    mov %rsi, (%r8)         // Stash the msg arg in the slot.
     add $8, %r8             // Point r8 at the arg1 field in the slot.
     movq %rdx, (%r8)        // Stash arg1 in the slot
     add $8, %r8             // Point r8 at the arg2 field in the slot.
