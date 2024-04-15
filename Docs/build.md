@@ -17,7 +17,12 @@ L3 package with a small collection of `.c`, and C++, `.cpp` or
 
 ## Quick-start
 
-Check `make` help / usage: `$ make help`
+Check `make` help / usage: `$ make help` and closely follow the
+commands specified.
+
+You need to correctly specify the compiler to use, either
+gcc or g++, in order to correctly build the different
+sample programs and unit-test case sources.
 
 ## Dependencies
 
@@ -28,7 +33,7 @@ Run the following commands before doing the L3 build.
 
 ```
 $ git submodule init
-$ git submodule update
+$ git submodule update --remote
 ```
 
 ## Build usage
@@ -66,8 +71,13 @@ To see verbose build outputs use: `$ BUILD_VERBOSE=1 make ...`
 
 ## Integration with the LOC package
 
-To integrate with the Line-of-Code (LOC) package, enable the `L3_LOC_ENABLED=1`
-environment variable.  Example `make` commands to build the library
+To integrate with the Line-of-Code (LOC) package, enable the `L3_LOC_ENABLED`
+environment variable.  Valid values are:
+
+1. `L3_LOC_ENABLED=1` : Default LOC-encoding, using Python generator script
+2. `L3_LOC_ENABLED=2` : LOC-encoding based on ELF-named-section.
+
+Example `make` commands to build the library
 and to run the sample programs are shown below:
 
 ```
