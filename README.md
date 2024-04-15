@@ -34,7 +34,13 @@ tid=923514 'Invalid buffer handle' arg1=2 arg2=0
 The implementation is very simple. The log is a circular ring-buffer of structs:
 
 ```
-    struct {pid_t tid; const char *msg; uint64_t arg1, uint64_t arg2};
+struct {
+    pid_t tid;          // User thread-ID
+    int32_t loc;        // (Optional) Line-of-Code ID
+    const char *msg;    // Diagnostic message literal
+    uint64_t arg1;      // Argument value-1
+    uint64_t arg2;      // Argument value-2
+};
 ```
 
 The array is backed by a memory-mapped file, filename given by `l3_init()`.
@@ -43,28 +49,57 @@ global index to get a slot into the array, and then update that slot
 with the calling thread ID, a pointer to a message string, and up to
 two 64-bit arguments. (We store just the pointer to the string rather than
 string itself because this is usually a lot faster and, of course, consumes
-less storage space.)  The pointer should be to a string literal.
+less storage space.)
+
+**The address must be a pointer to a string literal.**
 
 The `l3_dump.py` utility will map the pointer to find the string
 literal to which it points from the executable, to generate a human-readable
 dump of the log.
 
+------
+
 ### Integration with the LOC package
 
 The L3 logging methods are integrated with the Line-of-Code (LOC) decoding
-package, which can be optionally enabled by the `L3_LOC_ENABLED=1` environment
+package, to compactly track the exact line-of-code
+where the L3 logging interfaces were invoked. This extra
+diagnostic feature can be optionally enabled by the `L3_LOC_ENABLED` environment
 variable. This environment variable is recognized as part of the `make`
-build steps and also when executing the `l3_dump.py` script. The `LOC`
-package generates a few source files, automated by a Python script,
-[gen_loc_files.py](./LineOfCode/loc/gen_loc_files.py).
+build steps and also when executing the `l3_dump.py` script.
 
-**NOTE**: A few `Makefile` rules, defined under the `L3_LOC_ENABLED=1`
-check, are needed to incorporate these files into your build system.
+The LOC package provides two independent forms of LOC-encoding
+techniques, which are enabled as follows:
+
+1. `L3_LOC_ENABLED=1`: Default LOC-encoding that generates a few source files,
+automated by the Python script,
+[gen\_loc\_files.py](./LineOfCode/loc/gen_loc_files.py).
+Provides `LOC_LINE()` and `LOC_FILE()` interfaces.
+
+2. `L3_LOC_ENABLED=2`: LOC-encoding based on named ELF-sections,
+referred to as the LOC-ELF encoding technique.
+Dependent files, [loc.h](./LineOfCode/include/loc.h) and
+[loc.c](./LineOfCode/src/loc.c), need to be compiled with your
+project sources to access this form of encoding.
+Additionally, provides the `LOC_FUNC()` interface to name the
+function where the L3 logging API was invoked.
+**Requires use of gcc compiler.**
+
+
+------
+
+**NOTE**: A few `Makefile` rules, defined under these environment variables'
+check, are needed to incorporate the required LOC-files into your build system.
 Check this project's [Makefile](./Makefile) to understand how-to apply
 these rules to your project where the L3 / LOC packages will be incorporated.
 
-When LOC is also enabled, the diagnostic data collected is unpacked to also
-report the file name and line number where the L3-log-line was emitted.
+------
+
+### Sample Outputs from L3-LOC integration
+
+When the LOC diagnostic is enabled, the diagnostic data
+that is collected is unpacked to also report the file name
+and line number where the L3-log-line was emitted.
 
 A sample output looks like follows:
 
@@ -84,7 +119,7 @@ there is very negligible performance overhead to track this additional data.
 
 ------
 
-The technique is simple, but effective. And fast.
+The technique is simple, and effective. And fast.
 
 ## Documentation
 
