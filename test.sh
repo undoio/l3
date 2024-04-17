@@ -72,6 +72,7 @@ TestList=(
            "test-build-and-run-C-samples-with-LOC-ELF"
            "test-build-and-run-Cpp-samples-with-LOC-ELF"
            "test-build-and-run-Cc-samples-with-LOC-ELF"
+           "test-build-client-server-perf-test"
 
            "test-pytests"
 
@@ -277,6 +278,13 @@ function test-build-and-run-Cc-samples-with-LOC-ELF()
 {
     make clean
     CC=g++ CXX=g++ LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-cc-tests
+}
+
+# #############################################################################
+function test-build-client-server-perf-test()
+{
+    make clean
+    make clean && CXX=g++ LD=g++ make client-server-perf-test
 }
 
 # #############################################################################
