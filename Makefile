@@ -48,10 +48,14 @@ help::
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ make all-cc-tests'
 	@echo ' make run-cc-tests'
 	@echo ' '
+	@echo 'To build client-server performance test programs and run performance test'
+	@echo ' make clean && CXX=g++ LD=g++ make client-server-perf-test'
+	@echo ' '
 	@echo 'Environment variables: '
 	@echo ' BUILD_MODE={release,debug}'
 	@echo ' BUILD_VERBOSE={0,1}'
 	@echo ' L3_LOC_ENABLED={0,1,2}'
+	@echo ' Defaults: CC=gcc CXX=g++ LD=g++'
 	@echo ' '
 	@echo 'To build L3-sample programs with LOC-enabled and run unit-tests:'
 	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests   && L3_LOC_ENABLED=1 make run-c-tests'
@@ -511,6 +515,53 @@ all-unit-tests: $(UNIT_TESTBINS)
 #       use of different compilers, gcc, g++ etc. That became difficult to
 #       specify for different build rules.
 # all: all-c-tests all-cpp-tests all-cc-tests all-unit-tests all-loc-tests
+
+# ##############################################################################
+# Rules to build-and-run Client-Server message exchange performance tests.
+# ##############################################################################
+
+CLIENT_SERVER_PERF_TESTS_DIR   := $(USE_CASES)/client-server-msgs-perf
+
+# Symbol for all client-server messaging performance test sources, from which
+# we will build standalone client and server binaries.
+CLIENT_SERVER_PERF_TESTS_SRCS   := $(wildcard $(CLIENT_SERVER_PERF_TESTS_DIR)/*.c)
+
+# Build pair of sources for client-/server-main sources.
+CLIENT_SERVER_CLIENT_MAIN_SRC   := $(filter %_client.c, $(CLIENT_SERVER_PERF_TESTS_SRCS))
+CLIENT_SERVER_SERVER_MAIN_SRC   := $(filter %_server.c, $(CLIENT_SERVER_PERF_TESTS_SRCS))
+
+# Build list of sources other than client-/server-main sources.
+CLIENT_SERVER_NON_MAIN_SRCS     := $(filter-out $(CLIENT_SERVER_PERF_TESTS_DIR)/svmsg_file_%.c, $(CLIENT_SERVER_PERF_TESTS_SRCS))
+
+# Map the list of sources to resulting list-of-objects
+CLIENT_SERVER_CLIENT_MAIN_OBJ   := $(CLIENT_SERVER_CLIENT_MAIN_SRC:%.c=$(OBJDIR)/%.o)
+CLIENT_SERVER_SERVER_MAIN_OBJ   := $(CLIENT_SERVER_SERVER_MAIN_SRC:%.c=$(OBJDIR)/%.o)
+CLIENT_SERVER_NON_MAIN_OBJS     := $(CLIENT_SERVER_NON_MAIN_SRCS:%.c=$(OBJDIR)/%.o)
+
+# This client-server test involves a client- and server-driver program,
+# named as 'svmsg_file_*.c'. Filter accordingly.
+CLIENT_SERVER_PERF_TEST_BIN_SRCS := $(filter $(CLIENT_SERVER_PERF_TESTS_DIR)/svmsg_file_%.c, $(CLIENT_SERVER_PERF_TESTS_SRCS))
+
+# Define symbols for respective client/server binaries in build area.
+# Replace 'use-cases/client-server-msgs-perf/svmsg_file_client.c'
+#      -> 'build/release/bin/use-cases/svmsg_file_client
+#
+CLIENT_SERVER_PERF_TEST_BINS    := $(CLIENT_SERVER_PERF_TEST_BIN_SRCS:$(CLIENT_SERVER_PERF_TESTS_DIR)/%.c=$(BINDIR)/$(USE_CASES)/%)
+
+ifeq "$(BUILD_VERBOSE)" "1"
+    $(info )
+    $(info ---- Debug ----)
+    $(info $$CLIENT_SERVER_PERF_TESTS_DIR = [ ${CLIENT_SERVER_PERF_TESTS_DIR} ])
+    $(info $$CLIENT_SERVER_PERF_TESTS_SRCS = [ ${CLIENT_SERVER_PERF_TESTS_SRCS} ])
+    $(info $$CLIENT_SERVER_PERF_TEST_BIN_SRCS = [ ${CLIENT_SERVER_PERF_TEST_BIN_SRCS} ])
+    $(info $$CLIENT_SERVER_PERF_TEST_BINS = [ ${CLIENT_SERVER_PERF_TEST_BINS} ])
+    $(info $$CLIENT_SERVER_NON_MAIN_OBJS = [ ${CLIENT_SERVER_NON_MAIN_OBJS} ])
+endif
+
+$(BINDIR)/$(USE_CASES)/svmsg_file_client: $(CLIENT_SERVER_CLIENT_MAIN_OBJ) $(CLIENT_SERVER_NON_MAIN_OBJS)
+$(BINDIR)/$(USE_CASES)/svmsg_file_server: $(CLIENT_SERVER_SERVER_MAIN_OBJ) $(CLIENT_SERVER_NON_MAIN_OBJS)
+
+client-server-perf-test: $(CLIENT_SERVER_PERF_TEST_BINS)
 
 # ##############################################################################
 # CFLAGS, LDFLAGS, ETC

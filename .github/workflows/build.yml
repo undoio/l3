@@ -89,6 +89,10 @@ jobs:
       run: ./test.sh test-make-help
 
     #! -------------------------------------------------------------------------
+    - name: test-build-client-server-perf-test
+      run: ./test.sh test-build-client-server-perf-test
+
+    #! -------------------------------------------------------------------------
     - name: test-build-and-run-unit-tests
       run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-unit-tests
 
