@@ -1,21 +1,37 @@
-name: Build and test
+name: L3-Build and test
 on: [pull_request]
 
+#! -----------------------------------------------------------------------------
+# Ref: For running jobs on Linux & Mac/OSX with one workflow.
+# https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
+#! -----------------------------------------------------------------------------
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest]
         build_type: [release, debug]
+
     steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
         submodules: recursive
+
     - name: Install dependencies
       run: |
-        sudo apt-get update -y
-        sudo apt-get install -y pylint pip
+        if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update -y
+            sudo apt-get install -y pylint pip
+
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install python
+            brew install pylint
+
+            # To install llvm-readelf
+            brew install llvm
+        fi
 
         pip install pytest
 
@@ -29,6 +45,25 @@ jobs:
         echo " "
 
     #! -------------------------------------------------------------------------
+    - name: Update PATH
+      run: |
+        # This is the $PATH reported by `brew install` for the new binaries
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+        fi
+
+    - name: Verify PATH and required readelf binary
+      run: |
+            echo "PATH is $PATH"
+
+            # Verify that this required binary is found in $PATH
+            if [ "$RUNNER_OS" == "Linux" ]; then
+                which readelf
+            elif [ "$RUNNER_OS" == "macOS" ]; then
+                which llvm-readelf
+            fi
+
+    #! -------------------------------------------------------------------------
     - name: test-test-sh-usages
       run: |
         ./test.sh --help
@@ -38,11 +73,16 @@ jobs:
     - name: test-code-formatting
       run: |
         ./test.sh test-pylint-check
-        shellcheck ./test.sh
+
+        # Skip shellcheck on MacOSX. It's throwing up some weird errors!
+        if [ "$RUNNER_OS" == "Linux" ]; then
+            shellcheck ./test.sh
+        fi
 
     #! -------------------------------------------------------------------------
     - name: test-pytests
-      run: ./test.sh test-pytests
+      run: |
+        ./test.sh test-pytests
 
     #! -------------------------------------------------------------------------
     - name: test-make-help

@@ -100,6 +100,7 @@ def test_unit_test_dump_log_entries():
                     , 'Potential memory overwrite (addr, size)'
                     , 'Invalid buffer handle (addr)'
                    ]
+    print(msg_list)
     assert msg_list == exp_msg_list
 
     exp_arg1_list = [ 1, 3, int('0xdeadbabe', 16), int('0xbeefabcd', 16) ]
@@ -128,7 +129,8 @@ def test_unit_test_dump_log_entries():
                     , 'Fast-log-msg: Potential memory overwrite (addr, size)'
                     , 'Fast-log-msg: Invalid buffer handle (addr)'
                    ]
-    assert msg_list == exp_msg_list
+    print(msg_list)
+    assert exp_msg_list == msg_list
 
     exp_arg1_list = [ 1, 3, 10, int('0xdeadbabe', 16), int('0xbeefabcd', 16) ]
     assert arg1_list == exp_arg1_list

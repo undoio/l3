@@ -19,7 +19,15 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
+#include <stdio.h>
+
+#if __APPLE__
+#include <mach-o/getsect.h>
+#include <pthread.h>
+#else
 #include <threads.h>
+#endif  // __APPLE__
+
 #include <string.h>
 #include <assert.h>
 
@@ -35,6 +43,14 @@
 #else
 #define L3_STATIC_ASSERT    _Static_assert
 #endif
+
+#if __APPLE__
+#define L3_THREAD_LOCAL
+#define L3_GET_TID()  0
+#else
+#define L3_THREAD_LOCAL thread_local
+#define L3_GET_TID()  syscall(SYS_gettid)
+#endif  // __APPLE__
 
 /**
  * L3 Log entry Structure definitions:
@@ -75,6 +91,25 @@ typedef struct l3_log
 
 L3_LOG *l3_log; // Also referenced in l3.S for fast-logging.
 
+#if __APPLE__
+
+/**
+ * Attempted solution to grab 'offset' of 'Section __cstring' at run-time.
+ * But this is not quite working. Instead, we "fix" this issue, in the script
+ * l3_dump.py, while unpacking the log-entries by grabbing the required offset
+ * using Mac's 'size' binary.
+ */
+intptr_t
+getBaseAddress() {
+    Dl_info info;
+    if (!dladdr((void *)getBaseAddress, &info)) {
+        errno = L3_DLADDR_NOT_FOUND_ERRNO;
+        return -1;
+    }
+    return  (intptr_t)info.dli_fbase;
+}
+#endif  // __APPLE__
+
 // ****************************************************************************
 int
 l3_init(const char *path)
@@ -87,7 +122,7 @@ l3_init(const char *path)
             return -1;
         }
 
-        if (lseek(fd, sizeof(struct l3_log), SEEK_SET) < 0) {
+        if (lseek(fd, sizeof(L3_LOG), SEEK_SET) < 0) {
             return -1;
         }
         if (write(fd, &fd, 1) != 1) {
@@ -105,7 +140,11 @@ l3_init(const char *path)
     // zero-filled pages. We do this just to be clear where the idx begins.
     l3_log->idx = 0;
 
-    /* Let's find where rodata is loaded. */
+#if __APPLE__
+     l3_log->fbase_addr= getBaseAddress();
+#else
+
+    /* Linux: Let's find where rodata is loaded. */
     Dl_info info;
     if (!dladdr("test string", &info))
     {
@@ -113,6 +152,10 @@ l3_init(const char *path)
         return -1;
     }
     l3_log->fbase_addr = (intptr_t) info.dli_fbase;
+#endif  // __APPLE__
+
+    // printf("fbase_addr=%" PRIu64 " (0x%llx)\n", l3_log->fbase_addr, l3_log->fbase_addr);
+
     return 0;
 }
 
@@ -120,9 +163,9 @@ l3_init(const char *path)
 static pid_t
 l3_mytid(void)
 {
-    static thread_local pid_t tid;
+    static L3_THREAD_LOCAL pid_t tid;
     if (!tid) {
-        tid = syscall(SYS_gettid);
+        tid = L3_GET_TID();
     }
 
     return tid;
@@ -151,3 +194,22 @@ l3__log_simple(uint32_t loc, const char *msg, const uint64_t arg1, const uint64_
     l3_log->slots[idx].arg1 = arg1;
     l3_log->slots[idx].arg2 = arg2;
 }
+
+/**
+ * Appendix:
+ *
+ * Ref: https://stackoverflow.com/questions/65073550/getting-the-address-of-a-section-with-clang-on-osx-ios
+ *
+ * Ref: https://stackoverflow.com/questions/17669593/how-to-get-a-pointer-to-a-binary-section-in-mac-os-x/22366882#22366882
+ *
+ * https://stackoverflow.com/questions/16552710/how-do-you-get-the-start-and-end-addresses-of-a-custom-elf-section
+ *
+ * Some reference code to try out, some day:
+ *
+#include <mach-o/getsect.h>
+
+char *secstart;
+unsigned long secsize;
+secstart = getsectdata("__SEGMENT", "__section", &secsize);
+ *
+ */

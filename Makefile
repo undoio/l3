@@ -96,6 +96,10 @@ else
    $(error Unknown BUILD_VERBOSE mode "$(BUILD_VERBOSE)".  Valid values are "0" or "1". Default is "0")
 endif
 
+# Identify the OS we are running on.
+UNAME_S := $(shell uname -s)
+UNAME_P := $(shell uname -p)
+
 # Compilers to use
 CC  ?= gcc
 CXX ?= g++
@@ -190,7 +194,14 @@ BINDIR = $(BUILD_PATH)/bin
 # ###################################################################
 
 L3_SRC      := $(L3_SRCDIR)/l3.c
-L3_ASSEMBLY := l3.S
+
+# Currently, fast-logging assembly is only supported on x86 64-bit Linux.
+ifeq ($(UNAME_S),Linux)
+    ifeq ($(UNAME_P), x86_64)
+        L3_ASSEMBLY := l3.S
+    endif
+endif
+
 L3_SRCS     := $(L3_SRC) $(L3_ASSEMBLY)
 L3_OBJS     := $(L3_SRCS:%.c=$(OBJDIR)/%.o)
 
@@ -390,7 +401,9 @@ ifeq "$(BUILD_VERBOSE)" "1"
     $(info ---- Debug ----)
     $(info $$UNIT_DIR = [ ${UNIT_DIR} ])
     $(info $$UNITTESTS_DIR = [ ${UNITTESTS_DIR} ])
+    $(info $$UNIT_TESTBIN_SRCS = [ ${UNIT_TESTBIN_SRCS} ])
     $(info $$UNIT_TESTBINS = [ ${UNIT_TESTBINS} ])
+    $(info $$L3_OBJS = [ ${L3_OBJS} ])
     $(info )
 endif
 
@@ -405,13 +418,21 @@ endef
 # ---------------------------------------------------------------------------------
 # This invocation will generate makefile-snippets specifying the dependency of
 # each unit-test binary on its sources and required objects. This way, we do not
-# have to enumerate dependency for each unit-test binary built, such as:
+# have to enumerate dependency for each unit-test binary built, how it's been
+# hand-defined for Mac/OSX. (For some reason the construction of calling the fn
+# unit_test_self_dependency() seems to not work on Mac/OSX as it does on Linux.)
 #
-# $(BINDIR)/$(UNIT_DIR)/l3_dump.py-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3_dump.py-test.o \
-#                                        $(OBJDIR)/$(SRCDIR)/l3.o
 # See https://www.gnu.org/software/make/manual/html_node/Eval-Function.html
 # ---------------------------------------------------------------------------------
+ifeq ($(UNAME_S),Linux)
+
 $(foreach unit,$(UNIT_TESTBINS),$(eval $(call unit_test_self_dependency,$(unit))))
+
+else
+
+$(BINDIR)/$(UNIT_DIR)/l3_dump.py-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3_dump.py-test.o \
+                                        $(OBJDIR)/$(SRCDIR)/l3.o
+endif
 
 # ###################################################################
 # Report build machine details and compiler version for troubleshooting,
@@ -528,6 +549,8 @@ endif
 
 CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
 
+CPPFLAGS += --std=c++11
+
 # ##############################################################################
 # Automatically create directories, based on
 # http://ismail.badawi.io/blog/2017/03/28/automatic-directory-creation-in-make/
@@ -554,9 +577,9 @@ $(BINDIR)/%/.:
 #
 # For all-test-code, we need to use -I test-code/<subdir>
 # Dependencies for the main executables
-COMPILE.c       = $(CC)  $(CFLAGS) $(INCLUDE) -c
-COMPILE.cpp     = $(CXX) $(CFLAGS) $(INCLUDE) -c
-COMPILE.cc      = $(CXX) $(CFLAGS) $(INCLUDE) -c
+COMPILE.c       = $(CC)  -x c $(CFLAGS) $(INCLUDE) -c
+COMPILE.cpp     = $(CXX) -x c++ $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
+COMPILE.cc      = $(CXX) -x c++ $(CFLAGS) $(INCLUDE) -c
 COMPILE.loc.c   = $(LOC_C_CC) $(CFLAGS) $(INCLUDE) -c
 
 # Compile each .c file into its .o
