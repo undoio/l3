@@ -1,12 +1,22 @@
 # L3 Logging Library - Build Instructions
 
-The L3 library is supported on Linux and has been tested on the
-Ubuntu 22.04.4 LTS (jammy) distro. Build steps are implemented via
-this [Makefile](../Makefile), tested and supported for the
-following versions of the compilers:
+The L3 library is supported on Linux and has been tested on
+the Ubuntu 22.04.4 LTS (jammy) Linux distro.
+Build steps are implemented via this [Makefile](../Makefile), tested and
+supported for the following versions of the compilers:
 
-- gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0
-- g++ (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0
+- Linux:
+    - gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0
+    - g++ (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0
+
+## Prerequisites
+
+The [l3_dump.py](../l3_dump.py) Python script uses the `readelf` binary
+to decode L3 log-dump files. The `readelf` binary is usually part of the
+`binutils` package. Install this on your machine and update your `$PATH`
+to access `readelf`.
+
+## Quick-start
 
 The L3 package consists of core L3-source files and sample
 programs in the [test-use-cases/](../test-use-cases/) directory.
@@ -14,8 +24,6 @@ programs in the [test-use-cases/](../test-use-cases/) directory.
 `Makefile` rules implement building and running tests for the
 L3 package with a small collection of `.c`, and C++, `.cpp` or
 `.cc`, sample programs.
-
-## Quick-start
 
 Check `make` help / usage: `$ make help` and closely follow the
 commands specified.

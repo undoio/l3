@@ -69,6 +69,8 @@ TestList=(
            "test-build-and-run-Cpp-samples-with-LOC-ELF"
            "test-build-and-run-Cc-samples-with-LOC-ELF"
 
+           "test-pytests"
+
            # Keep these two at the end, so that we can exercise this
            # script in CI with the --from-test interface, to run just
            # these two tests.
@@ -106,6 +108,7 @@ function list_items_for_array()
 function test-pylint-check()
 {
     pylint ./l3_dump.py
+    pylint ./tests/pytests
 }
 
 # #############################################################################
@@ -269,6 +272,16 @@ function test-build-and-run-Cc-samples-with-LOC-ELF()
 {
     make clean
     CC=g++ CXX=g++ LD=g++ BUILD_VERBOSE=1 L3_LOC_ENABLED=2 make run-cc-tests
+}
+
+# #############################################################################
+function test-pytests()
+{
+    pushd ./tests/pytests
+
+    pytest -v
+
+    popd
 }
 
 # #############################################################################
