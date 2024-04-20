@@ -4,3 +4,6 @@ build*
 # Skip LOC-generated files
 loc*h
 loc_filenames.c
+
+# Skip pytests cached files
+*__pycache__*

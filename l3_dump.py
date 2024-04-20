@@ -39,9 +39,9 @@ if OS_UNAME_S == 'Linux':
     READELF_DATA_SECTION = '.rodata'
 
 # #############################################################################
-def check_usage():
+def check_usage(args:list):
     """Simple usage check."""
-    if len(sys.argv) != 3:
+    if len(args) != 2:
         print(f"Usage: {sys.argv[0]} <logfile> <program-binary>")
         print(" ")
         print("Note: If L3 logging is done for <program-binary> with L3_LOC_ENABLED=1")
@@ -49,13 +49,12 @@ def check_usage():
         sys.exit(0)
 
 # #############################################################################
-def set_decode_loc_id():
+def set_decode_loc_id(program_bin:str):
     """
     Check for required LOC-decoder binary, based on environment of run
     If L3_LOC_ENABLED=1 is set in the env, search for a LOC-decoder binary
     named "<program_binary>_loc".
     """
-    program_bin = sys.argv[2]
     decode_loc_id = DECODE_LOC_ID
     loc_decoder = LOC_DECODER
     if LOC_ENABLED in os.environ:
@@ -70,7 +69,7 @@ def set_decode_loc_id():
             # LOC is in-use and LOC-decoder binary was found.
             decode_loc_id = 1
 
-    return (program_bin, decode_loc_id, loc_decoder)
+    return (decode_loc_id, loc_decoder)
 
 # #############################################################################
 def which_binary(os_uname_s:str, bin_name:str):
@@ -227,8 +226,28 @@ def main():
     """
     Shell to call do_main() with command-line arguments.
     """
-    check_usage()
-    (program_bin, decode_loc_id, loc_decoder_bin) = set_decode_loc_id()
+    do_main(sys.argv[1:])
+
+###############################################################################
+def do_main(args:list, return_logentry_lists:bool = False):
+    """
+    Main method that drives the unpacking of the L3-dump file to print
+    diagnostic data. This modularized method exists outside of main() so that
+    it can be called independently via pytests.
+
+    Arguments:
+        args[0] - Str: Name of L3-log file
+        args[1] - Str: Name of binary that generated L3-log file.
+
+    Returns: A collection of output things:
+        - # entries processed
+        - Individual lists for fields unpacked from set of log-entries processed.
+            - Thread-ID, LOC-ID, print message, arg1, arg2.
+    """
+
+    check_usage(args)
+    program_bin = args[1]
+    (decode_loc_id, loc_decoder_bin) = set_decode_loc_id(program_bin)
 
     # Validate that required binary used below are found in $PATH.
     which_binary(OS_UNAME_S, READELF_BIN)
@@ -237,7 +256,15 @@ def main():
 
     strings = parse_rodata_string_offsets(program_bin)
 
-    with open(sys.argv[1], 'rb') as file:
+    # To enable unit-testing, via pytests, the parsing and return-data logic
+    # build lists for the data as it's being cracked open.
+    tid_list = []
+    loc_list = []
+    msg_list = []
+    arg1_list = []
+    arg2_list = []
+
+    with open(args[0], 'rb') as file:
         # Unpack the 1st n-bytes as an L3_LOG{} struct to get a hold
         # of the fbase-address stashed by the l3_init() call.
         data = file.read(L3_LOG_HEADER_SZ)
@@ -267,6 +294,7 @@ def main():
             offs = ptr - fibase - rodata_offs
 
             # No location-ID will be recorded in log-files if L3_LOC_ENABLED is OFF.
+            UNPACK_LOC = ''
             if loc == 0:
                 print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
             elif decode_loc_id == 0:
@@ -286,9 +314,22 @@ def main():
                     UNPACK_LOC = unpack_loc_prev
                 print(f"{tid=} {UNPACK_LOC} '{strings[offs]}' {arg1=} {arg2=}")
 
+            # Build output-lists, if requested
+            if return_logentry_lists is True:
+                tid_list.append(tid)
+
+                # Strip trailing blanks, so we can match correctly against
+                # expected loc_list generated in pytest, l3_dump_test.py
+                loc_list.append(UNPACK_LOC.rstrip())
+
+                msg_list.append(strings[offs])
+                arg1_list.append(arg1)
+                arg2_list.append(arg2)
+
             nentries += 1
 
     print(f"Unpacked {nentries=} log-entries.")
+    return (nentries, tid_list, loc_list, msg_list, arg1_list, arg2_list)
 
 ###############################################################################
 # Start of the script: Execute only if run as a script
