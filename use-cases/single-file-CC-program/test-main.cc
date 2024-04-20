@@ -7,12 +7,15 @@
  * \date 2023-12-24
  *
  * \copyright Copyright (c) 2024
+ *
+ * Usage: program-name [--unit-tests]   ; Default, run perf- and unit-tests
  * *****************************************************************************
  */
 #define _POSIX_C_SOURCE 199309L
 
 #include <iostream>
 
+#include <string.h>
 #include "l3.h"
 
 using namespace std;
@@ -32,32 +35,41 @@ timespec_to_ns(struct timespec *ts)
 }
 
 int
-main(void)
+main(const int argc, const char * argv[])
 {
-    // Logging perf benchmarking methods below share this log-file.
-    auto e = l3_init("/tmp/l3.cc-test.dat");
-    if (e) {
-        abort();
+    const char *logfile = NULL;
+    if (argc == 1) {
+        // Logging perf benchmarking methods below share this log-file.
+        logfile = "/tmp/l3.cc-test.dat";
+        auto e = l3_init(logfile);
+        if (e) {
+            abort();
+        }
+
+        auto nMil = 300;
+        cout << "\nExercise in-memory logging performance benchmarking: "
+             << nMil << " Mil simple/fast log msgs."
+             << " L3-log file: " << logfile << "\n";
+
+        test_perf_slow_logging(nMil);
+        test_perf_fast_logging(nMil);
     }
 
-    auto nMil = 300;
-    printf("\nExercise in-memory logging performance benchmarking: "
-           "%d Mil simple/fast log msgs\n",
-            nMil);
-
-    test_perf_slow_logging(nMil);
-    test_perf_fast_logging(nMil);
-
-    // Logging unit-tests share this log-file.
-    e = l3_init("/tmp/l3.cc-small-test.dat");
-    if (e) {
-        abort();
+    if (   (argc == 1)
+        || strncmp(argv[1], "--unit-tests", strlen("--unit-tests")) == 0) {
+        // Logging unit-tests share this log-file.
+        logfile = "/tmp/l3.cc-small-test.dat";
+        int e = l3_init(logfile);
+        if (e) {
+            abort();
+        }
+        cout << "L3-logging unit-tests log file: " << logfile << "\n";
+        l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);
+        l3_log_simple("Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
+        l3_log_simple("Invalid buffer handle (addr)", 0xbeefabcd, 0);
+        l3_log_fast("Fast-logging msg1", 10, 0xdeadbeef);
+        l3_log_fast("Fast-logging msg2", 20, 0xbeefbabe);
     }
-    l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);
-    l3_log_simple("Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
-    l3_log_simple("Invalid buffer handle (addr)", 0xbeefabcd, 0);
-    l3_log_fast("Fast-logging msg1", 10, 0xdeadbeef);
-    l3_log_fast("Fast-logging msg2", 20, 0xbeefbabe);
 
     return 0;
 }
@@ -73,7 +85,7 @@ test_perf_slow_logging(int nMil)
 
     auto n = 0;
     for (; n < (nMil * L3_MILLION); n++) {
-        l3_log_simple("300-Mil Simple l3-log msgs", 0, 0);
+        l3_log_simple("Perf-300-Mil Simple l3-log msgs", 0, 0);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
@@ -98,7 +110,7 @@ test_perf_fast_logging(int nMil)
     // Throw-in some variations to generate diff 'arg' values during logging.
     auto n = 0;
     for (; n < (300 * L3_MILLION); n++) {
-        l3_log_fast("300-Mil Fast l3-log msgs", (n/L3_MILLION), n);
+        l3_log_fast("Perf-300-Mil Fast l3-log msgs", (n/L3_MILLION), n);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
