@@ -1,13 +1,18 @@
 # L3 Logging Library - Build Instructions
 
 The L3 library is supported on Linux and has been tested on
-the Ubuntu 22.04.4 LTS (jammy) Linux distro.
+Linux Ubuntu 22.04.4 LTS (jammy) distro, and on Mac/OSX Monterey, v12.1.
+
 Build steps are implemented via this [Makefile](../Makefile), tested and
 supported for the following versions of the compilers:
 
 - Linux:
     - gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0
     - g++ (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0
+
+- Mac:
+    - gcc (Apple clang version 13.1.6)
+    - g++ (Apple clang version 13.1.6)
 
 ## Prerequisites
 

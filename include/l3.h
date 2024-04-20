@@ -43,7 +43,15 @@
  *
  * \return 0 on success, or -1 on failure with \c errno set to something appropriate.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int l3_init(const char *path);
+
+#ifdef __cplusplus
+}
+#endif
 
 /**
  * \brief Caller-macro to invoke L3 simple logging.
@@ -68,6 +76,10 @@ int l3_init(const char *path);
  * l3_init(). To see the log output, run the l3_dump.py utility passing in
  * the names of the log file and the executable.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef L3_LOC_ENABLED
 void l3__log_simple(const loc_t loc, const char *msg,
                     const uint64_t arg1, const uint64_t arg2);
@@ -76,14 +88,27 @@ void l3__log_simple(const uint32_t loc, const char *msg,
                     const uint64_t arg1, const uint64_t arg2);
 #endif  // L3_LOC_ENABLED
 
+#ifdef __cplusplus
+}
+#endif
+
 /**
  * \brief Caller-macro to invoke L3 Fast logging.
  */
+#if __APPLE__
+
+#define l3_log_fast(msg, arg1, arg2) l3_log_simple(msg, arg1, arg2)
+
+#else   // __APPLE__
+
 #ifdef L3_LOC_ENABLED
+
 #define l3_log_fast(msg, arg1, arg2) l3__log_fast(__LOC__, (msg), (arg1), (arg2))
 #else   // L3_LOC_ENABLED
 #define l3_log_fast(msg, arg1, arg2) l3__log_fast(L3_ARG_UNUSED, (msg), (arg1), (arg2))
-#endif  //
+#endif  // L3_LOC_ENABLED
+
+#endif  // __APPLE__
 
 /**
  * \brief Log a message in as fast a way as possible.

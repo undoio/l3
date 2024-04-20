@@ -12,6 +12,7 @@ import os
 import platform
 import shutil
 import re
+import shlex
 
 # ##############################################################################
 # Constants that tie the unpacking logic to L3's core structure's layout
@@ -35,8 +36,13 @@ if OS_UNAME_S == 'Linux':
     READELF_BIN = 'readelf'
     READELF_HEXDUMP_ARG = '-x'
     READELF_STRDUMP_ARG = '-p'
-    READELF_STRING_SEP = ']  '
     READELF_DATA_SECTION = '.rodata'
+
+elif OS_UNAME_S == 'Darwin':
+    READELF_BIN = 'llvm-readelf'
+    READELF_HEXDUMP_ARG = '-x'
+    READELF_STRDUMP_ARG = '-p'
+    READELF_DATA_SECTION = '__cstring'
 
 # #############################################################################
 def check_usage(args:list):
@@ -76,9 +82,13 @@ def which_binary(os_uname_s:str, bin_name:str):
     """
     Check to see if required binary is found in $PATH. Error out otherwise.
     """
-    if shutil.which(bin_name) is None:
+    which_bin = shutil.which(bin_name)
+    if which_bin is None:
         print(f"Required {os_uname_s} binary '{bin_name}' is not found in $PATH.")
         sys.exit(1)
+
+    if OS_UNAME_S == 'Darwin':
+        print(f"# Using {bin_name}: {which_bin=}")
 
 # #############################################################################
 def parse_rodata_start_addr(program_bin:str) -> int:
@@ -89,6 +99,12 @@ def parse_rodata_start_addr(program_bin:str) -> int:
 
 Hex dump of section '.rodata':
   0x00002000 01000200 00000000 2f746d70 2f6c332e ......../tmp/l3.
+
+    On Mac/OSX, the output will be something like:
+
+Hex dump of section '__cstring':
+0x100003e94 2f746d70 2f6c332e 632d736d 616c6c2d /tmp/l3.c-small-
+
   ^^^^^^^^^^
 
     Return int for 1st hex-value; i.e., 0x00002000 .
@@ -99,7 +115,11 @@ Hex dump of section '.rodata':
                           stderr=subprocess.PIPE, text=True) as section:
         _stdout, _stderr = section.communicate()
 
+        # DEBUG: print(_stdout)
+
         _rodata_offs = parse_rodata_start_offset(_stdout)
+        # DEBUG: print(f"{_rodata_offs=} {_rodata_offs=:x}")
+
         return _rodata_offs
 
 # #############################################################################
@@ -149,6 +169,7 @@ String dump of section '.rodata':
 
     ... and so on.
     """
+    # Run: llvm-readelf -p __cstring  ./build/release/bin/unit/l3_dump.py-test
     with subprocess.Popen([READELF_BIN, READELF_STRDUMP_ARG,
                            READELF_DATA_SECTION,
                            program_bin],
@@ -175,6 +196,8 @@ def parse_string_offsets(input_str:str) -> (dict,int):
 
     Returns: Dictionary mapping {offset: string} and # of valid-lines parsed.
     """
+    # DEBUG: print(input_str)
+
     _strings = {}
 
     # --------------------------------------------------------------------------
@@ -198,11 +221,13 @@ def parse_string_offsets(input_str:str) -> (dict,int):
         # print(f"{_offs=}, {str_start=}")
         _strings[_offs] = str_start
 
+    # DEBUG: print(_strings)
+
     # Return # of valid-lines-parsed count, so pytests can verify it.
     return (_strings, nlines)
 
 # #############################################################################
-def exec_binary(cmdargs:list):
+def exec_binary(cmdargs:list) -> str:
     """Execute a binary, with args, and print output to stdout."""
     try:
         with subprocess.Popen(cmdargs, stdout=subprocess.PIPE, text=True) as output:
@@ -218,6 +243,66 @@ def exec_binary(cmdargs:list):
         return sp_stdout.strip('\n')
     return sp_stdout + " " + sp_stderr
 
+# #############################################################################
+def mac_get__cstring_offset(program_bin:str) -> int:
+    """
+    Helper method to crack-open binary being examined on Mac/OSX and to extract
+    out the 'offset' at which 'Section __cstring' starts.
+
+    This data should really be extracted from within the program binary, like
+    it's done on Liux, as part of l3_init(). But somehow the Mach-O interface
+    for locating that offset is not very evident.
+
+    For now, do this round-about thing to decode using `size` utility available
+    on Mac/OSX.
+
+     $ xcrun size -x -l -m <program_bin>
+
+    And post-process stdout from that looking for a line like:
+
+        Section __cstring: 0x1f3 (addr 0x100003dc4 offset 15812)
+
+    ... to extract out the last number '15812'
+    """
+
+    assert OS_UNAME_S == 'Darwin'
+
+    # -----------------------------------------------------------------------
+    # NOTE: We really would like to do this field extraction in one cmd as:
+    # pylint: disable-next=line-too-long
+    #   xcrun size -x -l -m <program-bin> | grep __cstring | cut -f2 -d'(' | awk '{print $NF}' | cut -f1 -d')'
+    #
+    # But for some reason, splitting this long grep-cmd into args and
+    # pumping it through exec_binary() is never working.
+    # For now, resort to a simpler command and post-process downstream.
+    # -----------------------------------------------------------------------
+
+    grep_cmd = r'''xcrun size -x -l -m ''' + program_bin
+
+    cmdargs = shlex.split(grep_cmd)
+    _stdout = exec_binary(cmdargs)
+
+    # -----------------------------------------------------------------------
+    # Construct a r.e. to match a line in the output like:
+    #   Section __cstring: 0x1f3 (addr 0x100003dc4 offset 15812)
+    #
+    # We want to extract '15812' out of 'offset 15812)'
+    # -----------------------------------------------------------------------
+    offset = -1
+    cstring_re_pat = re.compile(r'(.*)__cstring:(.*)(\s+)offset(\s+)(?P<offset_int>(\d+))\)')
+    for line in _stdout.split('\n'):
+        # DEBUG: print(line)
+        line_match = cstring_re_pat.match(line)
+        if line_match is None:
+            continue
+
+        offset = int(line_match.group('offset_int'))
+
+    # DEBUG: print(f"{offset=}")
+    assert offset != -1
+    return offset
+
+
 ###############################################################################
 # main() driver
 ###############################################################################
@@ -229,6 +314,8 @@ def main():
     do_main(sys.argv[1:])
 
 ###############################################################################
+# pylint: disable-msg=too-many-statements
+# pylint: disable-msg=too-many-branches
 def do_main(args:list, return_logentry_lists:bool = False):
     """
     Main method that drives the unpacking of the L3-dump file to print
@@ -255,6 +342,9 @@ def do_main(args:list, return_logentry_lists:bool = False):
     rodata_offs = parse_rodata_start_addr(program_bin)
 
     strings = parse_rodata_string_offsets(program_bin)
+    if OS_UNAME_S == 'Darwin':
+        cstring_off = mac_get__cstring_offset(program_bin)
+        # DEBUG: print(strings)
 
     # To enable unit-testing, via pytests, the parsing and return-data logic
     # build lists for the data as it's being cracked open.
@@ -271,7 +361,7 @@ def do_main(args:list, return_logentry_lists:bool = False):
 
         # pylint: disable-next=unused-variable
         idx, loc, fibase, _, _ = struct.unpack('<iiQQQ', data)
-        # print(f"{idx=} {fibase=:x}")
+        # DEBUG: print(f"{idx=} {fibase=:x}")
 
         # pylint: disable=invalid-name
         nentries = 0
@@ -285,13 +375,24 @@ def do_main(args:list, return_logentry_lists:bool = False):
             if not row or len_row == 0 or len_row < L3_ENTRY_SZ:
                 break
 
-            tid, loc, ptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
+            tid, loc, msgptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
 
             # If no entry was logged, ptr to message's string is expected to be NULL
-            if ptr == 0:
+            if msgptr == 0:
                 break
 
-            offs = ptr - fibase - rodata_offs
+            # print(f"{msgptr=}, {fibase=}, {rodata_offs=}")
+
+            if OS_UNAME_S == 'Linux':
+                offs = msgptr - fibase - rodata_offs
+
+            elif OS_UNAME_S == 'Darwin':
+                offs = msgptr - fibase - cstring_off
+
+            else:
+                offs = 0
+
+            # print(f"{msgptr=:x}, {fibase=:x}, {rodata_offs=:x}, {offs=}")
 
             # No location-ID will be recorded in log-files if L3_LOC_ENABLED is OFF.
             UNPACK_LOC = ''
