@@ -15,10 +15,14 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update -y
-        sudo apt-get install -y pylint
+        sudo apt-get install -y pylint pip
+
+        pip install pytest
+
         set -x
         echo " "
         which pylint
+        which pytest
 
         echo " "
         ls -aFlrt
@@ -35,6 +39,10 @@ jobs:
       run: |
         ./test.sh test-pylint-check
         shellcheck ./test.sh
+
+    #! -------------------------------------------------------------------------
+    - name: test-pytests
+      run: ./test.sh test-pytests
 
     #! -------------------------------------------------------------------------
     - name: test-make-help
