@@ -1,7 +1,7 @@
 #!/bin/bash
 # ##############################################################################
 # test.sh - Driver script to build-and-test L3 toolset.
-#
+# Fix: Added on Mac.
 # This script provides "test" methods that are also invoked as part of CI
 # .github/workflows/build.yml . This way, if you run $ ./test.sh
 # you should get the same build-and-test coverage executed by CI jobs.
