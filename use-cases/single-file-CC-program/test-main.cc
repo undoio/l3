@@ -1,7 +1,7 @@
 /**
  * *****************************************************************************
  * \file test-main.cc
- * \author Greg Law
+ * \author Aditya P. Gurajada, Greg Law
  * \brief L3: Lightweight Logging Library C++ Unit-test
  * \version 0.1
  * \date 2023-12-24
@@ -21,6 +21,9 @@ using namespace std;
 constexpr auto L3_MILLION      (1000 * 1000);
 constexpr auto L3_NS_IN_SEC    (1000 * 1000 * 1000);
 
+void test_perf_slow_logging(int nMil);
+void test_perf_fast_logging(int nMil);
+
 // Convert timespec value to nanoseconds units.
 static uint64_t inline
 timespec_to_ns(struct timespec *ts)
@@ -31,14 +34,9 @@ timespec_to_ns(struct timespec *ts)
 int
 main(void)
 {
+    // Logging perf benchmarking methods below share this log-file.
     auto e = l3_init("/tmp/l3.cc-test.dat");
     if (e) {
-        abort();
-    }
-
-    struct timespec ts0;
-    struct timespec ts1;
-    if (clock_gettime(CLOCK_REALTIME, &ts0)) {
         abort();
     }
 
@@ -46,8 +44,35 @@ main(void)
     printf("\nExercise in-memory logging performance benchmarking: "
            "%d Mil simple/fast log msgs\n",
             nMil);
-    auto n = L3_MILLION;
-    for (n = 0; n < (nMil * L3_MILLION); n++) {
+
+    test_perf_slow_logging(nMil);
+    test_perf_fast_logging(nMil);
+
+    // Logging unit-tests share this log-file.
+    e = l3_init("/tmp/l3.cc-small-test.dat");
+    if (e) {
+        abort();
+    }
+    l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);
+    l3_log_simple("Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
+    l3_log_simple("Invalid buffer handle (addr)", 0xbeefabcd, 0);
+    l3_log_fast("Fast-logging msg1", 10, 0xdeadbeef);
+    l3_log_fast("Fast-logging msg2", 20, 0xbeefbabe);
+
+    return 0;
+}
+
+void
+test_perf_slow_logging(int nMil)
+{
+    struct timespec ts0;
+    struct timespec ts1;
+    if (clock_gettime(CLOCK_REALTIME, &ts0)) {
+        abort();
+    }
+
+    auto n = 0;
+    for (; n < (nMil * L3_MILLION); n++) {
         l3_log_simple("300-Mil Simple l3-log msgs", 0, 0);
     }
 
@@ -59,32 +84,30 @@ main(void)
 
     cout << nMil << " Mil simple log msgs: " << ((nsec1 - nsec0) / n)
          << "ns/msg (avg)" << endl;
+}
 
+void
+test_perf_fast_logging(int nMil)
+{
+    struct timespec ts0;
+    struct timespec ts1;
     if (clock_gettime(CLOCK_REALTIME, &ts0)) {
         abort();
     }
 
     // Throw-in some variations to generate diff 'arg' values during logging.
-    for (n = 0; n < (300 * L3_MILLION); n++) {
+    auto n = 0;
+    for (; n < (300 * L3_MILLION); n++) {
         l3_log_fast("300-Mil Fast l3-log msgs", (n/L3_MILLION), n);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
         abort();
     }
-    nsec0 = timespec_to_ns(&ts0);
-    nsec1 = timespec_to_ns(&ts1);
+    auto nsec0 = timespec_to_ns(&ts0);
+    auto nsec1 = timespec_to_ns(&ts1);
 
-    cout << nMil << " Mil simple log msgs: " << ((nsec1 - nsec0) / n)
+    cout << nMil << " Mil fast log msgs: " << ((nsec1 - nsec0) / n)
          << "ns/msg (avg)" << endl;
 
-    e = l3_init("/tmp/l3.cc-small-test.dat");
-    if (e) {
-        abort();
-    }
-    l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);
-    l3_log_simple("Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
-    l3_log_simple("Invalid buffer handle (addr)", 0xbeefabcd, 0);
-
-    return 0;
 }
