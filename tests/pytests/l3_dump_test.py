@@ -354,7 +354,9 @@ def verify_output_lists(nentries:int,
 
     # -----------------------------------------------------------------------
     # As in the unit-test a single thread does slow-logging all log-entries
-    # must have the same decoded TID value.
+    # must have the same decoded TID value. And, make sure that L3-logging
+    # code has generated a valid thread-ID, which should be non-zero.
+    assert tid_list[0] != 0
     for tid in tid_list:
         assert tid == tid_list[0]
 

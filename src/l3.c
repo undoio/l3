@@ -45,8 +45,8 @@
 #endif
 
 #if __APPLE__
-#define L3_THREAD_LOCAL
-#define L3_GET_TID()  0
+#define L3_THREAD_LOCAL __thread
+#define L3_GET_TID()    pthread_mach_thread_np(pthread_self())
 #else
 #define L3_THREAD_LOCAL thread_local
 #define L3_GET_TID()  syscall(SYS_gettid)
