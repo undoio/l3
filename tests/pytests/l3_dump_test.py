@@ -31,6 +31,8 @@ import l3_dump
 
 L3DUMPSCRIPT    = 'l3_dump.py'
 L3Dump          = L3RootDir + '/' + L3DUMPSCRIPT
+L3_DUMP_ARG_LOG_FILE = '--log-file'
+L3_DUMP_ARG_BINARY   = '--binary'
 
 L3_LOC_EXPLICITLY_UNSET = "0"
 L3_LOC_DEFAULT          = "1"
@@ -87,7 +89,8 @@ def test_unit_test_dump_log_entries():
 
     # Invoke the L3-dump script to unpack the slow-log-entries.
     (nentries, tid_list, loc_list, msg_list, arg1_list, arg2_list) \
-        = l3_dump.do_main(['/tmp/l3.c-small-unit-test.dat', binary],
+        = l3_dump.do_main([L3_DUMP_ARG_LOG_FILE, '/tmp/l3.c-small-unit-test.dat',
+                           L3_DUMP_ARG_BINARY,    binary],
                           return_logentry_lists = True)
 
     # -----------------------------------------------------------------------
@@ -120,7 +123,8 @@ def test_unit_test_dump_log_entries():
 
     # Invoke the L3-dump script to unpack the fast-log-entries.
     (nentries, tid_list, loc_list, msg_list, arg1_list, arg2_list) \
-        = l3_dump.do_main(['/tmp/l3.c-fast-unit-test.dat', binary],
+        = l3_dump.do_main([L3_DUMP_ARG_LOG_FILE, '/tmp/l3.c-fast-unit-test.dat',
+                           L3_DUMP_ARG_BINARY,   binary],
                           return_logentry_lists = True)
 
     exp_msg_list = [  'Fast-log-msg: Args(1,2)'
@@ -406,7 +410,8 @@ def verify_l3_dump_unpack(l3_dump_dat:str,
 
     # Invoke the L3-dump script to unpack the slow-log-entries.
     (nentries, tid_list, loc_list, msg_list, arg1_list, arg2_list) \
-        = l3_dump.do_main([l3_dump_dat, usecase_binary],
+        = l3_dump.do_main([L3_DUMP_ARG_LOG_FILE, l3_dump_dat,
+                           L3_DUMP_ARG_BINARY,    usecase_binary],
                           return_logentry_lists = True)
 
     # -----------------------------------------------------------------------
