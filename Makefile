@@ -118,6 +118,8 @@ USE_CASES   := use-cases
 
 # Name of L3 dump utility that unpacks L3 log-entries
 L3_DUMP                 := l3_dump.py
+L3_DUMP_ARG_LOG_FILE    := --log-file
+L3_DUMP_ARG_BINARY      := --binary
 
 # Unit-tests symbols
 TESTS_DIR       := tests
@@ -636,42 +638,36 @@ run-c-tests: all-c-tests
 	@echo '---- Run C unit-tests: ----'
 	./$(C_UNIT_TEST_BIN)
 	@echo
-	./$(L3_DUMP)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_DATA) $(L3_DUMP_ARG_BINARY) ./$(C_UNIT_TEST_BIN)
 	@echo
-	python3 $(L3_DUMP) $(L3_C_DATA) ./$(C_UNIT_TEST_BIN)
-	@echo
-	python3 $(L3_DUMP) $(L3_C_SMALL_DATA) ./$(C_UNIT_TEST_BIN)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_SMALL_DATA) $(L3_DUMP_ARG_BINARY) ./$(C_UNIT_TEST_BIN)
 
 run-cpp-tests: all-cpp-tests
 	@echo
 	@echo '---- Run C++ .cpp unit-tests: ----'
 	./$(CPP_UNIT_TEST_BIN)
 	@echo
-	./$(L3_DUMP)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_CPP_DATA) $(L3_DUMP_ARG_BINARY) ./$(CPP_UNIT_TEST_BIN)
 	@echo
-	python3 $(L3_DUMP) $(L3_CPP_DATA) ./$(CPP_UNIT_TEST_BIN)
-	@echo
-	python3 $(L3_DUMP) $(L3_CPP_SMALL_DATA) ./$(CPP_UNIT_TEST_BIN)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_CPP_SMALL_DATA) $(L3_DUMP_ARG_BINARY) ./$(CPP_UNIT_TEST_BIN)
 
 run-cc-tests: all-cc-tests
 	@echo
 	@echo '---- Run Cpp *.cc unit-tests: ----'
 	./$(CC_UNIT_TEST_BIN)
 	@echo
-	./$(L3_DUMP)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_CC_DATA) $(L3_DUMP_ARG_BINARY) ./$(CC_UNIT_TEST_BIN)
 	@echo
-	python3 $(L3_DUMP) $(L3_CC_DATA) ./$(CC_UNIT_TEST_BIN)
-	@echo
-	python3 $(L3_DUMP) $(L3_CC_SMALL_DATA) ./$(CC_UNIT_TEST_BIN)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_CC_SMALL_DATA) $(L3_DUMP_ARG_BINARY) ./$(CC_UNIT_TEST_BIN)
 
 run-unit-tests: all-unit-tests
 	@echo
 	@echo '---- Run L3 unit-tests: ----'
 	./$(L3_C_UNIT_TEST_BIN)
 	@echo
-	python3 $(L3_DUMP) $(L3_C_UNIT_SLOW_LOG_TEST_DATA) ./$(L3_C_UNIT_TEST_BIN)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_SLOW_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
 	@echo
-	python3 $(L3_DUMP) $(L3_C_UNIT_FAST_LOG_TEST_DATA) ./$(L3_C_UNIT_TEST_BIN)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_FAST_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
 
 run-loc-tests: all-loc-tests
 	@echo

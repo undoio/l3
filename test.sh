@@ -18,6 +18,10 @@ Build_mode="${BUILD_MODE:-release}"
 # 'Globals' to track which test function is / was executing ...
 This_fn=""
 
+# Arguments supported by L3 dump utility
+L3_LOG_FILE="--log-file"
+L3_BINARY="--binary"
+
 # ###########################################################################
 # Set trap handlers for all errors. Needs -E (-o errtrace): Ensures that ERR
 # traps (see below) get inherited by functions, command substitutions, and
@@ -207,7 +211,8 @@ function test-l3_dump_py-missing-loc_decoder()
     set -x
     mv "${loc_prog}" "${tmp_prog}"
 
-    L3_LOC_ENABLED=1 ./l3_dump.py /tmp/l3.c-small-test.dat "${test_prog}"
+    L3_LOC_ENABLED=1 ./l3_dump.py "${L3_LOG_FILE}" /tmp/l3.c-small-test.dat \
+                                  "${L3_BINARY}" "${test_prog}"
 
     mv "${tmp_prog}" "${loc_prog}"
     set +x
