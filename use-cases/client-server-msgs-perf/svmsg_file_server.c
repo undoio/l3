@@ -10,23 +10,73 @@
 
 /* svmsg_file_server.c
 
+   The server and client communicate using System V message queues.
+
+   This version of the application has been extensively modified based
+   on an initial version downloaded from:
+   https://man7.org/tlpi/code/online/all_files_by_chapter.html
+
+   The application is a very simple process:
+    client -- counter --> server (incr/decr) -> respond new counter to client
+
    A file server that uses System V message queues to handle client requests
-   (see svmsg_file_client.c). The client sends an initial request containing
-   the name of the desired file, and the identifier of the message queue to be
-   used to send the file contents back to the child. The server attempts to
-   open the desired file. If the file cannot be opened, a failure response is
-   sent to the client, otherwise the contents of the requested file are sent
-   in a series of messages.
+   (see svmsg_file_client.c).
+
+   The client sends an initial request containing:
+        - An initial counter
+        - A message type indicating to increment / decrement the counter or
+          to exit. (And possibly a few more defined in req_resp_type_t{}.
+        - The identifier of the message queue to be used to send the response
+          back to the child.
+
+   The server does basic book-keeping:
+        - For incr / decr request, do the appropriate math. Return counter
+        - For exit request, manage # of active client conns etc.
+
+   When all clients exit the system, the server will cleanup message queues
+   and exit normally.
 
    This application makes use of multiple message queues. The server maintains
    a queue (with a well-known key) dedicated to incoming client requests. Each
    client creates its own private queue, which is used to pass response
    messages from the server back to the client.
 
-   This program operates as a concurrent server, forking a new child process to
-   handle each client request while the parent waits for further client requests.
+   This program operates as a serialized server, processing all client requests
+   serially.
 */
+#include <inttypes.h>
+#include <assert.h>
 #include "svmsg_file.h"
+#include "l3.h"
+
+/**
+ * Global data structures to track client-specific information.
+ */
+typedef struct client_info {
+    int             clientId;
+    int             client_idx; // Into ActiveClients[] array, below
+    int64_t         client_ctr; // Current value of client's counter
+    req_resp_type_t last_mtype; // Last requests->mtype
+} Client_info;
+
+Client_info ActiveClients[MAX_CLIENTS];
+
+/**
+ * We have a simplistic model to track clients connecting and exiting.
+ *
+ * - NumActiveClientsHWM: High-Water mark of # of active clients.
+ *   When client attaches to server, use NumActiveClientsHWM as index
+ *   into above array for this client's info.
+ *   Bump up both NumActiveClients and NumActiveClientsHWM.
+ *
+ * - NumActiveClients: Current # of active clients connected.
+ *   When a client exits, decrement NumActiveClients, but do not
+ *   decrement NumActiveClientsHWM. This way next client who enters the
+ *   system will use next Client_info[] slot, without trying to reuse
+ *   the slot(s) freed by clients who exited previously.
+ */
+static unsigned int   NumActiveClientsHWM = 0;
+static unsigned int   NumActiveClients    = 0;
 
 static void             /* SIGCHLD handler */
 grimReaper(int sig)
@@ -40,44 +90,11 @@ grimReaper(int sig)
     errno = savedErrno;
 }
 
-static void             /* Executed in child process: serve a single client */
-serveRequest(const struct requestMsg *req)
-{
-    int fd;
-    ssize_t numRead;
-    struct responseMsg resp;
-
-    fd = open(req->pathname, O_RDONLY);
-    if (fd == -1) {                     /* Open failed: send error text */
-        resp.mtype = RESP_MT_FAILURE;
-        snprintf(resp.data, sizeof(resp.data), "%s", "Couldn't open");
-        msgsnd(req->clientId, &resp, strlen(resp.data) + 1, 0);
-        exit(EXIT_FAILURE);             /* and terminate */
-    }
-
-    /* Transmit file contents in messages with type RESP_MT_DATA. We don't
-       diagnose read() and msgsnd() errors since we can't notify client.
-    */
-    resp.mtype = RESP_MT_DATA;
-    while ((numRead = read(fd, resp.data, RESP_MSG_SIZE)) > 0) {
-        if (msgsnd(req->clientId, &resp, numRead, 0) == -1) {
-            break;
-        }
-    }
-
-    /* Send a message of type RESP_MT_END to signify end-of-file */
-
-    resp.mtype = RESP_MT_END;
-    msgsnd(req->clientId, &resp, 0, 0);         /* Zero-length mtext */
-}
-
 int
 main(int argc, char *argv[])
 {
-    struct requestMsg req;
-    pid_t pid;
     ssize_t msgLen;
-    int serverId;
+    int     serverId;
     struct sigaction sa;
 
     /* Create server message queue */
@@ -97,7 +114,19 @@ main(int argc, char *argv[])
         errExit("sigaction");
     }
 
+    // Initialize L3-Logging
+#if L3_ENABLED
+    const char *logfile = "/tmp/l3.c-server-test.dat";
+    int e = l3_init(logfile);
+    if (e) {
+        errExit("l3_init");
+    }
+    printf("Server: Initiate L3-logging to log-file '%s'\n", logfile);
+#endif // L3_ENABLED
+
     /* Read requests, handle each in a separate child process */
+    requestMsg req;
+    responseMsg resp;
 
     for (;;) {
         msgLen = msgrcv(serverId, &req, REQ_MSG_SIZE, 0, 0);
@@ -109,24 +138,81 @@ main(int argc, char *argv[])
             break;                      /* ... so terminate loop */
         }
 
-        pid = fork();                   /* Create child process */
-        if (pid == -1) {
-            errMsg("fork");
+        Client_info *clientp = NULL;
+        switch (req.mtype) {
+
+          case REQ_MT_INIT:
+            resp.mtype = req.mtype;         // Confirm initialization is done
+            resp.clientId = req.clientId;   // For this client
+
+            // Use the next free slot w/o trying to recycle existing free slots.
+            resp.client_idx = NumActiveClientsHWM;
+            resp.counter = req.counter;     // Just init'ed; no incr/decr done
+
+            // Save off client's initial state
+            clientp = &ActiveClients[NumActiveClientsHWM];
+
+            clientp->clientId   = req.clientId;
+            clientp->client_idx = NumActiveClientsHWM;
+            clientp->client_ctr = req.counter;
+            clientp->last_mtype = req.mtype;
+
+            NumActiveClients++;
+            NumActiveClientsHWM++;
+            printf("Server: Client ID=%d joined. # active clients=%d (HWM=%d)\n",
+                   req.clientId, NumActiveClients, NumActiveClientsHWM);
+            break;
+
+          case REQ_MT_INCR:
+            clientp = &ActiveClients[req.client_idx];
+            assert(clientp->clientId == req.clientId);
+
+            // Construct response message
+            resp.mtype = REQ_MT_INCR;
+            resp.clientId = req.clientId;   // For this client
+            resp.client_idx = req.client_idx;
+
+            // Implement and record increment.
+            clientp->last_mtype = REQ_MT_INCR;
+            resp.counter = ++clientp->client_ctr;
+#if L3_ENABLED
+            l3_log_simple("ClientID=%d, Increment=%" PRIu64,
+                          resp.clientId, resp.counter);
+#endif // L3_ENABLED
+            break;
+
+          case REQ_MT_EXIT:
+            // One client has informed that it has exited
+            NumActiveClients--;
+            printf("Server: Client ID=%d exited. # active clients=%d\n",
+                   req.clientId, NumActiveClients);
+            if (NumActiveClients == 0) {
+                break;
+            }
+            // Client has exited, so no need to send ack-response back to it.
+            req.clientId = 0;
+            break;
+
+          case REQ_MT_DECR:
+          case REQ_MT_GET_CTR:
+          case REQ_MT_QUIT:
+          default:
+            assert(1 == 0);
             break;
         }
-
-        if (pid == 0) {                 /* Child handles request */
-            serveRequest(&req);
-            _exit(EXIT_SUCCESS);
+        // Client may have exited, so no need to send ack-response back to it.
+        if (req.clientId && msgsnd(req.clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
+            break;
         }
 
         /* Parent loops to receive next client request */
     }
-
-    /* If msgrcv() or fork() fails, remove server MQ and exit */
+    assert(NumActiveClients == 0);
 
     if (msgctl(serverId, IPC_RMID, NULL) == -1) {
         errExit("msgctl");
     }
+    printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
+           NumActiveClients, NumActiveClientsHWM);
     exit(EXIT_SUCCESS);
 }

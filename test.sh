@@ -72,7 +72,7 @@ TestList=(
            "test-build-and-run-C-samples-with-LOC-ELF"
            "test-build-and-run-Cpp-samples-with-LOC-ELF"
            "test-build-and-run-Cc-samples-with-LOC-ELF"
-           "test-build-client-server-perf-test"
+           "test-build-and-run-client-server-perf-test"
 
            "test-pytests"
 
@@ -281,10 +281,59 @@ function test-build-and-run-Cc-samples-with-LOC-ELF()
 }
 
 # #############################################################################
-function test-build-client-server-perf-test()
+function test-build-and-run-client-server-perf-test()
 {
+    set +x
+
+    echo " "
+    echo "${Me}: Client-server performance testing with L3-logging OFF:"
+    echo " "
+    build-and-run-client-server-perf-test 0
+
+    echo " "
+    echo "${Me}: Client-server performance testing with L3-logging ON:"
+    echo " "
+    build-and-run-client-server-perf-test 1
+
+    echo " "
+    echo "${Me}: Completed basic client(s)-server communication test."
+    echo " "
+}
+
+# #############################################################################
+# Minion to test-build-and-run-client-server-perf-test(), to actually perform
+# the build and run the client/server application for performance benchmarking.
+# #############################################################################
+function build-and-run-client-server-perf-test()
+{
+    l3_enabled=$1
+
+    set +x
+    # Makefile does not implement 'run' step. Do it here manually.
+    local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
+    local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
+
+    set -x
     make clean
-    make clean && CXX=g++ LD=g++ make client-server-perf-test
+    make clean && CXX=g++ LD=g++ L3_ENABLED=${l3_enabled} make client-server-perf-test
+
+    ${server_bin} &
+
+    set +x
+    sleep 5
+
+    local numclients=5
+    local ictr=0
+    while [ ${ictr} -lt ${numclients} ]; do
+
+        set -x
+        ${client_bin} 1000 &
+        set +x
+
+        ictr=$((ictr + 1))
+    done
+
+    wait
 }
 
 # #############################################################################

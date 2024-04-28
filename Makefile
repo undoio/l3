@@ -145,10 +145,23 @@ LOC_TOKENS      := loc_tokens.h
 
 L3_LOC_UNSET            := 0
 
+# -----------------------------------------------------------------------------
+# The driving env-var, L3_ENABLED, can be set to one of these values.
+# By default, most programs are built with this ON. Only for some performance
+# tests, we want to build programs with L3 OFF, then with L3 ON.
+# -----------------------------------------------------------------------------
+L3_DISABLED     := 0
+L3_DEFAULT      := 1
+
+# Set local symbol based on whether environment variable is set.
+L3_ENABLED ?= $(L3_DEFAULT)
+
+# -----------------------------------------------------------------------------
 # The driving env-var, L3_LOC_ENABLED, needs to be set to one of these values.
 # LOC-encoding comes in two flavours. Default technique is based on the
 # Python-generator script. Enhanced technique is based on LOC-ELF
 # encoding.
+# -----------------------------------------------------------------------------
 L3_LOC_DEFAULT          := 1
 L3_LOC_ELF_ENCODING     := 2
 
@@ -533,6 +546,11 @@ CLIENT_SERVER_SERVER_MAIN_SRC   := $(filter %_server.c, $(CLIENT_SERVER_PERF_TES
 # Build list of sources other than client-/server-main sources.
 CLIENT_SERVER_NON_MAIN_SRCS     := $(filter-out $(CLIENT_SERVER_PERF_TESTS_DIR)/svmsg_file_%.c, $(CLIENT_SERVER_PERF_TESTS_SRCS))
 
+# If L3-logging is enabled in test-program, need to include core library file
+ifeq ($(L3_ENABLED), $(L3_DEFAULT))
+    CLIENT_SERVER_NON_MAIN_SRCS += $(L3_SRC)
+endif
+
 # Map the list of sources to resulting list-of-objects
 CLIENT_SERVER_CLIENT_MAIN_OBJ   := $(CLIENT_SERVER_CLIENT_MAIN_SRC:%.c=$(OBJDIR)/%.o)
 CLIENT_SERVER_SERVER_MAIN_OBJ   := $(CLIENT_SERVER_SERVER_MAIN_SRC:%.c=$(OBJDIR)/%.o)
@@ -551,6 +569,7 @@ CLIENT_SERVER_PERF_TEST_BINS    := $(CLIENT_SERVER_PERF_TEST_BIN_SRCS:$(CLIENT_S
 ifeq "$(BUILD_VERBOSE)" "1"
     $(info )
     $(info ---- Debug ----)
+    $(info $$L3_ENABLED = [ ${L3_ENABLED} ])
     $(info $$CLIENT_SERVER_PERF_TESTS_DIR = [ ${CLIENT_SERVER_PERF_TESTS_DIR} ])
     $(info $$CLIENT_SERVER_PERF_TESTS_SRCS = [ ${CLIENT_SERVER_PERF_TESTS_SRCS} ])
     $(info $$CLIENT_SERVER_PERF_TEST_BIN_SRCS = [ ${CLIENT_SERVER_PERF_TEST_BIN_SRCS} ])
@@ -581,6 +600,14 @@ endif
 # use += here, so that extra flags can be provided via the environment
 ifeq "$(BUILD_MODE)" "debug"
     CFLAGS += -DDEBUG
+endif
+
+# By default, L3-logging is always ON for all programs built here.
+# So, the -DL3_ENABLED flag is really just a documentation pass-through.
+# Except, some performance benchmarking programs are built with L3 OFF to
+# compare the performance of the benchmark with L3 ON.
+ifeq ($(L3_ENABLED), $(L3_DEFAULT))
+      CFLAGS += -DL3_ENABLED
 endif
 
 # By default, L3-logging runs on its own. To integrate L3 with LOC machinery,
