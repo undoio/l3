@@ -27,16 +27,17 @@ terminate(Boolean useExit3)
 
     /* Dump core if EF_DUMPCORE environment variable is defined and
        is a nonempty string; otherwise call exit(3) or _exit(2),
-       depending on the value of 'useExit3'. */
-
+       depending on the value of 'useExit3'.
+    */
     s = getenv("EF_DUMPCORE");
 
-    if (s != NULL && *s != '\0')
+    if (s != NULL && *s != '\0') {
         abort();
-    else if (useExit3)
+    } else if (useExit3) {
         exit(EXIT_FAILURE);
-    else
+    } else {
         _exit(EXIT_FAILURE);
+    }
 }
 
 /* Diagnose 'errno' error by:
@@ -46,8 +47,8 @@ terminate(Boolean useExit3)
         with the corresponding error message from strerror(), and
 
       * outputting the caller-supplied error message specified in
-        'format' and 'ap'. */
-
+        'format' and 'ap'.
+*/
 static void
 outputError(Boolean useErr, int err, Boolean flushStdout,
         const char *format, va_list ap)
@@ -57,12 +58,13 @@ outputError(Boolean useErr, int err, Boolean flushStdout,
 
     vsnprintf(userMsg, BUF_SIZE, format, ap);
 
-    if (useErr)
+    if (useErr) {
         snprintf(errText, BUF_SIZE, " [%s %s]",
                 (err > 0 && err <= MAX_ENAME) ?
                 ename[err] : "?UNKNOWN?", strerror(err));
-    else
+    } else {
         snprintf(errText, BUF_SIZE, ":");
+    }
 
 #if __GNUC__ >= 7
 #pragma GCC diagnostic push
@@ -73,15 +75,16 @@ outputError(Boolean useErr, int err, Boolean flushStdout,
 #pragma GCC diagnostic pop
 #endif
 
-    if (flushStdout)
+    if (flushStdout) {
         fflush(stdout);       /* Flush any pending stdout */
+    }
     fputs(buf, stderr);
     fflush(stderr);           /* In case stderr is not line-buffered */
 }
 
 /* Display error message including 'errno' diagnostic, and
-   return to caller */
-
+   return to caller
+*/
 void
 errMsg(const char *format, ...)
 {
@@ -98,8 +101,8 @@ errMsg(const char *format, ...)
 }
 
 /* Display error message including 'errno' diagnostic, and
-   terminate the process */
-
+   terminate the process
+*/
 void
 errExit(const char *format, ...)
 {
@@ -125,8 +128,8 @@ errExit(const char *format, ...)
    function that creates a child process that must then terminate
    because of an error: the child must terminate without flushing
    stdio buffers that were partially filled by the caller and without
-   invoking exit handlers that were established by the caller. */
-
+   invoking exit handlers that were established by the caller.
+*/
 void
 err_exit(const char *format, ...)
 {
@@ -140,8 +143,8 @@ err_exit(const char *format, ...)
 }
 
 /* The following function does the same as errExit(), but expects
-   the error number in 'errnum' */
-
+   the error number in 'errnum'
+*/
 void
 errExitEN(int errnum, const char *format, ...)
 {
@@ -186,9 +189,7 @@ usageErr(const char *format, ...)
     exit(EXIT_FAILURE);
 }
 
-/* Diagnose an error in command-line arguments and
-   terminate the process */
-
+/* Diagnose an error in command-line arguments and terminate the process */
 void
 cmdLineErr(const char *format, ...)
 {
