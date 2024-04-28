@@ -24,29 +24,52 @@
 
 #define SERVER_KEY 0x1aaaaaa1           /* Key for server's message queue */
 
-struct requestMsg {                     /* Requests (client to server) */
-    long mtype;                         /* Unused */
-    int  clientId;                      /* ID of client's message queue */
-    char pathname[PATH_MAX];            /* File to be returned */
-};
+#define MAX_CLIENTS 64
 
-/* REQ_MSG_SIZE computes size of 'mtext' part of 'requestMsg' structure.
-   We use offsetof() to handle the possibility that there are padding
-   bytes between the 'clientId' and 'pathname' fields.
-*/
+/**
+ * Types for request / response messages sent from server to client
+ */
+typedef enum {
+      REQ_MT_UNKNOWN    = 0
+    , REQ_MT_INIT       = 1     // New client initialization
+    , REQ_MT_INCR               // Increment client's counter
+    , REQ_MT_DECR               // Decrement client's counter
+    , REQ_MT_GET_CTR            // Retrieve current state of counter
+    , REQ_MT_QUIT               // This client wants to quit
 
-#define REQ_MSG_SIZE (offsetof(struct requestMsg, pathname) - \
-                      offsetof(struct requestMsg, clientId) + PATH_MAX)
+    // Server will send RESP_MT_QUIT to all active clients.
+    , REQ_MT_EXIT               // Client asks application to exit
 
-#define RESP_MSG_SIZE 8192
+    // Response message types send by server to client.
+    , RESP_MT_FAILURE           // Some failure indicator recd from server
+    , RESP_MT_DATA              // Message contains data (counter)
+    , RESP_MT_END               // End of message stream (unused)
+    , RESP_MT_INCR  = REQ_MT_INCR
+    , RESP_MT_DECR  = REQ_MT_DECR
+    , RESP_MT_QUIT  = REQ_MT_QUIT
 
-struct responseMsg {                    /* Responses (server to client) */
-    long mtype;                         /* One of RESP_MT_* values below */
-    char data[RESP_MSG_SIZE];           /* File content / response message */
-};
 
-/* Types for response messages sent from server to client */
+} req_resp_type_t;
 
-#define RESP_MT_FAILURE 1               /* File couldn't be opened */
-#define RESP_MT_DATA    2               /* Message contains file data */
-#define RESP_MT_END     3               /* File data complete */
+
+typedef struct requestMsg {             /* Requests (client to server) */
+    req_resp_type_t mtype;              /* Request msg type */
+    int             clientId;           /* ID of client's message queue */
+    int             client_idx;         /* Client's index on server-side array */
+    int64_t         counter;            /* Client's counter value */
+} requestMsg;
+
+#define REQ_MSG_SIZE    sizeof(requestMsg)
+
+// At client initialization time, we don't know its index on server-side
+#define REQ_CLIENT_INDEX_UNKNOWN    ((int) -1)
+
+typedef struct responseMsg {            /* Responses (server to client) */
+    req_resp_type_t mtype;              /* One of request/response type IDs */
+    int             clientId;           /* ID of client's message queue */
+    int             client_idx;         /* Client's index on server-side array */
+    int64_t         counter;            /* Client's counter value */
+} responseMsg;
+
+#define RESP_MSG_SIZE sizeof(responseMsg)
+
