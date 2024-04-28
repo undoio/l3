@@ -32,7 +32,8 @@ struct requestMsg {                     /* Requests (client to server) */
 
 /* REQ_MSG_SIZE computes size of 'mtext' part of 'requestMsg' structure.
    We use offsetof() to handle the possibility that there are padding
-   bytes between the 'clientId' and 'pathname' fields. */
+   bytes between the 'clientId' and 'pathname' fields.
+*/
 
 #define REQ_MSG_SIZE (offsetof(struct requestMsg, pathname) - \
                       offsetof(struct requestMsg, clientId) + PATH_MAX)

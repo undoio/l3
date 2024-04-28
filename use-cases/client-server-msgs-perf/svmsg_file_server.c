@@ -34,8 +34,9 @@ grimReaper(int sig)
     int savedErrno;
 
     savedErrno = errno;                 /* waitpid() might change 'errno' */
-    while (waitpid(-1, NULL, WNOHANG) > 0)
+    while (waitpid(-1, NULL, WNOHANG) > 0) {
         continue;
+    }
     errno = savedErrno;
 }
 
@@ -55,12 +56,14 @@ serveRequest(const struct requestMsg *req)
     }
 
     /* Transmit file contents in messages with type RESP_MT_DATA. We don't
-       diagnose read() and msgsnd() errors since we can't notify client. */
-
+       diagnose read() and msgsnd() errors since we can't notify client.
+    */
     resp.mtype = RESP_MT_DATA;
-    while ((numRead = read(fd, resp.data, RESP_MSG_SIZE)) > 0)
-        if (msgsnd(req->clientId, &resp, numRead, 0) == -1)
+    while ((numRead = read(fd, resp.data, RESP_MSG_SIZE)) > 0) {
+        if (msgsnd(req->clientId, &resp, numRead, 0) == -1) {
             break;
+        }
+    }
 
     /* Send a message of type RESP_MT_END to signify end-of-file */
 
@@ -79,26 +82,29 @@ main(int argc, char *argv[])
 
     /* Create server message queue */
 
-    serverId = msgget(SERVER_KEY, IPC_CREAT | IPC_EXCL |
-                            S_IRUSR | S_IWUSR | S_IWGRP);
-    if (serverId == -1)
+    serverId = msgget(SERVER_KEY,
+                      (IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IWGRP));
+    if (serverId == -1) {
         errExit("msgget");
+    }
 
     /* Establish SIGCHLD handler to reap terminated children */
 
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
     sa.sa_handler = grimReaper;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1)
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
         errExit("sigaction");
+    }
 
     /* Read requests, handle each in a separate child process */
 
     for (;;) {
         msgLen = msgrcv(serverId, &req, REQ_MSG_SIZE, 0, 0);
         if (msgLen == -1) {
-            if (errno == EINTR)         /* Interrupted by SIGCHLD handler? */
+            if (errno == EINTR) {       /* Interrupted by SIGCHLD handler? */
                 continue;               /* ... then restart msgrcv() */
+            }
             errMsg("msgrcv");           /* Some other error */
             break;                      /* ... so terminate loop */
         }
@@ -119,7 +125,8 @@ main(int argc, char *argv[])
 
     /* If msgrcv() or fork() fails, remove server MQ and exit */
 
-    if (msgctl(serverId, IPC_RMID, NULL) == -1)
+    if (msgctl(serverId, IPC_RMID, NULL) == -1) {
         errExit("msgctl");
+    }
     exit(EXIT_SUCCESS);
 }
