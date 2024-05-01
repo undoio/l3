@@ -639,9 +639,6 @@ ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
 
 else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
 
-    # Core L3 files flag off of L3_LOC_ENABLED.
-    CFLAGS += -DL3_LOC_ENABLED
-
     # Core L3 files flag off of L3_LOC_ENABLED. L3_LOC_ELF_ENABLED is provided
     # in case in some sources we wish to conditionally compile some info-msgs
     # indicating that this LOC-ELF encoding scheme is in effect.

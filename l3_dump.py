@@ -22,11 +22,20 @@ L3_LOG_HEADER_SZ = 32  # bytes; offsetof(L3_LOG, slots)
 L3_ENTRY_SZ = 32       # bytes; sizeof(L3_ENTRY)
 
 # #############################################################################
-# #############################################################################
 PROGRAM_BIN = 'unknown'
 DECODE_LOC_ID = 0   # By default, we expect L3 logging was done w/LOC OFF.
 LOC_ENABLED = "L3_LOC_ENABLED"
 LOC_DECODER = "LOC_DECODER"
+
+# -----------------------------------------------------------------------------
+# The driving env-var, L3_LOC_ENABLED, needs to be set to one of these values.
+# LOC-encoding comes in two flavours. Default technique is based on the
+# Python-generator script. Enhanced technique is based on LOC-ELF
+# encoding.
+# -----------------------------------------------------------------------------
+L3_LOC_UNSET            = 0
+L3_LOC_DEFAULT          = 1
+L3_LOC_ELF_ENCODING     = 2
 
 # #############################################################################
 # Establish path / names to tools used here based on the OS-platform version
@@ -46,28 +55,11 @@ elif OS_UNAME_S == 'Darwin':
     READELF_DATA_SECTION = '__cstring'
 
 # #############################################################################
-def set_decode_loc_id(program_bin:str, loc_decoder_bin:str = None):
-    """
-    Check for required LOC-decoder binary, based on environment of run.
-    If L3_LOC_ENABLED=1 is set in the env:
-     - Search for a LOC-decoder binary specified by the --loc-binary argument.
-     - Otherwiwse, search for a default LOC-binary named "<program_binary>_loc".
-    """
-    decode_loc_id = DECODE_LOC_ID
-    loc_decoder = LOC_DECODER
-    if LOC_ENABLED in os.environ:
-        env_var_val = os.getenv(LOC_ENABLED)
-        if env_var_val == "1":
-            loc_decoder = program_bin + "_loc" if loc_decoder_bin is None else loc_decoder_bin
-            if os.path.exists(loc_decoder) is False:
-                print(f"Env-var {LOC_ENABLED}=1 is set, but required "
-                      + f"LOC-decoder binary {loc_decoder} is not found.")
-                sys.exit(1)
-
-            # LOC is in-use and LOC-decoder binary was found.
-            decode_loc_id = 1
-
-    return (decode_loc_id, loc_decoder)
+# Status flags defined in src/l3.c for L3_LOG()->flags field
+L3_LOG_FLAGS_LINUX                = int('0x0001', 16)
+L3_LOG_FLAGS_MACOSX               = int('0x0002', 16)
+L3_LOG_FLAGS_LOC_ENCODING         = int('0x0010', 16)
+L3_LOG_FLAGS_LOC_ELF_ENCODING     = int('0x0020', 16)
 
 # #############################################################################
 def which_binary(os_uname_s:str, bin_name:str):
@@ -219,6 +211,69 @@ def parse_string_offsets(input_str:str) -> (dict,int):
     return (_strings, nlines)
 
 # #############################################################################
+def l3_unpack_loghdr(file_hdl) -> (int, int):
+    """
+    Unpack the header struct of a L3-log file and identify key fields.
+    We are unpacking a struct laid out like the following:
+
+    typedef struct l3_log
+    {
+        uint64_t        idx;
+        uint64_t        fbase_addr;
+        uint32_t        pad0;
+        uint16_t        pad2;
+        l3_log_flags_t  flags;
+        uint64_t        pad1;
+        // L3_ENTRY        slots[L3_MAX_SLOTS];
+    } L3_LOG;
+
+    Arguments:
+        file_hdl    - Handle to open log-file
+    """
+    data = file_hdl.read(L3_LOG_HEADER_SZ)
+
+    # '<' => byte-order of the header is little-endian
+    # pylint: disable-next=unused-variable
+    _, fibase, pad0, pad2, flags, pad1 = struct.unpack('<QQihHQ', data)
+
+    # Interpret LOC-encoding scheme flag as loc-encoding type-ID
+    if flags & L3_LOG_FLAGS_LOC_ENCODING != 0:
+        decode_loc_id = L3_LOC_DEFAULT
+    elif flags & L3_LOG_FLAGS_LOC_ELF_ENCODING != 0:
+        decode_loc_id = L3_LOC_ELF_ENCODING
+    else:
+        decode_loc_id = L3_LOC_UNSET
+
+    # print(f"{flags=}, {flags=:X},{decode_loc_id=}, {pad0=}, {pad1=}, {pad2=}")
+    # print(f"{decode_loc_id=}")
+    return (fibase, decode_loc_id)
+
+
+# #############################################################################
+def select_loc_decoder_bin(decode_loc_id:int, program_bin:str,
+                           loc_decoder_bin:str):
+    """
+    Based on the type of LOC-encoding scheme found in the log-header, i.e.,
+    decode_loc_id, and the input program binary's name, figure out which
+    LOC-decoder binary to be used while unpacking LOC-ID values that may be
+    encoded in log-entries.
+
+    Currently, we only support decoding LOC-IDs encoded by default LOC scheme.
+     - Search for a LOC-decoder binary specified by the --loc-binary argument.
+     - Otherwiwse, search for a default LOC-binary named "<program_binary>_loc".
+    """
+    loc_decoder = None
+    if decode_loc_id == 1:
+        loc_decoder = program_bin + "_loc" if loc_decoder_bin is None else loc_decoder_bin
+        if os.path.exists(loc_decoder) is False:
+            print(f"L3-log file uses default L3_LOC_ENCODING={decode_loc_id} "
+                  +  " encoding scheme, but the required "
+                  + f"LOC-decoder binary {loc_decoder} is not found.")
+            sys.exit(1)
+
+    return loc_decoder
+
+# #############################################################################
 def exec_binary(cmdargs:list) -> str:
     """Execute a binary, with args, and print output to stdout."""
     try:
@@ -324,12 +379,12 @@ def do_main(args:list, return_logentry_lists:bool = False):
             - Thread-ID, LOC-ID, print message, arg1, arg2.
     """
 
+    # Parse command-line arguments into script locals
     parsed_args = l3_parse_args(args)
 
     l3_logfile  = parsed_args.log_file
     program_bin = parsed_args.prog_binary
     loc_decoder_bin = parsed_args.loc_binary
-    (decode_loc_id, loc_decoder_bin) = set_decode_loc_id(program_bin, loc_decoder_bin)
 
     # Validate that required binary used below are found in $PATH.
     which_binary(OS_UNAME_S, READELF_BIN)
@@ -352,12 +407,11 @@ def do_main(args:list, return_logentry_lists:bool = False):
     with open(l3_logfile, 'rb') as file:
         # Unpack the 1st n-bytes as an L3_LOG{} struct to get a hold
         # of the fbase-address stashed by the l3_init() call.
-        data = file.read(L3_LOG_HEADER_SZ)
+        (fibase, decode_loc_id) = l3_unpack_loghdr(file)
 
-        # pylint: disable-next=unused-variable
-        idx, loc, fibase, _, _ = struct.unpack('<iiQQQ', data)
-        # DEBUG: print(f"{idx=} {fibase=:x}")
-
+        loc_decoder_bin = select_loc_decoder_bin(decode_loc_id,
+                                                 program_bin,
+                                                 loc_decoder_bin)
         # pylint: disable=invalid-name
         nentries = 0
         loc_prev = 0
@@ -393,9 +447,11 @@ def do_main(args:list, return_logentry_lists:bool = False):
             UNPACK_LOC = ''
             if loc == 0:
                 print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
-            elif decode_loc_id == 0:
+
+            elif decode_loc_id == L3_LOC_UNSET:
                 print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
-            elif decode_loc_id == 1:
+
+            elif decode_loc_id == L3_LOC_DEFAULT:
                 # ----------------------------------------------------------------
                 # Minor optimization to speed-up unpacking of L3 log-dumps from
                 # tests that log millions of log-entries from the same line-of-code.
@@ -409,6 +465,9 @@ def do_main(args:list, return_logentry_lists:bool = False):
                 else:
                     UNPACK_LOC = unpack_loc_prev
                 print(f"{tid=} {UNPACK_LOC} '{strings[offs]}' {arg1=} {arg2=}")
+
+            elif decode_loc_id == L3_LOC_ELF_ENCODING:
+                print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
 
             # Build output-lists, if requested
             if return_logentry_lists is True:
