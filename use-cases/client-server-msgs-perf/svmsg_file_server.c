@@ -121,7 +121,11 @@ main(int argc, char *argv[])
     if (e) {
         errExit("l3_init");
     }
-    printf("Server: Initiate L3-logging to log-file '%s'\n", logfile);
+
+    const char *loc_scheme = "LOC";
+    printf("Server: Initiate L3-logging to log-file '%s'"
+           ", using %s encoding scheme.\n", logfile, loc_scheme);
+
 #endif // L3_ENABLED
 
     /* Read requests, handle each in a separate child process */

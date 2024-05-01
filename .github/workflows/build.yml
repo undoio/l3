@@ -163,9 +163,20 @@ jobs:
         BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cc-samples-with-LOC-ELF
 
     #! -------------------------------------------------------------------------
+    #  This test will build-and-run client-server perf-test, with L3-Logging OFF
+    #  (baseline) and L3-Logging ON.
+    #! -------------------------------------------------------------------------
     - name: test-build-and-run-client-server-perf-test
       run: |
         BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test
+
+    #! -------------------------------------------------------------------------
+    #  This test will build-and-run client-server perf-test, with L3-Logging
+    #  ON + L3-LOC encoding scheme ON.
+    #! -------------------------------------------------------------------------
+    - name: test-build-and-run-client-server-perf-test-l3_loc_eq_1
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test-l3_loc_eq_1
 
     # -------------------------------------------------------------------------
     # Exercise the --from-test interface to verify that it still works to
