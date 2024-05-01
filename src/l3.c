@@ -11,6 +11,7 @@
  */
 #include <dlfcn.h> // Makefile supplies required -D_GNU_SOURCE flag.
 
+#include <stddef.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -69,6 +70,12 @@ typedef struct l3_entry
 } L3_ENTRY;
 
 /**
+ * The L3-dump script expects a specific layout and its parsing routines
+ * hard-code the log-entry size to be these many bytes.
+ */
+#define L3_LOG_ENTRY_SZ (4 * sizeof(uint64_t))
+
+/**
  * Cross-check LOC's data structures. We need this to be true to ensure
  * that the sizeof(l3_entry) is unchanged w/LOC ON or OFF.
  */
@@ -78,18 +85,46 @@ L3_STATIC_ASSERT(sizeof(loc_t) == sizeof(uint32_t),
 #endif  // L3_LOC_ENABLED
 
 /**
+ * Definitions for L3_LOG.flags field. This field is used to reliably identify
+ * the provenance of a L3-log file so that the appropriate tool / technique can
+ * be used to unpack log-entries when dumping the contents of a L3-log file.
+ */
+typedef uint16_t l3_log_flags_t;
+enum l3_log_flags_t
+{
+      L3_LOG_FLAGS_LINUX                = ((uint16_t) 0x0001)
+    , L3_LOG_FLAGS_MACOSX               = ((uint16_t) 0x0002)
+
+    , L3_LOG_FLAGS_LOC_ENCODING         = ((uint16_t) 0x0010)
+    , L3_LOG_FLAGS_LOC_ELF_ENCODING     = ((uint16_t) 0x0020)
+
+};
+
+/**
  * L3 Log Structure definitions:
  */
 typedef struct l3_log
 {
-    uint64_t idx;
-    uint64_t fbase_addr;
-    uint64_t pad0;
-    uint64_t pad1;
-    L3_ENTRY slots[L3_MAX_SLOTS];
+    uint64_t        idx;
+    uint64_t        fbase_addr;
+    uint32_t        pad0;
+    uint16_t        pad2;
+    l3_log_flags_t  flags;
+    uint64_t        pad1;
+    L3_ENTRY        slots[L3_MAX_SLOTS];
 } L3_LOG;
 
 L3_LOG *l3_log; // Also referenced in l3.S for fast-logging.
+
+/**
+ * The L3-dump script expects a specific layout and its parsing routines
+ * hard-code the log-header size to be these many bytes. (The overlay of
+ * L3_LOG{} and L3_ENTRY{}'s size is somewhat of a convenience. They just
+ * happen to be of the same size, as of now, hence, this reuse.)
+ */
+
+L3_STATIC_ASSERT(offsetof(L3_LOG,slots) == sizeof(L3_ENTRY),
+                "Expected layout of L3_LOG{} is != 32 bytes.");
 
 #if __APPLE__
 
@@ -140,10 +175,12 @@ l3_init(const char *path)
     // zero-filled pages. We do this just to be clear where the idx begins.
     l3_log->idx = 0;
 
-#if __APPLE__
-     l3_log->fbase_addr= getBaseAddress();
-#else
+    l3_log_flags_t flags = 0;
 
+#if __APPLE__
+     l3_log->fbase_addr = getBaseAddress();
+     flags |= L3_LOG_FLAGS_MACOSX;
+#else
     /* Linux: Let's find where rodata is loaded. */
     Dl_info info;
     if (!dladdr("test string", &info))
@@ -152,10 +189,27 @@ l3_init(const char *path)
         return -1;
     }
     l3_log->fbase_addr = (intptr_t) info.dli_fbase;
+     flags |= L3_LOG_FLAGS_LINUX;
 #endif  // __APPLE__
 
-    // printf("fbase_addr=%" PRIu64 " (0x%llx)\n", l3_log->fbase_addr, l3_log->fbase_addr);
+    // Note down, in the log-header, the type of LOC-encoding in effect.
+    // LOC-encoding scheme is a compile-time choice when the application using
+    // L3-logging is built. It cannot be changed at run-time as the encoding
+    // schemes are mutually exclusive.
+    // CFLAGS are setup as -DL3_LOC_ENABLED -DL3_LOC_ELF_ENABLED, for the case
+    // of L3_LOC_ENABLED=2. So, check L3_LOC_ELF_ENABLED first.
+#if L3_LOC_ELF_ENABLED
+    flags |= L3_LOG_FLAGS_LOC_ELF_ENCODING;
+#elif L3_LOC_ENABLED
+    flags |= L3_LOG_FLAGS_LOC_ENCODING;
+#endif  // L3_LOC_ELF_ENABLED
 
+    l3_log->flags |= flags;
+
+    // printf("fbase_addr=%" PRIu64 " (0x%llx)\n", l3_log->fbase_addr, l3_log->fbase_addr);
+    // printf("sizeof(L3_LOG)=%ld, header=%lu bytes\n",
+    //        sizeof(L3_LOG), offsetof(L3_LOG,slots));
+    // printf("flags=0x%x\n", l3_log->flags);
     return 0;
 }
 
@@ -184,11 +238,13 @@ l3__log_simple(uint32_t loc, const char *msg, const uint64_t arg1, const uint64_
 
 #ifdef L3_LOC_ENABLED
     l3_log->slots[idx].loc = (loc_t) loc;
-#else
+#else   // L3_LOC_ENABLED
+
 #ifdef DEBUG
     assert(l3_log->slots[idx].loc == 0);
 #endif  // DEBUG
-#endif
+
+#endif  // L3_LOC_ENABLED
 
     l3_log->slots[idx].msg = msg;
     l3_log->slots[idx].arg1 = arg1;

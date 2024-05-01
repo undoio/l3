@@ -188,7 +188,7 @@ def test_cpp_test_dump_log_entries():
     make_rv = exec_make(['make', 'all-cpp-tests'],
                         { "BUILD_VERBOSE": "1",
                           "CC": "g++", "CXX": "g++", "LD": "g++",
-                          "L3_LOC_ENABLED": L3_LOC_DEFAULT} )
+                        } )
     assert make_rv is True
 
     # Execute the Cpp-sample program test binary built above.
@@ -216,7 +216,7 @@ def test_cc_test_dump_log_entries():
     make_rv = exec_make(['make', 'all-cc-tests'],
                         { "BUILD_VERBOSE": "1",
                           "CC": "g++", "CXX": "g++", "LD": "g++",
-                          "L3_LOC_ENABLED": L3_LOC_DEFAULT} )
+                        } )
     assert make_rv is True
 
     # Execute the CC-sample program test binary built above.
@@ -242,9 +242,6 @@ def test_c_test_dump_log_entries_loc_eq_1():
     """
     make_rv = exec_make(['make', 'clean'])
 
-    # Turn ON env-var so it's in-effect through `make` and unpacking of test
-    os.environ['L3_LOC_ENABLED'] = L3_LOC_DEFAULT
-
     make_rv = exec_make(['make', 'all-c-tests'],
                         { "BUILD_VERBOSE": "1",
                           "CC": "gcc", "CXX": "g++", "LD": "g++",
@@ -264,7 +261,6 @@ def test_c_test_dump_log_entries_loc_eq_1():
                                       binary,
                                       usecase_prog_dir, 'test-main.c')
     assert unpack_rv is True
-    os.environ.pop('L3_LOC_ENABLED')
 
 # #############################################################################
 def test_cpp_test_dump_log_entries_loc_eq_1():
@@ -274,9 +270,6 @@ def test_cpp_test_dump_log_entries_loc_eq_1():
     that L3 correctly unpacks the data logged by L3-logging apis.
     """
     make_rv = exec_make(['make', 'clean'])
-
-    # Turn ON env-var so it's in-effect through `make` and unpacking of test
-    os.environ['L3_LOC_ENABLED'] = L3_LOC_DEFAULT
 
     make_rv = exec_make(['make', 'all-cpp-tests'],
                         { "BUILD_VERBOSE": "1",
@@ -297,7 +290,6 @@ def test_cpp_test_dump_log_entries_loc_eq_1():
                                       binary,
                                       usecase_prog_dir, 'test-main.cpp')
     assert unpack_rv is True
-    os.environ.pop('L3_LOC_ENABLED')
 
 # #############################################################################
 def test_cc_test_dump_log_entries_loc_eq_1():
@@ -307,9 +299,6 @@ def test_cc_test_dump_log_entries_loc_eq_1():
     that L3 correctly unpacks the data logged by L3-logging apis.
     """
     make_rv = exec_make(['make', 'clean'])
-
-    # Turn ON env-var so it's in-effect through `make` and unpacking of test
-    os.environ['L3_LOC_ENABLED'] = L3_LOC_DEFAULT
 
     make_rv = exec_make(['make', 'all-cc-tests'],
                         { "BUILD_VERBOSE": "1",
@@ -330,7 +319,6 @@ def test_cc_test_dump_log_entries_loc_eq_1():
                                       binary,
                                       usecase_prog_dir, 'test-main.cc')
     assert unpack_rv is True
-    os.environ.pop('L3_LOC_ENABLED')
 
 # #############################################################################
 # pylint: disable-next=too-many-arguments
@@ -384,6 +372,7 @@ def verify_loc_field_is_empty(loc_list:list) -> bool:
     return True
 
 # #############################################################################
+# pylint: disable-next=too-many-locals
 def verify_l3_dump_unpack(l3_dump_dat:str,
                           usecase_binary:str,
                           usecase_prog_dir:str,
@@ -408,6 +397,10 @@ def verify_l3_dump_unpack(l3_dump_dat:str,
     # Make sure that caller has not mixed-up args.
     verify_file_exists(L3USE_CASES_DIR + usecase_prog_dir, src_filename)
 
+    # Figure out if LOC-encoding was active when log-entries were created
+    with open(l3_dump_dat, 'rb') as file:
+        (_, decode_loc_id) = l3_dump.l3_unpack_loghdr(file)
+
     # Invoke the L3-dump script to unpack the slow-log-entries.
     (nentries, tid_list, loc_list, msg_list, arg1_list, arg2_list) \
         = l3_dump.do_main([L3_DUMP_ARG_LOG_FILE, l3_dump_dat,
@@ -424,8 +417,8 @@ def verify_l3_dump_unpack(l3_dump_dat:str,
                                                           src_filename)
     assert msg_list == exp_msg_list
 
-    # LOC-ID will be generated and will be unpacked only if env-var is ON.
-    if os.getenv('L3_LOC_ENABLED') == L3_LOC_DEFAULT:
+    # LOC-ID will be unpacked only if LOC was generated at logging-time
+    if decode_loc_id == int(L3_LOC_DEFAULT):
         assert loc_list == exp_loc_list
     else:
         assert verify_loc_field_is_empty(loc_list) is True
