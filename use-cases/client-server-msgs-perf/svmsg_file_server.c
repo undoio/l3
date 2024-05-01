@@ -122,7 +122,13 @@ main(int argc, char *argv[])
         errExit("l3_init");
     }
 
+    // Info-message to track how L3-logging is being done by server.
+#if L3_LOC_ELF_ENABLED
+    const char *loc_scheme = "LOC-ELF";
+#else
     const char *loc_scheme = "LOC";
+#endif  // L3_LOC_ELF_ENCODING
+
     printf("Server: Initiate L3-logging to log-file '%s'"
            ", using %s encoding scheme.\n", logfile, loc_scheme);
 

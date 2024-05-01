@@ -556,6 +556,12 @@ ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
 
     CLIENT_SERVER_PROGRAM_GENSRC := $(CLIENT_SERVER_PERF_TESTS_DIR)/$(LOC_FILENAMES)
     CLIENT_SERVER_NON_MAIN_SRCS  += $(CLIENT_SERVER_PROGRAM_GENSRC)
+
+else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
+
+    # If L3-LOC_ELF encoding is chosen, link with system-provided loc.c
+    CLIENT_SERVER_NON_MAIN_SRCS += $(LOC_ELF_SRC)
+
 endif
 
 # Map the list of sources to resulting list-of-objects
@@ -632,8 +638,15 @@ ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
     LDFLAGS += -DL3_LOC_ENABLED
 
 else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
+
     # Core L3 files flag off of L3_LOC_ENABLED.
     CFLAGS += -DL3_LOC_ENABLED
+
+    # Core L3 files flag off of L3_LOC_ENABLED. L3_LOC_ELF_ENABLED is provided
+    # in case in some sources we wish to conditionally compile some info-msgs
+    # indicating that this LOC-ELF encoding scheme is in effect.
+    CFLAGS += -DL3_LOC_ENABLED -DL3_LOC_ELF_ENABLED
+
     LDFLAGS += -DL3_LOC_ENABLED
 
 endif
