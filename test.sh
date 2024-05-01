@@ -75,6 +75,7 @@ TestList=(
 
            "test-build-and-run-client-server-perf-test"
            "test-build-and-run-client-server-perf-test-l3_loc_eq_1"
+           "test-build-and-run-client-server-perf-test-l3_loc_eq_2"
 
            "test-pytests"
 
@@ -326,6 +327,36 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
                         --log-file /tmp/l3.c-server-test.dat                                \
                         --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
                         --loc-binary "./build/${Build_mode}/bin/use-cases/client-server-msgs-perf_loc" \
+                | tail -${nentries}
+
+    echo " "
+    echo "${Me}: Completed basic client(s)-server communication test."
+    echo " "
+}
+
+# #############################################################################
+# Test build-and-run of client-server performance test benchmark.
+# This test-case runs with L3-logging and L3-ELF scheme enabled.
+# #############################################################################
+function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
+{
+    set +x
+
+    echo " "
+    echo "${Me}: Client-server performance testing with L3-logging and LOC-ELF ON:"
+    echo " "
+    build-and-run-client-server-perf-test 1 2
+
+    local nentries=100
+    echo " "
+    echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+    echo " "
+
+    # Currently, we are not unpacking LOC-ELF-IDs, so, for dumping this kind
+    # of logging, we don't need the --loc-binary argument.
+    L3_LOC_ENABLED=2 ./l3_dump.py                                                           \
+                        --log-file /tmp/l3.c-server-test.dat                                \
+                        --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
                 | tail -${nentries}
 
     echo " "

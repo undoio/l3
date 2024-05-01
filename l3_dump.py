@@ -46,7 +46,7 @@ elif OS_UNAME_S == 'Darwin':
     READELF_DATA_SECTION = '__cstring'
 
 # #############################################################################
-def set_decode_loc_id(program_bin:str, loc_decoder_bin:str):
+def set_decode_loc_id(program_bin:str, loc_decoder_bin:str = None):
     """
     Check for required LOC-decoder binary, based on environment of run.
     If L3_LOC_ENABLED=1 is set in the env:

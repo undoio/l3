@@ -178,6 +178,14 @@ jobs:
       run: |
         BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test-l3_loc_eq_1
 
+    #! -------------------------------------------------------------------------
+    #  This test will build-and-run client-server perf-test, with L3-Logging
+    #  ON + L3-LOC-ELF encoding scheme ON.
+    #! -------------------------------------------------------------------------
+    - name: test-build-and-run-client-server-perf-test-l3_loc_eq_2
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test-l3_loc_eq_2
+
     # -------------------------------------------------------------------------
     # Exercise the --from-test interface to verify that it still works to
     # run thru last pair of code-formatting tests. (Minor duplication of
