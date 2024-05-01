@@ -551,6 +551,13 @@ ifeq ($(L3_ENABLED), $(L3_DEFAULT))
     CLIENT_SERVER_NON_MAIN_SRCS += $(L3_SRC)
 endif
 
+# Name of LOC-generated source file for the client-server perf-test program.
+ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
+
+    CLIENT_SERVER_PROGRAM_GENSRC := $(CLIENT_SERVER_PERF_TESTS_DIR)/$(LOC_FILENAMES)
+    CLIENT_SERVER_NON_MAIN_SRCS  += $(CLIENT_SERVER_PROGRAM_GENSRC)
+endif
+
 # Map the list of sources to resulting list-of-objects
 CLIENT_SERVER_CLIENT_MAIN_OBJ   := $(CLIENT_SERVER_CLIENT_MAIN_SRC:%.c=$(OBJDIR)/%.o)
 CLIENT_SERVER_SERVER_MAIN_OBJ   := $(CLIENT_SERVER_SERVER_MAIN_SRC:%.c=$(OBJDIR)/%.o)
@@ -580,7 +587,13 @@ endif
 $(BINDIR)/$(USE_CASES)/svmsg_file_client: $(CLIENT_SERVER_CLIENT_MAIN_OBJ) $(CLIENT_SERVER_NON_MAIN_OBJS)
 $(BINDIR)/$(USE_CASES)/svmsg_file_server: $(CLIENT_SERVER_SERVER_MAIN_OBJ) $(CLIENT_SERVER_NON_MAIN_OBJS)
 
-client-server-perf-test: $(CLIENT_SERVER_PERF_TEST_BINS)
+$(CLIENT_SERVER_PROGRAM_GENSRC): | $(BINDIR)/$(USE_CASES)/.
+	@echo
+	@echo "Invoke LOC-generator triggered by: " $@
+	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(USE_CASES) --verbose
+	@echo
+
+client-server-perf-test: $(CLIENT_SERVER_PROGRAM_GENSRC) $(CLIENT_SERVER_PERF_TEST_BINS)
 
 # ##############################################################################
 # CFLAGS, LDFLAGS, ETC
@@ -619,6 +632,7 @@ ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
     LDFLAGS += -DL3_LOC_ENABLED
 
 else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
+    # Core L3 files flag off of L3_LOC_ENABLED.
     CFLAGS += -DL3_LOC_ENABLED
     LDFLAGS += -DL3_LOC_ENABLED
 

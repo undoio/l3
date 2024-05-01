@@ -72,7 +72,9 @@ TestList=(
            "test-build-and-run-C-samples-with-LOC-ELF"
            "test-build-and-run-Cpp-samples-with-LOC-ELF"
            "test-build-and-run-Cc-samples-with-LOC-ELF"
+
            "test-build-and-run-client-server-perf-test"
+           "test-build-and-run-client-server-perf-test-l3_loc_eq_1"
 
            "test-pytests"
 
@@ -281,6 +283,9 @@ function test-build-and-run-Cc-samples-with-LOC-ELF()
 }
 
 # #############################################################################
+# Test build-and-run of client-server performance test benchmark.
+# This test-case runs with no-L3-logging and L3-logging enabled.
+# #############################################################################
 function test-build-and-run-client-server-perf-test()
 {
     set +x
@@ -301,12 +306,44 @@ function test-build-and-run-client-server-perf-test()
 }
 
 # #############################################################################
+# Test build-and-run of client-server performance test benchmark.
+# This test-case runs with L3-logging and L3-LOC (default) scheme enabled.
+# #############################################################################
+function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
+{
+    set +x
+
+    echo " "
+    echo "${Me}: Client-server performance testing with L3-logging and L3-LOC ON:"
+    echo " "
+    build-and-run-client-server-perf-test 1 1
+
+    local nentries=100
+    echo " "
+    echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+    echo " "
+    L3_LOC_ENABLED=1 ./l3_dump.py                                                           \
+                        --log-file /tmp/l3.c-server-test.dat                                \
+                        --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+                        --loc-binary "./build/${Build_mode}/bin/use-cases/client-server-msgs-perf_loc" \
+                | tail -${nentries}
+
+    echo " "
+    echo "${Me}: Completed basic client(s)-server communication test."
+    echo " "
+}
+
+# #############################################################################
 # Minion to test-build-and-run-client-server-perf-test(), to actually perform
 # the build and run the client/server application for performance benchmarking.
 # #############################################################################
 function build-and-run-client-server-perf-test()
 {
-    l3_enabled=$1
+    local l3_enabled=$1
+    local l3_loc_enabled=
+    if [ $# -eq 2 ]; then
+        l3_loc_enabled=$2
+    fi
 
     set +x
     # Makefile does not implement 'run' step. Do it here manually.
@@ -314,8 +351,8 @@ function build-and-run-client-server-perf-test()
     local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
 
     set -x
-    make clean
-    make clean && CXX=g++ LD=g++ L3_ENABLED=${l3_enabled} make client-server-perf-test
+    make clean \
+    && CXX=g++ LD=g++ L3_ENABLED=${l3_enabled} L3_LOC_ENABLED=${l3_loc_enabled} make client-server-perf-test
 
     ${server_bin} &
 

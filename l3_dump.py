@@ -46,18 +46,19 @@ elif OS_UNAME_S == 'Darwin':
     READELF_DATA_SECTION = '__cstring'
 
 # #############################################################################
-def set_decode_loc_id(program_bin:str):
+def set_decode_loc_id(program_bin:str, loc_decoder_bin:str):
     """
-    Check for required LOC-decoder binary, based on environment of run
-    If L3_LOC_ENABLED=1 is set in the env, search for a LOC-decoder binary
-    named "<program_binary>_loc".
+    Check for required LOC-decoder binary, based on environment of run.
+    If L3_LOC_ENABLED=1 is set in the env:
+     - Search for a LOC-decoder binary specified by the --loc-binary argument.
+     - Otherwiwse, search for a default LOC-binary named "<program_binary>_loc".
     """
     decode_loc_id = DECODE_LOC_ID
     loc_decoder = LOC_DECODER
     if LOC_ENABLED in os.environ:
         env_var_val = os.getenv(LOC_ENABLED)
         if env_var_val == "1":
-            loc_decoder = program_bin + "_loc"
+            loc_decoder = program_bin + "_loc" if loc_decoder_bin is None else loc_decoder_bin
             if os.path.exists(loc_decoder) is False:
                 print(f"Env-var {LOC_ENABLED}=1 is set, but required "
                       + f"LOC-decoder binary {loc_decoder} is not found.")
@@ -327,8 +328,8 @@ def do_main(args:list, return_logentry_lists:bool = False):
 
     l3_logfile  = parsed_args.log_file
     program_bin = parsed_args.prog_binary
-
-    (decode_loc_id, loc_decoder_bin) = set_decode_loc_id(program_bin)
+    loc_decoder_bin = parsed_args.loc_binary
+    (decode_loc_id, loc_decoder_bin) = set_decode_loc_id(program_bin, loc_decoder_bin)
 
     # Validate that required binary used below are found in $PATH.
     which_binary(OS_UNAME_S, READELF_BIN)
@@ -449,7 +450,8 @@ NOTE: If <program-binary>, built with L3_LOC_ENABLED=1, invokes L3-logging,
       <program-binary>_loc, needed for decoding LOC-ID entries in the log-file.
 ''')
 
-    # Define arguments supported by this script
+    # ======================================================================
+    # Define required arguments supported by this script
     parser.add_argument('--log-file', dest='log_file'
                         , metavar='<log-file-name>'
                         , required=True
@@ -459,6 +461,13 @@ NOTE: If <program-binary>, built with L3_LOC_ENABLED=1, invokes L3-logging,
                         , metavar='<program-binary>'
                         , required=True
                         , help='Program binary generating L3 logging')
+
+    # ======================================================================
+    # Optional arguments.
+    parser.add_argument('--loc-binary', dest='loc_binary'
+                        , metavar='<binary-to-decode-LOC-ID-values>'
+                        , default=None
+                        , help='Binary to decode LOC-ID encoded values.')
 
     # ======================================================================
     # Debugging support
