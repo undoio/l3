@@ -14,6 +14,12 @@ import platform
 import subprocess as sp
 import shlex
 from fnmatch import fnmatchcase
+# DEBUG: from pprint import pprint
+
+# #############################################################################
+# To see output from test-cases run:
+# $ pytest --capture=tee-sys l3_dump_test.py -k test_unit_test_basic_dump
+# #############################################################################
 
 OS_UNAME_S = platform.system()
 if OS_UNAME_S == 'Linux':
@@ -115,10 +121,10 @@ def test_unit_test_dump_log_entries():
     # message and arguments, as unpacked by utility. This is one example of
     # verification using hard-coded expected-outputs lists.
     # -----------------------------------------------------------------------
-    exp_msg_list = [  'Simple-log-msg-Args(1,2)'
-                    , 'Simple-log-msg-Args(3,4)'
-                    , 'Potential memory overwrite (addr, size)'
-                    , 'Invalid buffer handle (addr)'
+    exp_msg_list = [  'Simple-log-msg-Args(arg1=1, arg2=2)'
+                    , 'Simple-log-msg-Args(arg3=3, arg4=4)'
+                    , 'Potential memory overwrite (addr=0xdeadbabe, size=1024)'
+                    , 'Invalid buffer handle (addr=0xbeefabcd), lockrec=0x0'
                    ]
     print(msg_list)
     assert msg_list == exp_msg_list
@@ -144,11 +150,11 @@ def test_unit_test_dump_log_entries():
                            L3_DUMP_ARG_BINARY,   binary],
                           return_logentry_lists = True)
 
-    exp_msg_list = [  'Fast-log-msg: Args(1,2)'
-                    , 'Fast-log-msg: Args(3,4)'
-                    , 'Fast-log-msg: Args(10,20)'
-                    , 'Fast-log-msg: Potential memory overwrite (addr, size)'
-                    , 'Fast-log-msg: Invalid buffer handle (addr)'
+    exp_msg_list = [  'Fast-log-msg: Args(arg1=1, arg2=2)'
+                    , 'Fast-log-msg: Args(arg3=3, arg4=4)'
+                    , 'Fast-log-msg: Args(arg1=10, arg2=20)'
+                    , 'Fast-log-msg: Potential memory overwrite (addr=0xdeadbabe, size=1024)'
+                    , 'Fast-log-msg: Invalid buffer handle (addr=0xbeefabcd), unused=0'
                    ]
     print(msg_list)
     assert exp_msg_list == msg_list
@@ -373,6 +379,32 @@ def verify_output_lists(nentries:int,
     return True
 
 # #############################################################################
+def verify_msg_lists(msg_list:list[str], exp_msg_list:list[str]) -> bool:
+    """
+    Verify that the list of printed messages is consistent with the expected
+    messages list. The exp_msg_list is generated from the source-code so is
+    likely to have print-format specifiers. l3_dump.py's C-print() method
+    will replace format-specifiers with actual argument values. So, the best
+    we can do is to verify that the prefix at least matches.
+    """
+    assert len(msg_list) == len(exp_msg_list)
+
+    mctr = 0
+    while mctr < len(exp_msg_list):
+        print(msg_list[mctr])
+        print(exp_msg_list[mctr])
+
+        # Take the prefix of the expected message just prior to 1st occurence
+        # of print-format specifier '%'. We need to dip into the dump module's
+        # replace() method as it deals with issues around %p -> 0x%x conversion.
+        exp_fmtstr = l3_dump.fmtstr_replace(exp_msg_list[mctr])
+        exp_fmtstr = exp_fmtstr.split('%')[0]
+        assert msg_list[mctr].startswith(exp_fmtstr)
+        mctr += 1
+    return True
+
+
+# #############################################################################
 def verify_loc_field_is_empty(loc_list:list) -> bool:
     """
     All unit-tests are currently not enabled to generate LOC-ID field.
@@ -436,7 +468,9 @@ def verify_l3_dump_unpack(l3_dump_dat:str,
     # -----------------------------------------------------------------------
     (exp_loc_list, exp_msg_list) = build_exp_loc_msg_list(usecase_prog_dir,
                                                           src_filename)
-    assert msg_list == exp_msg_list
+    # DEBUG: pprint(exp_msg_list)
+    # DEBUG: pprint(msg_list)
+    verify_msg_lists(msg_list, exp_msg_list)
 
     # LOC-ID will be unpacked only if LOC was generated at logging-time
     if decode_loc_id == int(L3_LOC_DEFAULT):

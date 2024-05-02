@@ -354,6 +354,37 @@ def mac_get__cstring_offset(program_bin:str) -> int:
     assert offset != -1
     return offset
 
+###############################################################################
+def do_c_print(msg_text:str, arg1:int, arg2:int) -> str:
+    """
+    Parse an input C-style format-string to convert it to a form that is
+    accepted by Python. Invoke C-style printing using provided arguments.
+    If there is any exception in printing, fall-back to just dumping the
+    input arguments, without any modifications.
+
+    Returns: The C-format msg-string replaced with arguments
+    """
+    format_string = fmtstr_replace(msg_text)
+    # DEBUG: print(f"{format_string=}")
+    msg_text = format_string % (arg1, arg2)
+    return msg_text
+
+###############################################################################
+def fmtstr_replace(fmtstr:str) -> str:
+    """
+    Perform couple of in-place format-specifier replacement to a form that
+    is supported by Python's print() method.
+    For now, do two simple subsitutions, in order, of:
+        - '0x%p' in format string with '0x%x'
+        - '%p' in format string with '0x%x'
+        - Replace all specifiers for unsigned-int with plain '%d'
+    """
+    format_string = fmtstr.replace('0x%p', '0x%x', 2)
+    format_string = format_string.replace('%p', '0x%x', 2)
+    format_string = format_string.replace('%u', '%d', 2)
+    format_string = format_string.replace('%lu', '%d', 2)
+    format_string = format_string.replace('%llu', '%d', 2)
+    return format_string
 
 ###############################################################################
 # main() driver
@@ -448,6 +479,9 @@ def do_main(args:list, return_logentry_lists:bool = False):
 
             # print(f"{msgptr=:x}, {fibase=:x}, {rodata_offs=:x}, {offs=}")
 
+            # Generate C-style sprintf() output on message-string.
+            msg_text = do_c_print(strings[offs], arg1, arg2)
+
             # No location-ID will be recorded in log-files if L3_LOC_ENABLED is OFF.
             UNPACK_LOC = ''
             if loc == 0:
@@ -457,16 +491,19 @@ def do_main(args:list, return_logentry_lists:bool = False):
                 # LOC-encoding scheme was in effect. So, it's sort-off odd
                 # to find a 0 LOC-ID. Report it, to tag investigation.
                 if decode_loc_id != L3_LOC_UNSET:
-                    print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
+                    print(f"{tid=} {loc=} '{msg_text}'")
                 else:
-                    print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
+                    print(f"{tid=} '{msg_text}'")
 
             elif decode_loc_id == L3_LOC_UNSET:
 
                 # ----------------------------------------------------------------
                 # This is a potential error somewhere, that no LOC-encoding scheme
                 # was in-effect in the build, but we found a non-zero LOC-ID!
-                print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
+                print(f"{tid=} {loc=} '{msg_text}'")
+
+            elif decode_loc_id == L3_LOC_UNSET:
+                print(f"{tid=} {loc=} '{msg_text}'")
 
             elif decode_loc_id == L3_LOC_DEFAULT:
                 # ----------------------------------------------------------------
@@ -481,10 +518,11 @@ def do_main(args:list, return_logentry_lists:bool = False):
                     loc_prev = loc
                 else:
                     UNPACK_LOC = unpack_loc_prev
-                print(f"{tid=} {UNPACK_LOC} '{strings[offs]}' {arg1=} {arg2=}")
+
+                print(f"{tid=} {UNPACK_LOC} '{msg_text}'")
 
             elif decode_loc_id == L3_LOC_ELF_ENCODING:
-                print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
+                print(f"{tid=} {loc=} '{msg_text}'")
 
             # Build output-lists, if requested
             if return_logentry_lists is True:
@@ -494,7 +532,7 @@ def do_main(args:list, return_logentry_lists:bool = False):
                 # expected loc_list generated in pytest, l3_dump_test.py
                 loc_list.append(UNPACK_LOC.rstrip())
 
-                msg_list.append(strings[offs])
+                msg_list.append(msg_text)
                 arg1_list.append(arg1)
                 arg2_list.append(arg2)
 

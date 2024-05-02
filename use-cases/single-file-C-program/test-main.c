@@ -73,11 +73,11 @@ main(const int argc, const char * argv[])
             abort();
         }
         printf("L3-logging unit-tests log file: %s\n", logfile);
-        l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);
-        l3_log_simple("Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
-        l3_log_simple("Invalid buffer handle (addr)", 0xbeefabcd, 0);
-        l3_log_fast("Fast-logging msg1", 10, 0xdeadbeef);
-        l3_log_fast("Fast-logging msg2", 20, 0xbeefbabe);
+        l3_log_simple("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
+        l3_log_simple("Potential memory overwrite (addr=%p, size=%d)", 0xdeadbabe, 1024);
+        l3_log_simple("Invalid buffer handle (addr=%p), refcount=%d", 0xbeefabcd, 0);
+        l3_log_fast("Fast-logging msg1=%d, addr=%p", 10, 0xdeadbeef);
+        l3_log_fast("Fast-logging msg2=%d, addr=%p", 20, 0xbeefbabe);
     }
 
     return 0;
@@ -94,7 +94,7 @@ test_perf_slow_logging(int nMil)
 
     uint32_t n = 0;
     for (n = 0; n < (nMil * L3_MILLION); n++) {
-        l3_log_simple("Perf-300-Mil Simple l3-log msgs", n, 0);
+        l3_log_simple("Perf-300-Mil Simple l3-log msgs, ctr=%d, value=%d", n, 0);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
@@ -117,7 +117,7 @@ test_perf_fast_logging(int nMil)
     }
     uint32_t n = 0;
     for (n = 0; n < (nMil * L3_MILLION); n++) {
-        l3_log_fast("Perf-300-Mil Fast l3-log msgs", n, 0);
+        l3_log_fast("Perf-300-Mil Fast l3-log msgs, ctr=%d, value=%d", n, 0);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
