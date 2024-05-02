@@ -284,10 +284,13 @@ def select_loc_decoder_bin(decode_loc_id:int, program_bin:str,
     encoded in log-entries.
 
     Currently, we only support decoding LOC-IDs encoded by default LOC scheme.
+    There is partial support, in dev-branch, to decode LOC-ELF-IDs.
+
      - Search for a LOC-decoder binary specified by the --loc-binary argument.
      - Otherwiwse, search for a default LOC-binary named "<program_binary>_loc".
     """
-    loc_decoder = None
+
+    loc_decoder = loc_decoder_bin
     if decode_loc_id == L3_LOC_DEFAULT:
         loc_decoder = program_bin + "_loc" if loc_decoder_bin is None else loc_decoder_bin
         if os.path.exists(loc_decoder) is False:
@@ -448,6 +451,8 @@ def do_main(args:list, return_logentry_lists:bool = False):
     rodata_offs = parse_rodata_start_addr(program_bin)
 
     strings = parse_rodata_string_offsets(program_bin)
+    # print(strings)
+
     if OS_UNAME_S == 'Darwin':
         cstring_off = mac_get__cstring_offset(program_bin)
         # DEBUG: print(strings)
@@ -460,6 +465,8 @@ def do_main(args:list, return_logentry_lists:bool = False):
     arg1_list = []
     arg2_list = []
 
+    loc_elf_ids_map = {}
+
     with open(l3_logfile, 'rb') as file:
         # Unpack the 1st n-bytes as an L3_LOG{} struct to get a hold
         # of the fbase-address stashed by the l3_init() call.
@@ -468,6 +475,25 @@ def do_main(args:list, return_logentry_lists:bool = False):
         loc_decoder_bin = select_loc_decoder_bin(decode_loc_id,
                                                  program_bin,
                                                  loc_decoder_bin)
+
+        # DEBUG: print(f"# Using {loc_decoder_bin=}")
+
+        if decode_loc_id == L3_LOC_ELF_ENCODING and loc_decoder_bin is not None:
+
+            # pylint: disable-next=line-too-long
+            run_loc_elf_decoder = loc_decoder_bin + r''' --program-binary ''' + program_bin + r''' --brief-map '''
+            cmdargs = shlex.split(run_loc_elf_decoder)
+            _stdout = exec_binary(cmdargs)
+
+            # Refactor the output from loc_decoder_bin into a map
+            for line in _stdout.split('\n'):
+                # print(line)
+                (loc_id, text) = line.split(' ')
+                # print(f"{loc_id=}, {text}")
+                loc_elf_ids_map[int(loc_id)] = text
+
+            # print(loc_elf_ids_map)
+
         # pylint: disable=invalid-name
         nentries = 0
         loc_prev = 0
@@ -539,7 +565,11 @@ def do_main(args:list, return_logentry_lists:bool = False):
                 print(f"{tid=} {UNPACK_LOC} '{msg_text}'")
 
             elif decode_loc_id == L3_LOC_ELF_ENCODING:
-                print(f"{tid=} {loc=} '{msg_text}'")
+                if len(loc_elf_ids_map) > 0:
+                    UNPACK_LOC = loc_elf_ids_map[loc]
+                    print(f"{tid=} {UNPACK_LOC} '{msg_text}'")
+                else:
+                    print(f"{tid=} {loc=} '{msg_text}'")
 
             # Build output-lists, if requested
             if return_logentry_lists is True:
