@@ -16,6 +16,7 @@ L3RootDir       = os.path.abspath(L3PyTestsDir + '/../..')
 
 sys.path.append(L3RootDir)
 
+# Run with pytest --capture=tee-sys -v ... to see stdout
 # pylint: disable-msg=import-error,wrong-import-position
 import l3_dump
 
@@ -196,6 +197,73 @@ def test_parse_rodata_string_offsets():
                 , 381: 'test string'
                }
     assert string_offs == exp_hash
+
+# #############################################################################
+def test_fmtstr_replace():
+    """
+    Verify the format-string parameter replacement done by the L3-dump utility.
+    """
+
+    fmtstr = "This has an embedded pct-p like this %p"
+    expfmt = "This has an embedded pct-p like this 0x%x"
+    assert expfmt == l3_dump.fmtstr_replace(fmtstr)
+
+    fmtstr = "This has an embedded pct-p like this 0x%p"
+    expfmt = "This has an embedded pct-p like this 0x%x"
+    assert expfmt == l3_dump.fmtstr_replace(fmtstr)
+
+    fmtstr = "Up to 2 instances of pct-p %p and 0x-pct-p 0x%p should be replaced"
+    expfmt = "Up to 2 instances of pct-p 0x%x and 0x-pct-p 0x%x should be replaced"
+    assert expfmt == l3_dump.fmtstr_replace(fmtstr)
+
+    # As fmtstr_replace() does a pair of replacement, we can effectively support
+    # up to 2 pairs of such format specifiers
+    fmtstr = "More than 2 instances of pct-p %p and 0x-pct-p 0x%p %p can also be replaced"
+    expfmt = "More than 2 instances of pct-p 0x%x and 0x-pct-p 0x%x 0x%x can also be replaced"
+    assert expfmt == l3_dump.fmtstr_replace(fmtstr)
+
+    fmtstr = "More than 2 instances of pct-p %p and %p and %p remain un-replaced."
+    expfmt = "More than 2 instances of pct-p 0x% and 0x% and 0x%x remain un-replaced."
+    assert expfmt != l3_dump.fmtstr_replace(fmtstr)
+
+    fmtstr = "This has a simple pct-x which should be unchanged %x"
+    expfmt = "This has a simple pct-x which should be unchanged %x"
+    assert expfmt == l3_dump.fmtstr_replace(fmtstr)
+
+    fmtstr = "This has a simple 0x-pct-x which should be unchanged 0x%x"
+    expfmt = "This has a simple 0x-pct-x which should be unchanged 0x%x"
+    assert expfmt == l3_dump.fmtstr_replace(fmtstr)
+
+# #############################################################################
+def test_fmtstr_replace_and_print():
+    """
+    Verify the format-string parameter replacement done by the L3-dump utility.
+    Then, invoke the print() on supplied arguments, to ensure that it will work.
+    This goes thru the code-flow when user has invoked L3-log utility with a
+    message that has print format-specifiers like '%u', '%lu', '%llu' and are
+    printing unsigned ints.
+    """
+
+    fmtstr = "This has an embedded pct-u for unsigned int=%u"
+    expfmt = "This has an embedded pct-u for unsigned int=%d"
+    printfmt = l3_dump.fmtstr_replace(fmtstr)
+    assert expfmt == printfmt
+    print(printfmt % (1))
+
+    fmtstr = "This has an embedded pct-lu for unsigned int=%lu"
+    expfmt = "This has an embedded pct-lu for unsigned int=%d"
+    printfmt = l3_dump.fmtstr_replace(fmtstr)
+    assert expfmt == printfmt
+    number = int('0x80000000', 16)
+    print(printfmt % (number))
+
+    fmtstr = "This has an embedded pct-llu for unsigned int=%llu"
+    expfmt = "This has an embedded pct-llu for unsigned int=%d"
+    printfmt = l3_dump.fmtstr_replace(fmtstr)
+    assert expfmt == printfmt
+    # Print a Very large unsigned long-long-int
+    number = int('0x8000' + '0000' + '0000' + '0000', 16)
+    print(printfmt % (number))
 
 # #############################################################################
 def pr_debug_info(ro_data:str, string_offs:dict, exp_hash:dict):

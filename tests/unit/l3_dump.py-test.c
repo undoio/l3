@@ -46,10 +46,10 @@ void test_l3_slow_log(void)
     if (e) {
         abort();
     }
-    l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);
-    l3_log_simple("Simple-log-msg-Args(3,4)", 3, 4);
-    l3_log_simple("Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
-    l3_log_simple("Invalid buffer handle (addr)", 0xbeefabcd, 0);
+    l3_log_simple("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
+    l3_log_simple("Simple-log-msg-Args(arg3=%d, arg4=%d)", 3, 4);
+    l3_log_simple("Potential memory overwrite (addr=%p, size=%d)", 0xdeadbabe, 1024);
+    l3_log_simple("Invalid buffer handle (addr=0x%x), lockrec=0x%p", 0xbeefabcd, 0);
 
     printf("Generated slow log-entries to log-file: %s\n", log);
 }
@@ -61,11 +61,11 @@ void test_l3_fast_log(void)
     if (e) {
         abort();
     }
-    l3_log_fast("Fast-log-msg: Args(1,2)", 1, 2);
-    l3_log_fast("Fast-log-msg: Args(3,4)", 3, 4);
-    l3_log_fast("Fast-log-msg: Args(10,20)", 10, 20);
-    l3_log_fast("Fast-log-msg: Potential memory overwrite (addr, size)", 0xdeadbabe, 1024);
-    l3_log_fast("Fast-log-msg: Invalid buffer handle (addr)", 0xbeefabcd, 0);
+    l3_log_fast("Fast-log-msg: Args(arg1=%d, arg2=%d)", 1, 2);
+    l3_log_fast("Fast-log-msg: Args(arg3=%d, arg4=%d)", 3, 4);
+    l3_log_fast("Fast-log-msg: Args(arg1=%d, arg2=%d)", 10, 20);
+    l3_log_fast("Fast-log-msg: Potential memory overwrite (addr=0x%x, size=%lu)", 0xdeadbabe, 1024);
+    l3_log_fast("Fast-log-msg: Invalid buffer handle (addr=0x%p), unused=%lu", 0xbeefabcd, 0);
 
     printf("Generated fast log-entries to log-file: %s\n", log);
 }

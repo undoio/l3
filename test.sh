@@ -323,11 +323,14 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
     echo " "
     echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
     echo " "
+    set -x
     L3_LOC_ENABLED=1 ./l3_dump.py                                                           \
                         --log-file /tmp/l3.c-server-test.dat                                \
                         --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
                         --loc-binary "./build/${Build_mode}/bin/use-cases/client-server-msgs-perf_loc" \
                 | tail -${nentries}
+
+    set +x
 
     echo " "
     echo "${Me}: Completed basic client(s)-server communication test."
