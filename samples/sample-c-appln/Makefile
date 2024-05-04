@@ -32,12 +32,42 @@ L3_LOG_FILE := /tmp/c-sample-test.dat
 # List of project source files
 SOURCES     := main.c functions.c
 
-CFLAGS      := -O3
+CFLAGS       = -O3
 
 # Also include L3's include files' dir-path.
 INCLUDE += -I $(PROJECT_ROOT_DIR) -I ./$(L3_INCDIR)
 
 DFLAGS  :=  -D_GNU_SOURCE
+
+# Define symbols to access LOC-package related artifacts
+L3_LOC_ROOTDIR      := $(L3_ROOTDIR)/LineOfCode
+LOC_FILENAMES       := loc_filenames.c
+LOC_GENPY           := $(L3_LOC_ROOTDIR)/loc/gen_loc_files.py
+LOC_GENFILES_DIR    := $(PROJECT_ROOT_DIR)
+
+# -----------------------------------------------------------------------------
+# The driving env-var, L3_LOC_ENABLED, needs to be set to one of these values.
+# LOC-encoding comes in two flavours. Default technique is based on the
+# Python-generator script. Enhanced technique is based on LOC-ELF
+# encoding.
+# -----------------------------------------------------------------------------
+L3_LOC_UNSET            := 0
+L3_LOC_DEFAULT          := 1
+L3_LOC_ELF_ENCODING     := 2
+
+ifndef L3_LOC_ENABLED
+    L3_LOC_ENABLED := $(L3_LOC_UNSET)
+endif
+
+# By default, L3-logging runs on its own. To integrate L3 with LOC machinery,
+# to squirrel away the loc_t ID value, run: L3_LOC_ENABLED=1 make ...
+ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
+
+    DFLAGS += -DL3_LOC_ENABLED
+    CFLAGS += -DLOC_FILE_INDEX=LOC_$(subst .,_,$(subst -,_,$(notdir $<)))
+    LDFLAGS += -DL3_LOC_ENABLED
+
+endif
 
 ################################################################################
 ### DO NOT EDIT THE FOLLOWING LINES ############################################
@@ -46,24 +76,41 @@ DFLAGS  :=  -D_GNU_SOURCE
 OBJSC   := $(SOURCES:.c=.o)
 OBJSC   += $(L3_SRC)
 
+# Define and include name of LOC-generated source file.
+ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
+
+    C_SAMPLES_LOC_GENSRC := $(PROJECT_ROOT_DIR)/$(LOC_FILENAMES)
+    OBJSC                += $(C_SAMPLES_LOC_GENSRC)
+
+endif
+
 OBJS    := $(OBJSC:.c=.o)
 
+# Rule to invoke the LOC-Python generator to produce required .h/.c files
+$(C_SAMPLES_LOC_GENSRC): | $(BINDIR)/$(USE_CASES)/.
+	@echo
+	@echo "Invoke LOC-generator triggered by: " $@
+	@$(LOC_GENPY) --src-root-dir $(dir $@) --gen-includes-dir $(LOC_GENFILES_DIR) --gen-source-dir $(LOC_GENFILES_DIR) --loc-decoder-dir $(PROJECT_ROOT_DIR) --verbose
+	mv $(PROJECT_ROOT_DIR)/._loc $(PROJECT_ROOT_DIR)/c-sample_loc
+	@echo
+
 # the target is obtained linking all .o files
-all: $(SOURCES) $(TARGET)
+all: $(C_SAMPLES_LOC_GENSRC) $(SOURCES) $(TARGET)
 
 # Compile each .c file into its .o
 %.o: %.c
-	$(CC) $(INCLUDE) $(DFLAGS) -o $@ -c $<
+	$(CC) $(CFLAGS) $(DFLAGS) $(INCLUDE) -o $@ -c $<
 
-$(TARGET): $(OBJS)
-	$(CC) $(OBJS) $(L3_ASSEMBLY) -o $(TARGET)
+$(TARGET): $(C_SAMPLES_LOC_GENSRC) $(OBJS)
+	$(CC) $(LFLAGS) $(OBJS) $(LDFLAGS) $(L3_ASSEMBLY) -o $(TARGET)
 	./$(TARGET)
 
 purge: clean
 	rm -f $(TARGET)
 
-# Delete all objects compiled.
+# Delete all generated sources and objects compiled.
+# Also delete any stale loc*.h files that may have been left behind in L3's include/ dir
 clean:
-	rm -f $(OBJS) $(L3_LOG_FILE)
+	rm -f $(TARGET) $(OBJS) $(L3_LOG_FILE) loc*.h loc*.c loc*.o $(L3_INCDIR)/loc*.h
 
 ################################################################################
