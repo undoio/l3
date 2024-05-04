@@ -162,6 +162,18 @@ jobs:
         # Do 'clean' here rather than 'clean-l3', so we do full rebuilds
         BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cc-samples-with-LOC-ELF
 
+    # -------------------------------------------------------------------------
+    # These tests exercise Makefile rules to build-and-run very simple sample
+    # programs.
+    - name: test-build-and-run-sample-c-appln
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-sample-c-appln
+
+    # -------------------------------------------------------------------------
+    - name: test-build-and-run-sample-c-appln-with-LOC
+      run: |
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-sample-c-appln-with-LOC
+
     #! -------------------------------------------------------------------------
     #  This test will build-and-run client-server perf-test, with L3-Logging OFF
     #  (baseline) and L3-Logging ON.
