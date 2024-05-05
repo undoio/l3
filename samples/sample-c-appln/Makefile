@@ -41,9 +41,15 @@ DFLAGS  :=  -D_GNU_SOURCE
 
 # Define symbols to access LOC-package related artifacts
 L3_LOC_ROOTDIR      := $(L3_ROOTDIR)/LineOfCode
+LOC_INCDIR          := $(L3_LOC_ROOTDIR)/include
+LOC_SRCDIR          := $(L3_LOC_ROOTDIR)/src
 LOC_FILENAMES       := loc_filenames.c
 LOC_GENPY           := $(L3_LOC_ROOTDIR)/loc/gen_loc_files.py
 LOC_GENFILES_DIR    := $(PROJECT_ROOT_DIR)
+
+# The package-provided LOC source file that provides ELF-section
+# based LOC-ELF encoding. Needs to be linked with user sources.
+LOC_ELF_SRC         := $(LOC_SRCDIR)/loc.c
 
 # -----------------------------------------------------------------------------
 # The driving env-var, L3_LOC_ENABLED, needs to be set to one of these values.
@@ -61,11 +67,19 @@ endif
 
 # By default, L3-logging runs on its own. To integrate L3 with LOC machinery,
 # to squirrel away the loc_t ID value, run: L3_LOC_ENABLED=1 make ...
+# -DL3_LOC_ENABLED is required to activate conditional code in various sources
 ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
 
     DFLAGS += -DL3_LOC_ENABLED
     CFLAGS += -DLOC_FILE_INDEX=LOC_$(subst .,_,$(subst -,_,$(notdir $<)))
     LDFLAGS += -DL3_LOC_ENABLED
+
+else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
+
+    # We need L3_LOC_ELF_ENABLED to record, in the L3 log-header, the type
+    # of LOC-encoding in-effect for this build.
+    DFLAGS  += -DL3_LOC_ENABLED -DL3_LOC_ELF_ENABLED
+    INCLUDE += -I $(LOC_INCDIR)
 
 endif
 
@@ -81,6 +95,11 @@ ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
 
     C_SAMPLES_LOC_GENSRC := $(PROJECT_ROOT_DIR)/$(LOC_FILENAMES)
     OBJSC                += $(C_SAMPLES_LOC_GENSRC)
+
+else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
+
+    # Pull-in package-provided LOC source file.
+    OBJSC                += $(LOC_ELF_SRC)
 
 endif
 
