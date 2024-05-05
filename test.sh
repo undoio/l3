@@ -75,6 +75,7 @@ TestList=(
 
            "test-build-and-run-sample-c-appln"
            "test-build-and-run-sample-c-appln-with-LOC"
+           "test-build-and-run-sample-c-appln-with-LOC-ELF"
 
            "test-build-and-run-client-server-perf-test"
            "test-build-and-run-client-server-perf-test-l3_loc_eq_1"
@@ -313,6 +314,20 @@ function test-build-and-run-sample-c-appln()
 # #############################################################################
 function test-build-and-run-sample-c-appln-with-LOC()
 {
+    build-and-run-sample-c-appln-with-LOC-encoding 1
+}
+
+# #############################################################################
+function test-build-and-run-sample-c-appln-with-LOC-ELF()
+{
+    build-and-run-sample-c-appln-with-LOC-encoding 2
+}
+
+# #############################################################################
+function build-and-run-sample-c-appln-with-LOC-encoding()
+{
+    local loc_encoding=$1
+
     local l3_dump
     l3_dump="$(pwd)/l3_dump.py"
 
@@ -320,7 +335,7 @@ function test-build-and-run-sample-c-appln-with-LOC()
 
     local program="./c-sample"
 
-    make clean && L3_LOC_ENABLED=1 make c-sample
+    make clean && L3_LOC_ENABLED=${loc_encoding}  make c-sample
 
     set +x
 
