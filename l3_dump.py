@@ -55,11 +55,13 @@ elif OS_UNAME_S == 'Darwin':
     READELF_DATA_SECTION = '__cstring'
 
 # #############################################################################
-# Status flags defined in src/l3.c for L3_LOG()->flags field
-L3_LOG_FLAGS_LINUX                = int('0x0001', 16)
-L3_LOG_FLAGS_MACOSX               = int('0x0002', 16)
-L3_LOG_FLAGS_LOC_ENCODING         = int('0x0010', 16)
-L3_LOG_FLAGS_LOC_ELF_ENCODING     = int('0x0020', 16)
+# Enum types defined in src/l3.c for L3_LOG()->{platform, loc_type} fields
+L3_LOG_PLATFORM_LINUX           = 1
+L3_LOG_PLATFORM_MACOSX          = 2
+
+L3_LOG_LOC_NONE                 = 0
+L3_LOG_LOC_ENCODING             = 1
+L3_LOG_LOC_ELF_ENCODING         = 2
 
 # #############################################################################
 def which_binary(os_uname_s:str, bin_name:str):
@@ -211,7 +213,7 @@ def parse_string_offsets(input_str:str) -> (dict,int):
     return (_strings, nlines)
 
 # #############################################################################
-def l3_unpack_loghdr(file_hdl) -> (int, int):
+def l3_unpack_loghdr(file_hdl) -> (int, int, int):
     """
     Unpack the header struct of a L3-log file and identify key fields.
     We are unpacking a struct laid out like the following:
@@ -221,32 +223,35 @@ def l3_unpack_loghdr(file_hdl) -> (int, int):
         uint64_t        idx;
         uint64_t        fbase_addr;
         uint32_t        pad0;
-        uint16_t        pad2;
-        l3_log_flags_t  flags;
+        uint16_t        log_size;   // # of log-entries == L3_MAX_SLOTS
+        uint8_t         platform;
+        uint8_t         loc_type;
         uint64_t        pad1;
-        // L3_ENTRY        slots[L3_MAX_SLOTS];
+        L3_ENTRY        slots[L3_MAX_SLOTS];
     } L3_LOG;
 
     Arguments:
         file_hdl    - Handle to open log-file
+
+    Returns: Tuple of 3-ints: (fibase, l3_platform, decode_loc_id)
     """
     data = file_hdl.read(L3_LOG_HEADER_SZ)
 
     # '<' => byte-order of the header is little-endian
+    # See: https://docs.python.org/3/library/struct.html
     # pylint: disable-next=unused-variable
-    _, fibase, pad0, pad2, flags, pad1 = struct.unpack('<QQihHQ', data)
+    (_, fibase, pad0, pad2, l3_platform, loc_type, pad1) = struct.unpack('<QQihBBQ', data)
 
     # Interpret LOC-encoding scheme flag as loc-encoding type-ID
-    if flags & L3_LOG_FLAGS_LOC_ENCODING != 0:
+    if loc_type == L3_LOG_LOC_ENCODING:
         decode_loc_id = L3_LOC_DEFAULT
-    elif flags & L3_LOG_FLAGS_LOC_ELF_ENCODING != 0:
+    elif loc_type == L3_LOG_LOC_ELF_ENCODING:
         decode_loc_id = L3_LOC_ELF_ENCODING
     else:
         decode_loc_id = L3_LOC_UNSET
 
-    # print(f"{flags=}, {flags=:X},{decode_loc_id=}, {pad0=}, {pad1=}, {pad2=}")
-    # print(f"{decode_loc_id=}")
-    return (fibase, decode_loc_id)
+    # DEBUG: print(f"{l3_platform=}, {decode_loc_id=}")
+    return (fibase, l3_platform, decode_loc_id)
 
 
 # #############################################################################
@@ -263,7 +268,7 @@ def select_loc_decoder_bin(decode_loc_id:int, program_bin:str,
      - Otherwiwse, search for a default LOC-binary named "<program_binary>_loc".
     """
     loc_decoder = None
-    if decode_loc_id == 1:
+    if decode_loc_id == L3_LOC_DEFAULT:
         loc_decoder = program_bin + "_loc" if loc_decoder_bin is None else loc_decoder_bin
         if os.path.exists(loc_decoder) is False:
             print(f"L3-log file uses default L3_LOC_ENCODING={decode_loc_id} "
@@ -407,7 +412,7 @@ def do_main(args:list, return_logentry_lists:bool = False):
     with open(l3_logfile, 'rb') as file:
         # Unpack the 1st n-bytes as an L3_LOG{} struct to get a hold
         # of the fbase-address stashed by the l3_init() call.
-        (fibase, decode_loc_id) = l3_unpack_loghdr(file)
+        (fibase, _, decode_loc_id) = l3_unpack_loghdr(file)
 
         loc_decoder_bin = select_loc_decoder_bin(decode_loc_id,
                                                  program_bin,
@@ -446,9 +451,21 @@ def do_main(args:list, return_logentry_lists:bool = False):
             # No location-ID will be recorded in log-files if L3_LOC_ENABLED is OFF.
             UNPACK_LOC = ''
             if loc == 0:
-                print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
+
+                # ----------------------------------------------------------------
+                # We found a 0 LOC-ID but as per the L3-log header, some
+                # LOC-encoding scheme was in effect. So, it's sort-off odd
+                # to find a 0 LOC-ID. Report it, to tag investigation.
+                if decode_loc_id != L3_LOC_UNSET:
+                    print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
+                else:
+                    print(f"{tid=} '{strings[offs]}' {arg1=} {arg2=}")
 
             elif decode_loc_id == L3_LOC_UNSET:
+
+                # ----------------------------------------------------------------
+                # This is a potential error somewhere, that no LOC-encoding scheme
+                # was in-effect in the build, but we found a non-zero LOC-ID!
                 print(f"{tid=} {loc=} '{strings[offs]}' {arg1=} {arg2=}")
 
             elif decode_loc_id == L3_LOC_DEFAULT:

@@ -10,9 +10,17 @@ returned by l3_dump.py script are as per the expected outputs.
 """
 import os
 import sys
+import platform
 import subprocess as sp
 import shlex
 from fnmatch import fnmatchcase
+
+OS_UNAME_S = platform.system()
+if OS_UNAME_S == 'Linux':
+    EXP_PLATFORM = 1
+
+elif OS_UNAME_S == 'Darwin':
+    EXP_PLATFORM = 2
 
 # #############################################################################
 # Setup some variables pointing to diff dir/sub-dir full-paths.
@@ -34,7 +42,7 @@ L3Dump          = L3RootDir + '/' + L3DUMPSCRIPT
 L3_DUMP_ARG_LOG_FILE = '--log-file'
 L3_DUMP_ARG_BINARY   = '--binary'
 
-L3_LOC_EXPLICITLY_UNSET = "0"
+L3_LOC_UNSET            = "0"
 L3_LOC_DEFAULT          = "1"
 L3_LOC_ELF_ENCODING     = "2"
 
@@ -65,6 +73,7 @@ def test_unit_test_basic_dump():
     assert make_rv is True
 
 # #############################################################################
+# pylint: disable-next=too-many-locals
 def test_unit_test_dump_log_entries():
     """
     Build and run the unit-test, which will create the slow and fast-logging
@@ -86,6 +95,14 @@ def test_unit_test_dump_log_entries():
     binary = L3RootDir + '/build/' + BUILD_MODE + '/bin/unit/l3_dump.py-test'
     exec_rv = exec_binary(binary)
     assert exec_rv is True
+
+    # Verify that LOC-encoding was not-active when log-entries were created
+    l3_dump_dat = '/tmp/l3.c-small-unit-test.dat'
+    with open(l3_dump_dat, 'rb') as file:
+        (_, loc_platform, decode_loc_id) = l3_dump.l3_unpack_loghdr(file)
+
+        assert loc_platform == EXP_PLATFORM
+        assert decode_loc_id == int(L3_LOC_UNSET)
 
     # Invoke the L3-dump script to unpack the slow-log-entries.
     (nentries, tid_list, loc_list, msg_list, arg1_list, arg2_list) \
@@ -173,7 +190,7 @@ def test_c_test_dump_log_entries():
     assert exec_rv is True
 
     unpack_rv = verify_l3_dump_unpack('/tmp/l3.c-small-test.dat',
-                                      binary,
+                                      L3_LOC_UNSET, binary,
                                       usecase_prog_dir, 'test-main.c')
     assert unpack_rv is True
 
@@ -201,7 +218,7 @@ def test_cpp_test_dump_log_entries():
     assert exec_rv is True
 
     unpack_rv = verify_l3_dump_unpack('/tmp/l3.cpp-small-test.dat',
-                                      binary,
+                                      L3_LOC_UNSET, binary,
                                       usecase_prog_dir, 'test-main.cpp')
     assert unpack_rv is True
 
@@ -229,7 +246,7 @@ def test_cc_test_dump_log_entries():
     assert exec_rv is True
 
     unpack_rv = verify_l3_dump_unpack('/tmp/l3.cc-small-test.dat',
-                                      binary,
+                                      L3_LOC_UNSET, binary,
                                       usecase_prog_dir, 'test-main.cc')
     assert unpack_rv is True
 
@@ -258,7 +275,7 @@ def test_c_test_dump_log_entries_loc_eq_1():
     assert exec_rv is True
 
     unpack_rv = verify_l3_dump_unpack('/tmp/l3.c-small-test.dat',
-                                      binary,
+                                      L3_LOC_DEFAULT, binary,
                                       usecase_prog_dir, 'test-main.c')
     assert unpack_rv is True
 
@@ -287,7 +304,7 @@ def test_cpp_test_dump_log_entries_loc_eq_1():
     assert exec_rv is True
 
     unpack_rv = verify_l3_dump_unpack('/tmp/l3.cpp-small-test.dat',
-                                      binary,
+                                      L3_LOC_DEFAULT, binary,
                                       usecase_prog_dir, 'test-main.cpp')
     assert unpack_rv is True
 
@@ -316,7 +333,7 @@ def test_cc_test_dump_log_entries_loc_eq_1():
     assert exec_rv is True
 
     unpack_rv = verify_l3_dump_unpack('/tmp/l3.cc-small-test.dat',
-                                      binary,
+                                      L3_LOC_DEFAULT, binary,
                                       usecase_prog_dir, 'test-main.cc')
     assert unpack_rv is True
 
@@ -374,6 +391,7 @@ def verify_loc_field_is_empty(loc_list:list) -> bool:
 # #############################################################################
 # pylint: disable-next=too-many-locals
 def verify_l3_dump_unpack(l3_dump_dat:str,
+                          exp_loc_encoding:str,
                           usecase_binary:str,
                           usecase_prog_dir:str,
                           src_filename:str) -> bool:
@@ -399,7 +417,10 @@ def verify_l3_dump_unpack(l3_dump_dat:str,
 
     # Figure out if LOC-encoding was active when log-entries were created
     with open(l3_dump_dat, 'rb') as file:
-        (_, decode_loc_id) = l3_dump.l3_unpack_loghdr(file)
+        (_, loc_platform, decode_loc_id) = l3_dump.l3_unpack_loghdr(file)
+
+        assert loc_platform == EXP_PLATFORM
+        assert decode_loc_id == int(exp_loc_encoding)
 
     # Invoke the L3-dump script to unpack the slow-log-entries.
     (nentries, tid_list, loc_list, msg_list, arg1_list, arg2_list) \
