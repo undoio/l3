@@ -85,19 +85,24 @@ L3_STATIC_ASSERT(sizeof(loc_t) == sizeof(uint32_t),
 #endif  // L3_LOC_ENABLED
 
 /**
- * Definitions for L3_LOG.flags field. This field is used to reliably identify
- * the provenance of a L3-log file so that the appropriate tool / technique can
- * be used to unpack log-entries when dumping the contents of a L3-log file.
+ * Definitions for L3_LOG.{platform, loc_type} fields. This field is used to
+ * reliably identify the provenance of a L3-log file so that the appropriate
+ * tool / technique can be used to unpack log-entries when dumping the contents
+ * of a L3-log file.
  */
-typedef uint16_t l3_log_flags_t;
-enum l3_log_flags_t
+typedef uint8_t platform_t;
+enum platform_t
 {
-      L3_LOG_FLAGS_LINUX                = ((uint16_t) 0x0001)
-    , L3_LOG_FLAGS_MACOSX               = ((uint16_t) 0x0002)
+      L3_LOG_PLATFORM_LINUX             =  ((uint8_t) 1)
+    , L3_LOG_PLATFORM_MACOSX            // ((uint8_t) 2)
+};
 
-    , L3_LOG_FLAGS_LOC_ENCODING         = ((uint16_t) 0x0010)
-    , L3_LOG_FLAGS_LOC_ELF_ENCODING     = ((uint16_t) 0x0020)
-
+typedef uint8_t loc_type_t;
+enum loc_type_t
+{
+      L3_LOG_LOC_NONE                   =  ((uint8_t) 0)
+    , L3_LOG_LOC_ENCODING               // ((uint8_t) 1)
+    , L3_LOG_LOC_ELF_ENCODING           // ((uint8_t) 2)
 };
 
 /**
@@ -108,8 +113,9 @@ typedef struct l3_log
     uint64_t        idx;
     uint64_t        fbase_addr;
     uint32_t        pad0;
-    uint16_t        pad2;
-    l3_log_flags_t  flags;
+    uint16_t        log_size;   // # of log-entries == L3_MAX_SLOTS
+    uint8_t         platform;
+    uint8_t         loc_type;
     uint64_t        pad1;
     L3_ENTRY        slots[L3_MAX_SLOTS];
 } L3_LOG;
@@ -175,11 +181,9 @@ l3_init(const char *path)
     // zero-filled pages. We do this just to be clear where the idx begins.
     l3_log->idx = 0;
 
-    l3_log_flags_t flags = 0;
-
 #if __APPLE__
      l3_log->fbase_addr = getBaseAddress();
-     flags |= L3_LOG_FLAGS_MACOSX;
+     l3_log->platform = L3_LOG_PLATFORM_MACOSX;
 #else
     /* Linux: Let's find where rodata is loaded. */
     Dl_info info;
@@ -189,7 +193,7 @@ l3_init(const char *path)
         return -1;
     }
     l3_log->fbase_addr = (intptr_t) info.dli_fbase;
-     flags |= L3_LOG_FLAGS_LINUX;
+     l3_log->platform = L3_LOG_PLATFORM_LINUX;
 #endif  // __APPLE__
 
     // Note down, in the log-header, the type of LOC-encoding in effect.
@@ -198,18 +202,18 @@ l3_init(const char *path)
     // schemes are mutually exclusive.
     // CFLAGS are setup as -DL3_LOC_ENABLED -DL3_LOC_ELF_ENABLED, for the case
     // of L3_LOC_ENABLED=2. So, check L3_LOC_ELF_ENABLED first.
+    l3_log->loc_type = L3_LOG_LOC_NONE;
 #if L3_LOC_ELF_ENABLED
-    flags |= L3_LOG_FLAGS_LOC_ELF_ENCODING;
+    l3_log->loc_type = L3_LOG_LOC_ELF_ENCODING;
 #elif L3_LOC_ENABLED
-    flags |= L3_LOG_FLAGS_LOC_ENCODING;
+    l3_log->loc_type = L3_LOG_LOC_ENCODING;
 #endif  // L3_LOC_ELF_ENABLED
 
-    l3_log->flags |= flags;
+    l3_log->log_size = L3_MAX_SLOTS;
 
     // printf("fbase_addr=%" PRIu64 " (0x%llx)\n", l3_log->fbase_addr, l3_log->fbase_addr);
     // printf("sizeof(L3_LOG)=%ld, header=%lu bytes\n",
     //        sizeof(L3_LOG), offsetof(L3_LOG,slots));
-    // printf("flags=0x%x\n", l3_log->flags);
     return 0;
 }
 
