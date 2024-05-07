@@ -9,8 +9,9 @@
 #include <source_location>
 #include <string_view>
 
-void log(const std::string_view message,
-         const std::source_location location = std::source_location::current())
+std::source_location
+log(const std::string_view message,
+    const std::source_location location = std::source_location::current())
 {
     std::clog << "\n" << location.file_name() << ':'
               << location.line() << ':'
@@ -24,22 +25,20 @@ void log(const std::string_view message,
 
     std::source_location curr_location = std::source_location::current();
 
-    std::clog << curr_location.file_name() << ':'
-              << curr_location.line() << ':'
-              << curr_location.column() << "::"
-              << curr_location.function_name()
-              // << " [" << sizeof(std::source_location) << "]: "
-              // << " [" << sizeof(curr_location.file_name()) << "]: "
-              // << message
-              << " [Callee]"
-              << '\n';
+    return curr_location;
 
 }
 
 template<typename T>
 void func(T x)
 {
-    log(x);
+    std::source_location callee = log(x);
+    std::clog << callee.file_name() << ':'
+              << callee.line() << ':'
+              << callee.column() << "::"
+              << callee.function_name()
+              << " [Callee]"
+              << '\n';
 }
 
 int main(const int argc, char * argv[])
@@ -48,6 +47,14 @@ int main(const int argc, char * argv[])
               << sizeof(std::source_location) << " bytes"
               << std::endl;
 
-    log("Hello world!");
+    std::source_location callee = log("Hello world!");
+
+    std::clog << callee.file_name() << ':'
+              << callee.line() << ':'
+              << callee.column() << "::"
+              << callee.function_name()
+              << " [Callee]"
+              << '\n';
+
     func("Hello C++20!");
 }
