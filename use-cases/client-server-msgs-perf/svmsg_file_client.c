@@ -95,7 +95,17 @@ main(int argc, char *argv[])
     size_t niters = atoi(argv[1]);
     printf("Client: ID=%d Perform %lu message-exchanges to increment a number"
 #if L3_ENABLED
-           ", with L3-logging enabled on server-side"
+           ", with L3-logging"
+
+// In build -D L3_LOC_ELF_ENABLED and -D L3_LOC_ENABLED are both ON.
+// So, check in this order.
+#if L3_LOC_ELF_ENABLED
+           ", LOC-ELF encoding,"
+#elif L3_LOC_ENABLED
+           ", default LOC encoding,"
+#endif
+           " enabled on server-side"
+
 #endif // L3_ENABLED
            ".\n", clientId, niters);
 

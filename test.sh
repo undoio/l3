@@ -357,6 +357,17 @@ function test-build-and-run-client-server-perf-test()
     echo " "
     build-and-run-client-server-perf-test 1
 
+    local nentries=100
+    echo " "
+    echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+    echo " "
+
+    # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
+    ./l3_dump.py                                                                \
+            --log-file /tmp/l3.c-server-test.dat                                \
+            --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+        | tail -${nentries}
+
     echo " "
     echo "${Me}: Completed basic client(s)-server communication test."
     echo " "
@@ -442,7 +453,8 @@ function build-and-run-client-server-perf-test()
 
     set -x
     make clean \
-    && CXX=g++ LD=g++ L3_ENABLED=${l3_enabled} L3_LOC_ENABLED=${l3_loc_enabled} make client-server-perf-test
+    && CXX=g++ LD=g++ L3_ENABLED=${l3_enabled} L3_LOC_ENABLED=${l3_loc_enabled} BUILD_VERBOSE=1 \
+        make client-server-perf-test
 
     ${server_bin} &
 
@@ -450,11 +462,12 @@ function build-and-run-client-server-perf-test()
     sleep 5
 
     local numclients=5
+    local num_msgs_per_client=1000
     local ictr=0
     while [ ${ictr} -lt ${numclients} ]; do
 
         set -x
-        ${client_bin} 1000 &
+        ${client_bin} ${num_msgs_per_client} &
         set +x
 
         ictr=$((ictr + 1))
