@@ -131,6 +131,9 @@ TestList=(
            # spdlog-related test methods
            "test-build-and-run-spdlog-sample"
 
+           # C++20 source_location{}-related test methods
+           "test-build-and-run-source-location-cpp20-sample"
+
            # Driver methods, listed here for quick debugging.
            # Not intended for use by test-execution.
            "run-client-server-tests_vary_threads"
@@ -1122,6 +1125,24 @@ function test-build-and-run-spdlog-sample()
     set +x
     echo " "
     echo "${Me}: Run spdlog sample program ..."
+    echo " "
+
+    set -x
+    ${test_prog}
+}
+
+# #############################################################################
+# Build-and-run the C++20 source_location{} sample program.
+# #############################################################################
+function test-build-and-run-source-location-cpp20-sample()
+{
+    make clean && CXX=g++ LD=g++ L3_ENABLED=0 make source-location-cpp20-program
+
+    local test_prog="./build/${Build_mode}/bin/use-cases/source-location-Cpp-program"
+
+    set +x
+    echo " "
+    echo "${Me}: Run C++20 source_location sample program ..."
     echo " "
 
     set -x

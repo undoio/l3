@@ -72,6 +72,9 @@ help::
 	@echo 'To build spdlog:'
 	@echo ' make clean && CC=g++ LD=g++ make spdlog-cpp-program'
 	@echo ' '
+	@echo 'To build C++20 source-location sample program:'
+	@echo ' make clean && CXX=g++ LD=g++ L3_ENABLED=0 make source-location-cpp20-program'
+	@echo ' '
 	@echo 'Environment variables: '
 	@echo '  BUILD_MODE={release,debug}'
 	@echo '  BUILD_VERBOSE={0,1}'
@@ -464,6 +467,25 @@ SPD_INCLUDE := $(SPD_INCLUDE_ROOT)/include
 spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE)
 spdlog-cpp-program: LIBS += $(SPD_LIBS_PATH) -l spdlog -l fmt
 spdlog-cpp-program: $(SPDLOG_EXAMPLE_PROGRAM_BIN)
+
+# ##############################################################################
+# Rules to build source-location sample program that needs C++20 support.
+# ##############################################################################
+SRCLOC_EXAMPLE_PROG_DIR     := $(USE_CASES)/source-location-Cpp-program
+
+SRCLOC_EXAMPLE_PROG_SRCS    := $(wildcard $(SRCLOC_EXAMPLE_PROG_DIR)/*.cpp)
+
+# Map the list of sources to resulting list-of-objects
+SRCLOC_EXAMPLE_PROG_OBJS    := $(SRCLOC_EXAMPLE_PROG_SRCS:%.cpp=$(OBJDIR)/%.o)
+
+# Define a dependency of this example program's binary to its list of objects
+SRCLOC_EXAMPLE_PROGRAM_BIN  := $(BINDIR)/$(SRCLOC_EXAMPLE_PROG_DIR)
+$(SRCLOC_EXAMPLE_PROGRAM_BIN): $(SRCLOC_EXAMPLE_PROG_OBJS)
+
+# Required .h is in the same source dir
+source-location-cpp20-program: CPPFLAGS = --std=c++20
+source-location-cpp20-program: INCLUDE += -I $(SRCLOC_EXAMPLE_PROG_DIR)
+source-location-cpp20-program: $(SRCLOC_EXAMPLE_PROGRAM_BIN)
 
 # ##############################################################################
 # Build symbols for single C & C++ unit-test binary that we run
