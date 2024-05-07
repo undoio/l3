@@ -49,7 +49,7 @@ help::
 	@echo ' make run-cc-tests'
 	@echo ' '
 	@echo 'To build client-server performance test programs and run performance test'
-	@echo ' make clean && CXX=g++ LD=g++ make client-server-perf-test'
+	@echo ' make clean && CC=gcc LD=g++ make client-server-perf-test'
 	@echo ' '
 	@echo 'Environment variables: '
 	@echo ' BUILD_MODE={release,debug}'

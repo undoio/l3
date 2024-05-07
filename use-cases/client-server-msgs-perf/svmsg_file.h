@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <time.h>
 #include "tlpi_hdr.h"
 
 #define SERVER_KEY 0x1aaaaaa1           /* Key for server's message queue */
@@ -72,4 +73,15 @@ typedef struct responseMsg {            /* Responses (server to client) */
 } responseMsg;
 
 #define RESP_MSG_SIZE sizeof(responseMsg)
+
+// Useful constants
+#define L3_MILLION      ((uint32_t) (1000 * 1000))
+#define L3_NS_IN_SEC    ((uint32_t) (1000 * L3_MILLION))
+
+// Convert timespec value to nanoseconds units.
+static uint64_t inline
+timespec_to_ns(struct timespec *ts)
+{
+    return ((ts->tv_sec * L3_NS_IN_SEC) + ts->tv_nsec);
+}
 
