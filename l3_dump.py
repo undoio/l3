@@ -502,9 +502,6 @@ def do_main(args:list, return_logentry_lists:bool = False):
                 # was in-effect in the build, but we found a non-zero LOC-ID!
                 print(f"{tid=} {loc=} '{msg_text}'")
 
-            elif decode_loc_id == L3_LOC_UNSET:
-                print(f"{tid=} {loc=} '{msg_text}'")
-
             elif decode_loc_id == L3_LOC_DEFAULT:
                 # ----------------------------------------------------------------
                 # Minor optimization to speed-up unpacking of L3 log-dumps from
