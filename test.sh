@@ -109,6 +109,9 @@ TestList=(
            # spdlog-related test methods
            "test-build-and-run-spdlog-sample"
 
+           # C++20 source_location{}-related test methods
+           "test-build-and-run-source-location-cpp20-sample"
+
            # Keep these two at the end, so that we can exercise this
            # script in CI with the --from-test interface, to run just
            # these two tests.
@@ -853,6 +856,24 @@ function test-build-and-run-spdlog-sample()
     set +x
     echo " "
     echo "${Me}: Run spdlog sample program ..."
+    echo " "
+
+    set -x
+    ${test_prog}
+}
+
+# #############################################################################
+# Build-and-run the C++20 source_location{} sample program.
+# #############################################################################
+function test-build-and-run-source-location-cpp20-sample()
+{
+    make clean && CXX=g++ LD=g++ L3_ENABLED=0 make source-location-cpp20-program
+
+    local test_prog="./build/${Build_mode}/bin/use-cases/source-location-Cpp-program"
+
+    set +x
+    echo " "
+    echo "${Me}: Run C++20 source_location sample program ..."
     echo " "
 
     set -x
