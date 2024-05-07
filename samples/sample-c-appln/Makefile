@@ -1,4 +1,14 @@
 ################################################################################
+# Makefile for the sample-c-appln sources.
+#
+# This set of files has been cloned from the `SimpleMakefile`
+# (https://github.com/lostella/SimpleMakefile) repo as a starting project
+# source-base. Those sources have been extended to show the required  Makefile
+# changes required to integrate existing project sources with the L3/LOC packages.
+#
+# The efforts of the owner of the SimpleMakefile repo, Lorenzo Stella, are
+# gratefully appreciated!
+#
 ### CUSTOMIZE BELOW HERE #######################################################
 
 PROJECT_ROOT_DIR := .
