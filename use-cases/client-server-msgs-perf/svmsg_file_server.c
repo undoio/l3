@@ -45,6 +45,7 @@
    serially.
 */
 #include <inttypes.h>
+#include <time.h>
 #include <assert.h>
 #include "svmsg_file.h"
 #include "l3.h"
@@ -56,6 +57,9 @@ typedef struct client_info {
     int             clientId;
     int             client_idx; // Into ActiveClients[] array, below
     int64_t         client_ctr; // Current value of client's counter
+    uint64_t        cumu_thread_cpu_time_ns;
+                                // Cumulative thread-CPU time for operation.
+    uint64_t        num_ops;    // # of msg-op requests received
     req_resp_type_t last_mtype; // Last requests->mtype
 } Client_info;
 
@@ -90,12 +94,49 @@ grimReaper(int sig)
     errno = savedErrno;
 }
 
+// Find the resolution of the clock used in the program's timing measurement.
+void
+svr_clock_getres(void)
+{
+    struct timespec ts_real;
+    if (clock_getres(CLOCK_REALTIME, &ts_real)) {
+        errExit("clock_getres-ts_real");
+    }
+
+    struct timespec ts_monotonic;
+    if (clock_getres(CLOCK_MONOTONIC, &ts_monotonic)) {
+        errExit("clock_getres-ts_monotonic");
+    }
+
+    struct timespec ts_processCPU;
+    if (clock_getres(CLOCK_PROCESS_CPUTIME_ID, &ts_processCPU)) {
+        errExit("clock_getres-ts_processCPU");
+    }
+
+    struct timespec ts_threadCPU;
+    if (clock_getres(CLOCK_THREAD_CPUTIME_ID, &ts_threadCPU)) {
+        errExit("clock_getres-ts_threadCPU");
+    }
+    printf("Server clocks resolution"
+           ": CLOCK_REALTIME=%" PRIu64 " ns"
+           ", CLOCK_MONOTONIC=%" PRIu64 " ns"
+           ", CLOCK_PROCESS_CPUTIME_ID=%" PRIu64 " ns"
+           ", CLOCK_THREAD_CPUTIME_ID=%" PRIu64 " ns"
+           "\n",
+           timespec_to_ns(&ts_real),
+           timespec_to_ns(&ts_monotonic),
+           timespec_to_ns(&ts_processCPU),
+           timespec_to_ns(&ts_threadCPU));
+}
+
 int
 main(int argc, char *argv[])
 {
     ssize_t msgLen;
     int     serverId;
     struct sigaction sa;
+
+    svr_clock_getres();
 
     /* Create server message queue */
 
@@ -143,6 +184,15 @@ main(int argc, char *argv[])
     requestMsg req;
     responseMsg resp;
 
+    // On MacOSX, only the CLOCK_THREAD_CPUTIME_ID clock has a resolution of 1ns.
+    // On Linux, all clocks seem to have 1 ns resolution, so use real-time clock.
+    int one_ns_res_clock_id;
+#if __APPLE__
+    one_ns_res_clock_id = CLOCK_THREAD_CPUTIME_ID;
+#else
+    one_ns_res_clock_id = CLOCK_REALTIME;
+#endif  // __APPLE__
+
     for (;;) {
         msgLen = msgrcv(serverId, &req, REQ_MSG_SIZE, 0, 0);
         if (msgLen == -1) {
@@ -154,6 +204,14 @@ main(int argc, char *argv[])
         }
 
         Client_info *clientp = NULL;
+
+        // To track elapsed-time measurement for block of case: body
+        struct timespec ts0;
+        struct timespec ts1;
+        uint64_t nsec0 = 0;
+        uint64_t nsec1 = 0;
+        uint64_t elapsed_ns = 0;
+
         switch (req.mtype) {
 
           case REQ_MT_INIT:
@@ -166,6 +224,7 @@ main(int argc, char *argv[])
 
             // Save off client's initial state
             clientp = &ActiveClients[NumActiveClientsHWM];
+            memset(clientp, 0, sizeof(*clientp));
 
             clientp->clientId   = req.clientId;
             clientp->client_idx = NumActiveClientsHWM;
@@ -179,6 +238,9 @@ main(int argc, char *argv[])
             break;
 
           case REQ_MT_INCR:
+            if (clock_gettime(one_ns_res_clock_id, &ts0)) {     // Timing begins
+                errExit("clock_gettime-ts0");
+            }
             clientp = &ActiveClients[req.client_idx];
             assert(clientp->clientId == req.clientId);
 
@@ -190,16 +252,49 @@ main(int argc, char *argv[])
             // Implement and record increment.
             clientp->last_mtype = REQ_MT_INCR;
             resp.counter = ++clientp->client_ctr;
+            clientp->num_ops++;
+
+            if (clock_gettime(one_ns_res_clock_id, &ts1)) {     // Timing ends
+                errExit("clock_gettime-ts1");
+            }
+
+            nsec0 = timespec_to_ns(&ts0);
+            nsec1 = timespec_to_ns(&ts1);
+            elapsed_ns = (nsec1 - nsec0);
+            clientp->cumu_thread_cpu_time_ns += elapsed_ns;
+
 #if L3_ENABLED
-            l3_log_simple("Server msg: ClientID=%d, Increment=%" PRIu64, resp.clientId, resp.counter);
+            // Record time-consumed, clarifying semantic of elapsed time.
+            l3_log_simple("Server msg: Increment: ClientID=%d, "
+
+#if __APPLE__
+                          "Thread-CPU-"
+#else
+                          "Elapsed real-"
+#endif  // __APPLE__
+                          "time=%" PRIu64 " ns.", resp.clientId, elapsed_ns);
 #endif // L3_ENABLED
             break;
 
           case REQ_MT_EXIT:
+
+            clientp = &ActiveClients[req.client_idx];
             // One client has informed that it has exited
             NumActiveClients--;
-            printf("Server: Client ID=%d exited. # active clients=%d\n",
-                   req.clientId, NumActiveClients);
+
+#if __APPLE__
+            const char *time_msg = "Thread-CPU-time";
+#else
+            const char *time_msg = "Elapsed real-time";
+#endif  // __APPLE__
+            printf("Server: Client ID=%d exited. num_ops=%" PRIu64
+                   ", Avg. %s=%" PRIu64 " ns/msg, # active clients=%d\n",
+                   req.clientId,
+                   clientp->num_ops,
+                   time_msg,
+                   (clientp->cumu_thread_cpu_time_ns / clientp->num_ops),
+                   NumActiveClients);
+
             if (NumActiveClients == 0) {
                 break;
             }

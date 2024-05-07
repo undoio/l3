@@ -47,17 +47,8 @@
 
 // Useful constants
 #define L3_100K         ((uint32_t) (100 * 1000))
-#define L3_MILLION      ((uint32_t) (10 * L3_100K))
-#define L3_NS_IN_SEC    ((uint32_t) (1000 * 1000 * 1000))
 
 static int clientId;
-
-// Convert timespec value to nanoseconds units.
-static uint64_t inline
-timespec_to_ns(struct timespec *ts)
-{
-    return ((ts->tv_sec * L3_NS_IN_SEC) + ts->tv_nsec);
-}
 
 static void
 removeQueue(void)
