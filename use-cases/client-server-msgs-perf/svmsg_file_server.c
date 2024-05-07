@@ -122,11 +122,16 @@ main(int argc, char *argv[])
         errExit("l3_init");
     }
 
-    // Info-message to track how L3-logging is being done by server.
+// In build -D L3_LOC_ELF_ENABLED and -D L3_LOC_ENABLED are both ON.
+// So, check in this order.
+// Info-message to track how L3-logging is being done by server.
+
 #if L3_LOC_ELF_ENABLED
     const char *loc_scheme = "LOC-ELF";
+#elif L3_LOC_ENABLED
+    const char *loc_scheme = "default LOC";
 #else
-    const char *loc_scheme = "LOC";
+    const char *loc_scheme = "(no LOC)";
 #endif  // L3_LOC_ELF_ENCODING
 
     printf("Server: Initiate L3-logging to log-file '%s'"
@@ -186,8 +191,7 @@ main(int argc, char *argv[])
             clientp->last_mtype = REQ_MT_INCR;
             resp.counter = ++clientp->client_ctr;
 #if L3_ENABLED
-            l3_log_simple("ClientID=%d, Increment=%" PRIu64,
-                          resp.clientId, resp.counter);
+            l3_log_simple("Server msg: ClientID=%d, Increment=%" PRIu64, resp.clientId, resp.counter);
 #endif // L3_ENABLED
             break;
 
