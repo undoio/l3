@@ -156,11 +156,24 @@ String dump of section '.rodata':
     ... and so on.
     """
     # Run: llvm-readelf -p __cstring  ./build/release/bin/unit/l3_dump.py-test
+    # NOTE: For some tests, we were unable to hexdump the .rodata section and
+    # were running into this error:
+    #   File "/usr/lib/python3.10/subprocess.py", line 2059, in _communicate
+    #       stdout = self._translate_newlines(stdout,
+    #   File "/usr/lib/python3.10/subprocess.py", line 1031, in _translate_newlines
+    #       data = data.decode(encoding, errors)
+    #
+    # pylint: disable-next=line-too-long
+    #   UnicodeDecodeError: 'utf-8' codec can't decode byte 0xea in position 1371: invalid continuation byte
+    #
+    # Hence, the errors='ignore' clause below.
+
     with subprocess.Popen([READELF_BIN, READELF_STRDUMP_ARG,
                            READELF_DATA_SECTION,
                            program_bin],
                           stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE, text=True) as rodata_hexdump:
+                          stderr=subprocess.PIPE, text=True,
+                          errors='ignore') as rodata_hexdump:
         _stdout, _stderr = rodata_hexdump.communicate()
 
     # pylint: disable-next=unused-variable
