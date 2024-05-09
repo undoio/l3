@@ -22,6 +22,8 @@ This_fn=""
 L3_LOG_FILE="--log-file"
 L3_BINARY="--binary"
 
+UNAME_S=$(uname -s)
+
 # ###########################################################################
 # Set trap handlers for all errors. Needs -E (-o errtrace): Ensures that ERR
 # traps (see below) get inherited by functions, command substitutions, and
@@ -346,31 +348,49 @@ function build-and-run-sample-c-appln-with-LOC-encoding()
 function test-build-and-run-client-server-perf-test()
 {
     set +x
+    if [ "${UNAME_S}" = "Darwin" ]; then
+        echo "${Me}: Client-server performance tests not supported currently on Mac/OSX."
+        return
+    fi
+
+    local num_msgs_per_client=1000
+    if [ $# -eq 1 ]; then
+        num_msgs_per_client=$1
+    fi
 
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging OFF:"
     echo " "
-    build-and-run-client-server-perf-test 0
+    build-and-run-client-server-perf-test "${num_msgs_per_client}" 0
 
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging ON:"
     echo " "
-    build-and-run-client-server-perf-test 1
+    build-and-run-client-server-perf-test "${num_msgs_per_client}" 1
 
     local nentries=100
     echo " "
     echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
     echo " "
 
+    set -x
     # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
     ./l3_dump.py                                                                \
             --log-file /tmp/l3.c-server-test.dat                                \
             --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
         | tail -${nentries}
 
+    set +x
     echo " "
     echo "${Me}: Completed basic client(s)-server communication test."
     echo " "
+
+    local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
+    local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
+
+    ${client_bin} --help
+
+    ${server_bin} --help
 }
 
 # #############################################################################
@@ -380,11 +400,20 @@ function test-build-and-run-client-server-perf-test()
 function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
 {
     set +x
+    if [ "${UNAME_S}" = "Darwin" ]; then
+        echo "${Me}: Client-server performance tests not supported currently on Mac/OSX."
+        return
+    fi
+
+    local num_msgs_per_client=1000
+    if [ $# -eq 1 ]; then
+        num_msgs_per_client=$1
+    fi
 
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging and L3-LOC ON:"
     echo " "
-    build-and-run-client-server-perf-test 1 1
+    build-and-run-client-server-perf-test "${num_msgs_per_client}" 1 1
 
     local nentries=100
     echo " "
@@ -410,12 +439,21 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
 # #############################################################################
 function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 {
+    local num_msgs_per_client=1000
+    if [ $# -eq 1 ]; then
+        num_msgs_per_client=$1
+    fi
     set +x
+
+    if [ "${UNAME_S}" = "Darwin" ]; then
+        echo "${Me}: Client-server performance tests not supported currently on Mac/OSX."
+        return
+    fi
 
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging and LOC-ELF ON:"
     echo " "
-    build-and-run-client-server-perf-test 1 2
+    build-and-run-client-server-perf-test "${num_msgs_per_client}" 1 2
 
     local nentries=100
     echo " "
@@ -437,13 +475,19 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 # #############################################################################
 # Minion to test-build-and-run-client-server-perf-test(), to actually perform
 # the build and run the client/server application for performance benchmarking.
+#
+# Parameters:
+#   $1  - (Reqd) # of messages to exchange from client -> server
+#   $2  - (Reqd) Boolean: Is L3 enabled?
+#   $3  - (Opt.) When L3 is enabled, type of L3-LOC encoding enabled
 # #############################################################################
 function build-and-run-client-server-perf-test()
 {
-    local l3_enabled=$1
+    local num_msgs_per_client=$1
+    local l3_enabled=$2
     local l3_loc_enabled=
-    if [ $# -eq 2 ]; then
-        l3_loc_enabled=$2
+    if [ $# -eq 3 ]; then
+        l3_loc_enabled=$3
     fi
 
     set +x
@@ -462,12 +506,11 @@ function build-and-run-client-server-perf-test()
     sleep 5
 
     local numclients=5
-    local num_msgs_per_client=1000
     local ictr=0
     while [ ${ictr} -lt ${numclients} ]; do
 
         set -x
-        ${client_bin} ${num_msgs_per_client} &
+        ${client_bin} "${num_msgs_per_client}" &
         set +x
 
         ictr=$((ictr + 1))
@@ -496,8 +539,10 @@ function run_test()
     echo "-------------------------------------------------------------------------"
     echo "${Me}: $(TZ="America/Los_Angeles" date) Executing ${test_fnname} ..."
     echo " "
+    shift
     set -x
-    ${test_fnname}
+    # shellcheck disable=SC2048,SC2086
+    ${test_fnname} $*
     set +x
 }
 
@@ -575,6 +620,7 @@ if [ $# -ge 1 ]; then
         exit 0
     fi
 
+    # Some test-methods accept args from command-line. Pass-them along using $*
     This_fn=$1
     # shellcheck disable=SC2048,SC2086
     run_test $*

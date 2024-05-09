@@ -11,6 +11,14 @@
 /* svmsg_file.h
 
    Header file for svmsg_file_server.c and svmsg_file_client.c.
+   The server and client communicate using System V message queues.
+
+   This version of the application has been extensively modified based
+   on an initial version downloaded from:
+   https://man7.org/tlpi/code/online/all_files_by_chapter.html
+
+   And extended for performance benchmarking of a very basic client-server
+   message-exchange program.
 */
 #include <sys/types.h>
 #include <sys/msg.h>
@@ -28,7 +36,7 @@
 #define MAX_CLIENTS 64
 
 /**
- * Types for request / response messages sent from server to client
+ * Message Types for request / response messages sent from server to client
  */
 typedef enum {
       REQ_MT_UNKNOWN    = 0
@@ -48,7 +56,6 @@ typedef enum {
     , RESP_MT_INCR  = REQ_MT_INCR
     , RESP_MT_DECR  = REQ_MT_DECR
     , RESP_MT_QUIT  = REQ_MT_QUIT
-
 
 } req_resp_type_t;
 
@@ -84,4 +91,3 @@ timespec_to_ns(struct timespec *ts)
 {
     return ((ts->tv_sec * L3_NS_IN_SEC) + ts->tv_nsec);
 }
-

@@ -8,7 +8,9 @@
 * the file COPYING.gpl-v3 for details.                                    *
 \*************************************************************************/
 
-/* svmsg_file_client.c
+/* ****************************************************************************
+ * svmsg_file_client.c
+ * ****************************************************************************
 
    The server and client communicate using System V message queues.
 
@@ -35,6 +37,7 @@
    L3-logging off (baseline) and compare average elapsed-time metrics
    of round-trip of one message using a build where L3-logging code is
    activated on the server side.
+ * ****************************************************************************
 */
 #include <stdlib.h>
 #include <inttypes.h>
@@ -44,6 +47,7 @@
 
 // L3-LOC related headers
 #include "l3.h"
+#include "size_str.h"
 
 // Useful constants
 #define L3_100K         ((uint32_t) (100 * 1000))
@@ -58,13 +62,27 @@ removeQueue(void)
     }
 }
 
+/**
+ * ****************************************************************************
+ * main() - Client program.
+ * ****************************************************************************
+ */
 int
 main(int argc, char *argv[])
 {
     ssize_t msgLen;
+    size_t niters = 100;
 
-    if (argc != 2 || strcmp(argv[1], "--help") == 0) {
-        usageErr("%s <number-of-iterations>\n", argv[0]);
+#if __APPLE__
+    printf("%s is currently not supported on Mac/OSX\n", argv[0]);
+    exit(EXIT_SUCCESS);
+#endif
+
+    if (((argc == 2) && strcmp(argv[1], "--help") == 0) || (argc > 2)) {
+        printf("%s [ <number-of-iterations> ]\n"
+               "Default: %lu iterations.\n",
+               argv[0], niters);
+        exit(EXIT_SUCCESS);
     }
 
     /* Get server's queue identifier; create queue for response */
@@ -83,8 +101,12 @@ main(int argc, char *argv[])
         errExit("atexit");
     }
 
-    size_t niters = atoi(argv[1]);
-    printf("Client: ID=%d Perform %lu message-exchanges to increment a number"
+    if (argc == 2) {
+        niters = atoi(argv[1]);
+    }
+
+    printf("Client: ID=%d Perform %lu (%s) message-exchanges to"
+           " increment a number"
 #if L3_ENABLED
            ", with L3-logging"
 
@@ -98,7 +120,7 @@ main(int argc, char *argv[])
            " enabled on server-side"
 
 #endif // L3_ENABLED
-           ".\n", clientId, niters);
+           ".\n", clientId, niters, value_str(niters));
 
     requestMsg req;
     req.mtype       = REQ_MT_INIT;     // New client is establishing a connection
@@ -148,19 +170,18 @@ main(int argc, char *argv[])
         if (clock_gettime(CLOCK_REALTIME, &ts0)) {              // Timing begins
             errExit("clock_gettime-ts0");
         }
-
         if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {    // --> Send
             errExit("msgsnd");
         }
 
         msgLen = msgrcv(clientId, &resp, RESP_MSG_SIZE, 0, 0);  // <-- Recv
+
         if (clock_gettime(CLOCK_REALTIME, &ts1)) {              // Timing ends
             errExit("clock_gettime-ts1");
         }
         if (msgLen == -1) {
             errExit("msgrcv");
         }
-
         if (resp.mtype == RESP_MT_FAILURE) {
             /* Display msg from server */
             printf("Counter=%" PRIu64 "\n", resp.counter);
@@ -169,7 +190,7 @@ main(int argc, char *argv[])
 
         uint64_t nsec0 = timespec_to_ns(&ts0);
         uint64_t nsec1 = timespec_to_ns(&ts1);
-        elapsed_ns += (nsec1 - nsec0);
+        elapsed_ns += (nsec1 - nsec0);                          // Elapsed-ns
 
         // Early-quit msg received from server
         if (resp.mtype == REQ_MT_QUIT) {
@@ -177,10 +198,16 @@ main(int argc, char *argv[])
         }
     }
 
-    printf("Client: ID=%d Performed %lu message send/receive operations"
-           ", ctr=%" PRIu64 ", %" PRIu64 " ns/msg (avg) Exiting.\n",
-            clientId, ictr, resp.counter,
-            (elapsed_ns / ictr));
+    size_t throughput = (uint64_t)
+                ( ((ictr * 1.0) / elapsed_ns) * L3_NS_IN_SEC );
+
+    printf("Client: ID=%d Performed %lu (%s) message send/receive operations"
+           ", ctr=%" PRIu64 ", Avg. %" PRIu64 " ns/msg"
+           ", throughput=%lu (%s) ops/sec."
+           " Exiting.\n",
+            clientId, ictr, value_str(ictr), resp.counter,
+            (elapsed_ns / ictr),
+            throughput, value_str(throughput));
 
     req.mtype = REQ_MT_EXIT;
     if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {

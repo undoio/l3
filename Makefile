@@ -48,8 +48,11 @@ help::
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ make all-cc-tests'
 	@echo ' make run-cc-tests'
 	@echo ' '
-	@echo 'To build client-server performance test programs and run performance test'
-	@echo ' make clean && CC=gcc LD=g++ make client-server-perf-test'
+	@echo 'To build client-server performance test programs and run performance test(s)'
+	@echo ' make clean && CC=gcc LD=g++ L3_ENABLED=0     make client-server-perf-test  # Baseline'
+	@echo ' make clean && CC=gcc LD=g++                  make client-server-perf-test  # L3-logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1 make client-server-perf-test  # L3+LOC logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2 make client-server-perf-test  # L3+LOC-ELF logging'
 	@echo ' '
 	@echo 'Environment variables: '
 	@echo ' BUILD_MODE={release,debug}'
@@ -553,6 +556,8 @@ CLIENT_SERVER_PERF_TESTS_DIR   := $(USE_CASES)/client-server-msgs-perf
 # we will build standalone client and server binaries.
 CLIENT_SERVER_PERF_TESTS_SRCS   := $(wildcard $(CLIENT_SERVER_PERF_TESTS_DIR)/*.c)
 
+CLIENT_SERVER_PERF_TESTS_SRCS   += $(L3_UTILS_SRCS)
+
 # Build pair of sources for client-/server-main sources.
 CLIENT_SERVER_CLIENT_MAIN_SRC   := $(filter %_client.c, $(CLIENT_SERVER_PERF_TESTS_SRCS))
 CLIENT_SERVER_SERVER_MAIN_SRC   := $(filter %_server.c, $(CLIENT_SERVER_PERF_TESTS_SRCS))
@@ -613,6 +618,7 @@ $(CLIENT_SERVER_PROGRAM_GENSRC): | $(BINDIR)/$(USE_CASES)/.
 	@$(LOCGENPY) --gen-includes-dir  $(L3_INCDIR) --gen-source-dir $(dir $@) --src-root-dir $(dir $@) --loc-decoder-dir $(BINDIR)/$(USE_CASES) --verbose
 	@echo
 
+client-server-perf-test: INCLUDE += -I ./$(L3_UTILSDIR)
 client-server-perf-test: $(CLIENT_SERVER_PROGRAM_GENSRC) $(CLIENT_SERVER_PERF_TEST_BINS)
 
 # ##############################################################################
