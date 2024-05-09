@@ -9,6 +9,8 @@
 #include <source_location>
 #include <string_view>
 
+#include "source-location.h"
+
 /**
  * log() - Generic logging method to print source-code-location and a msg.
  */
@@ -20,7 +22,10 @@ log(const std::string_view message,
               << location.line() << ':'
               << location.column() << "::"
               << location.function_name()
-              << " [" << sizeof(std::source_location) << "]:"
+
+              << " [sizeof(source_location)="
+              << sizeof(std::source_location) << "]:"
+
               << " [sizeof(file_name)="
               << sizeof(location.file_name()) << "]: "
               << "'" << message << "'"
@@ -30,7 +35,6 @@ log(const std::string_view message,
     std::source_location curr_location = std::source_location::current();
 
     return curr_location;
-
 }
 
 /**
@@ -75,4 +79,6 @@ int main(const int argc, char * argv[])
               << '\n';
 
     func("Hello C++20!");
+
+    minion();
 }
