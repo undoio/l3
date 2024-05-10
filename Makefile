@@ -113,6 +113,8 @@ INCDIR      := include
 L3_SRCDIR   := $(SRCDIR)
 L3_INCDIR   := $(INCDIR)
 USE_CASES   := use-cases
+L3_UTILS    := utils
+L3_UTILSDIR := $(USE_CASES)/$(L3_UTILS)
 
 # Name of L3 dump utility that unpacks L3 log-entries
 L3_DUMP                 := l3_dump.py
@@ -220,6 +222,9 @@ endif
 
 L3_SRCS     := $(L3_SRC) $(L3_ASSEMBLY)
 L3_OBJS     := $(L3_SRCS:%.c=$(OBJDIR)/%.o)
+
+L3_UTILS_SRCS   := $(L3_UTILSDIR)/size_str.c
+L3_UTILS_OBJS   := $(L3_UTILS_SRCS:%.c=$(OBJDIR)/%.o)
 
 # Symbol for all unit-test sources, from which we will build standalone
 # unit-test binaries.
@@ -405,6 +410,7 @@ CPP_UNIT_TEST_BIN   := $(SINGLE_FILE_CPP_PROGRAM_BIN)
 CC_UNIT_TEST_BIN    := $(SINGLE_FILE_CC_PROGRAM_BIN)
 L3_C_UNIT_TEST_BIN  := $(BINDIR)/$(UNIT_DIR)/l3_dump.py-test
 LOC_MACRO_TEST_BIN  := $(LOC_MACRO_TEST_CPP_PROGRAM_BIN)
+SIZE_UNIT_TEST_BIN  := $(BINDIR)/$(UNIT_DIR)/size_str-test
 
 # ##############################################################################
 # Generate symbols and dependencies to build unit-test sources
@@ -428,7 +434,7 @@ endif
 # bin/unit/<x>: obj/unit/<x>.o
 define unit_test_self_dependency =
 $(1): $(patsubst $(BINDIR)/$(UNIT_DIR)/%,$(OBJDIR)/$(UNITTESTS_DIR)/%.o, $(1)) \
-        $(L3_OBJS)
+        $(L3_OBJS) $(L3_UTILS_OBJS)
 endef
 
 # ---------------------------------------------------------------------------------
@@ -442,6 +448,8 @@ endef
 # ---------------------------------------------------------------------------------
 ifeq ($(UNAME_S),Linux)
 
+$(OBJDIR)/$(UNITTESTS_DIR)/size_str.o: $(USE_CASES)/$(L3_UTILS)/size_str.c
+
 $(foreach unit,$(UNIT_TESTBINS),$(eval $(call unit_test_self_dependency,$(unit))))
 
 else
@@ -449,6 +457,12 @@ else
 $(BINDIR)/$(UNIT_DIR)/l3_dump.py-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3_dump.py-test.o \
                                         $(OBJDIR)/$(SRCDIR)/l3.o
 endif
+
+# We only need this extra include to find size_str.h, needed to build the
+# sources for this unit-test.
+$(BINDIR)/$(UNIT_DIR)/size_str-test: INCLUDE += -I ./$(L3_UTILSDIR)
+$(BINDIR)/$(UNIT_DIR)/size_str-test: $(OBJDIR)/$(UNITTESTS_DIR)/size_str-test.o \
+                                     $(OBJDIR)/$(L3_UTILSDIR)/size_str.o
 
 # ###################################################################
 # Report build machine details and compiler version for troubleshooting,
@@ -764,6 +778,8 @@ run-unit-tests: all-unit-tests
 	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_SLOW_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
 	@echo
 	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_FAST_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
+	@echo
+	./$(SIZE_UNIT_TEST_BIN)
 
 run-loc-tests: all-loc-tests
 	@echo
