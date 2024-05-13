@@ -66,10 +66,17 @@ main(const int argc, const char * argv[])
         }
         cout << "L3-logging unit-tests log file: " << logfile << "\n";
         l3_log_simple("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
-        l3_log_simple("Potential memory overwrite (addr=%p, size=%d)", 0xdeadbabe, 1024);
-        l3_log_simple("Invalid buffer handle (addr=%p, refcount=%d)", 0xbeefabcd, 0);
-        l3_log_fast("Fast-logging msg1=%d, addr=%p", 10, 0xdeadbeef);
-        l3_log_fast("Fast-logging msg2=%d, addr=%p", 20, 0xbeefbabe);
+
+        void *bp = (void *) 0xdeadbabe;
+        l3_log_simple("Potential memory overwrite (addr=%p, size=%d)", bp, 1024);
+
+        bp = (void *) 0xbeefabcd;
+        l3_log_simple("Invalid buffer handle (addr=%p, refcount=%d)", bp, 0);
+
+        bp = (int *) 0xdeadbeef;
+        l3_log_fast("Fast-logging msg1=%d, addr=%p", 10, bp);
+
+        l3_log_fast("Fast-logging msg2=%d, addr=%p", 20, (char *) 0xbeefbabe);
     }
 
     return 0;

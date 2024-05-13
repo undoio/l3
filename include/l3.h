@@ -55,14 +55,57 @@ int l3_init(const char *path);
 
 /**
  * \brief Caller-macro to invoke L3 simple logging.
+ *
+ * Macro to synthesize LOC-encoding value, if needed, under conditional
+ * compilation flags. DEBUG-version of macros are provided to cross-check
+ * that the supplied format string in `msg` are consistent with the
+ * arguments' type.
  */
-#ifdef L3_LOC_ENABLED
-#define l3_log_simple(msg, arg1, arg2)                          \
-        l3__log_simple(__LOC__, (msg), (arg1), (arg2))
-#else   // L3_LOC_ENABLED
-#define l3_log_simple(msg, arg1, arg2)                          \
-        l3__log_simple(L3_ARG_UNUSED, (msg), (arg1), (arg2))
-#endif  //
+#if defined(DEBUG)
+
+  #ifdef L3_LOC_ENABLED
+
+    #define l3_log_simple(msg, arg1, arg2)                              \
+            if (1) {                                                    \
+                l3__log_simple((msg),                                   \
+                               (uint64_t) (arg1), (uint64_t) (arg2),    \
+                                 __LOC__);                              \
+            } else if (0) {                                             \
+                printf((msg), (arg1), (arg2));                          \
+            } else
+
+   #else   // L3_LOC_ENABLED
+
+    #define l3_log_simple(msg, arg1, arg2)                              \
+            if (1) {                                                    \
+                l3__log_simple((msg),                                   \
+                               (uint64_t) (arg1), (uint64_t) (arg2),    \
+                               L3_ARG_UNUSED);                          \
+            } else if (0) {                                             \
+                printf((msg), (arg1), (arg2));                          \
+            } else
+
+  #endif  // L3_LOC_ENABLED
+
+#else   // defined(DEBUG)
+
+  #ifdef L3_LOC_ENABLED
+
+    #define l3_log_simple(msg, arg1, arg2)                          \
+            l3__log_simple((msg),                                   \
+                           (uint64_t) (arg1), (uint64_t) (arg2),    \
+                           __LOC__)
+
+  #else   // L3_LOC_ENABLED
+
+    #define l3_log_simple(msg, arg1, arg2)                          \
+            l3__log_simple((msg),                                   \
+                           (uint64_t) (arg1), (uint64_t) (arg2),    \
+                           L3_ARG_UNUSED)
+
+  #endif  // L3_LOC_ENABLED
+
+#endif  // defined(DEBUG)
 
 /**
  * \brief Log a literal string and two arguments.
@@ -81,11 +124,11 @@ extern "C" {
 #endif
 
 #ifdef L3_LOC_ENABLED
-void l3__log_simple(const loc_t loc, const char *msg,
-                    const uint64_t arg1, const uint64_t arg2);
+void l3__log_simple(const char *msg, const uint64_t arg1, const uint64_t arg2,
+                    const loc_t loc);
 #else
-void l3__log_simple(const uint32_t loc, const char *msg,
-                    const uint64_t arg1, const uint64_t arg2);
+void l3__log_simple(const char *msg, const uint64_t arg1, const uint64_t arg2,
+                    const uint32_t loc);
 #endif  // L3_LOC_ENABLED
 
 #ifdef __cplusplus
@@ -101,12 +144,44 @@ void l3__log_simple(const uint32_t loc, const char *msg,
 
 #else   // __APPLE__
 
-#ifdef L3_LOC_ENABLED
+#if defined(DEBUG)
 
-#define l3_log_fast(msg, arg1, arg2) l3__log_fast(__LOC__, (msg), (arg1), (arg2))
-#else   // L3_LOC_ENABLED
-#define l3_log_fast(msg, arg1, arg2) l3__log_fast(L3_ARG_UNUSED, (msg), (arg1), (arg2))
-#endif  // L3_LOC_ENABLED
+  #ifdef L3_LOC_ENABLED
+
+    #define l3_log_fast(msg, arg1, arg2)                                    \
+            if (1) {                                                        \
+                l3__log_fast(__LOC__,                                       \
+                             (msg), (uint64_t) (arg1), (uint64_t) (arg2));  \
+            } else if (0) {                                                 \
+                printf((msg), (arg1), (arg2));                              \
+            } else
+
+  #else   // L3_LOC_ENABLED
+
+    #define l3_log_fast(msg, arg1, arg2)                                    \
+            if (1) {                                                        \
+                l3__log_fast(L3_ARG_UNUSED,                                 \
+                             (msg), (uint64_t) (arg1), (uint64_t) (arg2));  \
+            } else if (0) {                                                 \
+                printf((msg), (arg1), (arg2));                              \
+            } else
+
+  #endif  // L3_LOC_ENABLED
+
+#else   // DEBUG
+
+  #ifdef L3_LOC_ENABLED
+    #define l3_log_fast(msg, arg1, arg2)                            \
+            l3__log_fast(__LOC__, (msg),                            \
+                         (uint64_t) (arg1), (uint64_t) (arg2))
+  #else   // L3_LOC_ENABLED
+    #define l3_log_fast(msg, arg1, arg2)                            \
+            l3__log_fast(L3_ARG_UNUSED, (msg),                      \
+                         (uint64_t) (arg1), (uint64_t) (arg2))
+  #endif  // L3_LOC_ENABLED
+
+#endif  // DEBUG
+
 
 #endif  // __APPLE__
 
