@@ -27,6 +27,9 @@ if OS_UNAME_S == 'Linux':
 
 elif OS_UNAME_S == 'Darwin':
     EXP_PLATFORM = 2
+else:
+    # To avoid pylint errors on Mac/OSX.
+    EXP_PLATFORM = -1
 
 # #############################################################################
 # Setup some variables pointing to diff dir/sub-dir full-paths.

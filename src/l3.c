@@ -151,7 +151,32 @@ getBaseAddress() {
 }
 #endif  // __APPLE__
 
-// ****************************************************************************
+/**
+ * ****************************************************************************
+ * l3_log_init() - Initialize L3-logging sub-system, selecting the type of
+ * logging to be performed.
+ * ****************************************************************************
+ */
+int
+l3_log_init(const l3_log_t logtype, const char *path)
+{
+    int rv = 0;
+    switch (logtype) {
+      case L3_LOG_MMAP:         // L3_LOG_DEFAULT:
+        rv = l3_init(path);
+        break;
+
+      default:
+        printf("Unsupported L3-logging type=%d\n", logtype);
+        return -1;
+    }
+    return rv;
+}
+
+/**
+ * ****************************************************************************
+ * L3's default logging sub-system, using mmap()'ed files.
+ */
 int
 l3_init(const char *path)
 {

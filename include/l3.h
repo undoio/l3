@@ -47,6 +47,18 @@
 extern "C" {
 #endif
 
+/**
+ * Different logging interfaces, mainly intended for use by micro-benchmarking
+ * utility programs.
+ */
+typedef enum {
+      L3_LOG_UNDEF      = 0
+    , L3_LOG_MMAP
+    , L3_LOG_FPRINTF
+    , L3_LOG_DEFAULT    = L3_LOG_MMAP
+} l3_log_t;
+
+int l3_log_init(const l3_log_t logtype, const char *path);
 int l3_init(const char *path);
 
 #ifdef __cplusplus
