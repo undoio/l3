@@ -710,6 +710,15 @@ function build-and-run-client-server-perf-test()
     echo " "
     echo "${Me}: $(TZ="America/Los_Angeles" date) Completed basic client(s)-server communication test."
     echo " "
+
+    if [ "${l3_enabled}" = "1" ]; then
+
+        set -x
+
+        du -sh /tmp/l3.c-server-test.dat
+
+        set +x
+    fi
 }
 
 # #############################################################################
