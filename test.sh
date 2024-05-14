@@ -472,13 +472,13 @@ function test-build-and-run-client-server-perf-test()
     local l3_LOC_disabled=0
 
     echo " "
-    echo "${Me}: Client-server performance testing with L3-logging OFF ${SvrClockArg}:"
+    echo "**** ${Me}: Client-server performance testing with L3-logging OFF ${SvrClockArg}:"
     echo " "
     build-and-run-client-server-perf-test "${num_msgs_per_client}"      \
                                           "${l3_log_disabled}"
 
     echo " "
-    echo "${Me}: Client-server performance testing with L3-logging ON ${SvrClockArg}:"
+    echo "**** ${Me}: Client-server performance testing with L3-logging ON ${SvrClockArg}:"
     echo " "
     build-and-run-client-server-perf-test "${num_msgs_per_client}" \
                                           "${l3_log_enabled}"
@@ -522,6 +522,19 @@ function test-build-and-run-client-server-perf-test()
     fi
 
     set +x
+
+    echo " "
+    echo "**** ${Me}: Client-server performance testing with L3-fprintf logging ON:"
+    echo " "
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                          "${l3_log_enabled}"       \
+                                          "${l3_LOC_disabled}"      \
+                                          "fprintf"
+
+    echo " "
+    echo "**** ${Me}: Completed basic client(s)-server communication test."
+    echo " "
+
     local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
     local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
 
@@ -627,6 +640,7 @@ function build-and-run-client-server-perf-test()
 {
     local num_msgs_per_client=$1
     local l3_enabled=$2
+
     local l3_loc_enabled=
     if [ $# -ge 3 ]; then
         l3_loc_enabled=$3
@@ -666,6 +680,15 @@ function build-and-run-client-server-perf-test()
                     make client-server-perf-test
                 ;;
 
+            "fprintf")
+                set -x
+                make clean                      \
+                && CC=gcc LD=g++               \
+                    L3_ENABLED=${l3_enabled}    \
+                    BUILD_VERBOSE=1             \
+                    L3_LOGT_FPRINTF=1           \
+                    make client-server-perf-test
+                ;;
             *)
                 echo "${Me}: Unknown L3-logging type '${l3_log_type}'. Exiting."
                 exit 1
@@ -710,6 +733,15 @@ function build-and-run-client-server-perf-test()
     echo " "
     echo "${Me}: $(TZ="America/Los_Angeles" date) Completed basic client(s)-server communication test."
     echo " "
+
+    if [ "${l3_enabled}" = "1" ]; then
+
+        set -x
+
+        du -sh /tmp/l3.c-server-test.dat
+
+        set +x
+    fi
 }
 
 # #############################################################################
