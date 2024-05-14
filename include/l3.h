@@ -67,9 +67,9 @@ int l3_init(const char *path);
 
     #define l3_log_simple(msg, arg1, arg2)                              \
             if (1) {                                                    \
-                l3__log_simple((msg),                                   \
-                               (uint64_t) (arg1), (uint64_t) (arg2),    \
-                                 __LOC__);                              \
+                l3_log_mmap((msg),                                      \
+                            (uint64_t) (arg1), (uint64_t) (arg2),       \
+                            __LOC__);                                   \
             } else if (0) {                                             \
                 printf((msg), (arg1), (arg2));                          \
             } else
@@ -78,9 +78,9 @@ int l3_init(const char *path);
 
     #define l3_log_simple(msg, arg1, arg2)                              \
             if (1) {                                                    \
-                l3__log_simple((msg),                                   \
-                               (uint64_t) (arg1), (uint64_t) (arg2),    \
-                               L3_ARG_UNUSED);                          \
+                l3_log_mmap((msg),                                      \
+                            (uint64_t) (arg1), (uint64_t) (arg2),       \
+                            L3_ARG_UNUSED);                             \
             } else if (0) {                                             \
                 printf((msg), (arg1), (arg2));                          \
             } else
@@ -92,16 +92,16 @@ int l3_init(const char *path);
   #ifdef L3_LOC_ENABLED
 
     #define l3_log_simple(msg, arg1, arg2)                          \
-            l3__log_simple((msg),                                   \
-                           (uint64_t) (arg1), (uint64_t) (arg2),    \
-                           __LOC__)
+            l3_log_mmap((msg),                                      \
+                        (uint64_t) (arg1), (uint64_t) (arg2),       \
+                        __LOC__)
 
   #else   // L3_LOC_ENABLED
 
     #define l3_log_simple(msg, arg1, arg2)                          \
-            l3__log_simple((msg),                                   \
-                           (uint64_t) (arg1), (uint64_t) (arg2),    \
-                           L3_ARG_UNUSED)
+            l3_log_mmap((msg),                                      \
+                        (uint64_t) (arg1), (uint64_t) (arg2),       \
+                        L3_ARG_UNUSED)
 
   #endif  // L3_LOC_ENABLED
 
@@ -124,11 +124,11 @@ extern "C" {
 #endif
 
 #ifdef L3_LOC_ENABLED
-void l3__log_simple(const char *msg, const uint64_t arg1, const uint64_t arg2,
-                    const loc_t loc);
+void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+                 const loc_t loc);
 #else
-void l3__log_simple(const char *msg, const uint64_t arg1, const uint64_t arg2,
-                    const uint32_t loc);
+void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+                 const uint32_t loc);
 #endif  // L3_LOC_ENABLED
 
 #ifdef __cplusplus

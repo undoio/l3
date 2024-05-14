@@ -54,6 +54,13 @@ elif OS_UNAME_S == 'Darwin':
     READELF_STRDUMP_ARG = '-p'
     READELF_DATA_SECTION = '__cstring'
 
+else:
+    # To avoid pylint errors on CI-Mac/OSX builds.
+    READELF_BIN = 'readelf'
+    READELF_HEXDUMP_ARG = '-x'
+    READELF_STRDUMP_ARG = '-p'
+    READELF_DATA_SECTION = '.rodata'
+
 # #############################################################################
 # Enum types defined in src/l3.c for L3_LOG()->{platform, loc_type} fields
 L3_LOG_PLATFORM_LINUX           = 1

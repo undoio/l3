@@ -232,7 +232,7 @@ l3_mytid(void)
 // ****************************************************************************
 
 /**
- * l3__log_simple() - 'C' interface to "slow" L3-logging.
+ * l3_log_mmap() - 'C' interface to "slow" L3-logging.
  *
  * As 'loc' is an argument synthesized by the caller-macro, under conditional
  * compilation, keep it as the last argument. This makes it possible to define
@@ -241,11 +241,11 @@ l3_mytid(void)
  */
 void
 #ifdef L3_LOC_ENABLED
-l3__log_simple(const char *msg, const uint64_t arg1, const uint64_t arg2,
-               loc_t loc)
+l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+            loc_t loc)
 #else
-l3__log_simple(const char *msg, const uint64_t arg1, const uint64_t arg2,
-               uint32_t loc)
+l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+            uint32_t loc)
 #endif
 {
     int idx = __sync_fetch_and_add(&l3_log->idx, 1) % L3_MAX_SLOTS;
