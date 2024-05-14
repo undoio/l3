@@ -105,7 +105,7 @@ main(int argc, char *argv[])
         niters = atoi(argv[1]);
     }
 
-    printf("Client: ID=%d Perform %lu (%s) message-exchanges to"
+    printf("Client ID=%d Perform %lu (%s) message-exchanges to"
            " increment a number"
 #if L3_ENABLED
            ", with L3-logging"
@@ -199,7 +199,7 @@ main(int argc, char *argv[])
     size_t throughput = (uint64_t)
                 ( ((ictr * 1.0) / elapsed_ns) * L3_NS_IN_SEC );
 
-    printf("Client: ID=%d Performed %lu (%s) message send/receive operations"
+    printf("Client ID=%d Performed %lu (%s) message send/receive operations"
            ", ctr=%" PRIu64 ", Avg. %" PRIu64 " ns/msg"
            ", Client-throughput=%lu (%s) ops/sec."
            " Exiting.\n",

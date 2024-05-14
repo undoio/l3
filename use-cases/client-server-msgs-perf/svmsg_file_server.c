@@ -191,15 +191,23 @@ main(int argc, char *argv[])
 
     // Initialize L3-Logging
 #if L3_ENABLED
+    char *l3_log_mode = "<unknown>";
     const char *logfile = "/tmp/l3.c-server-test.dat";
-    int e = l3_log_init(L3_LOG_MMAP, logfile);
+    l3_log_t    logtype = L3_LOG_DEFAULT;
+
+#if L3_LOGT_FPRINTF
+    logtype = L3_LOG_FPRINTF;
+#endif
+
+    int e = l3_log_init(logtype, logfile);
     if (e) {
         errExit("l3_init");
     }
 
-    char *l3_log_mode = "<unknown>";
 #if L3_FASTLOG_ENABLED
     l3_log_mode = "fast ";
+#elif L3_LOGT_FPRINTF
+    l3_log_mode = "fprintf() ";
 #else
     l3_log_mode = "";
 #endif  // L3_FASTLOG_ENABLED
@@ -218,8 +226,9 @@ main(int argc, char *argv[])
 
     printf("Start Server, using clock '%s'"
            ": Initiate L3-%slogging to log-file '%s'"
-           ", using %s encoding scheme.\n",
-           logfile, l3_log_mode, loc_scheme, clock_name(clock_id));
+           ", using logtype '%s', %s encoding scheme.\n",
+           clock_name(clock_id), l3_log_mode, logfile,
+           l3_logtype_name(logtype), loc_scheme);
 
 #else // L3_ENABLED
 
@@ -310,7 +319,7 @@ main(int argc, char *argv[])
                         resp.clientId, elapsed_ns);
 #  else
             l3_log_simple("Server msg: Increment: ClientID=%d, "
-                          "Thread-CPU-time=%" PRIu64 " ns.",
+                          "Thread-CPU-time=%" PRIu64 " ns.\n",
                           resp.clientId, elapsed_ns);
 #  endif
 

@@ -621,6 +621,15 @@ function build-and-run-client-server-perf-test()
     done
 
     wait
+
+    if [ "${l3_enabled}" = "1" ]; then
+
+        set -x
+
+        du -sh /tmp/l3.c-server-test.dat
+
+        set +x
+    fi
 }
 
 # #############################################################################
