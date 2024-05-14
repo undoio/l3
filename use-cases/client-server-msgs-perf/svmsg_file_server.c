@@ -197,6 +197,8 @@ main(int argc, char *argv[])
 
 #if L3_LOGT_FPRINTF
     logtype = L3_LOG_FPRINTF;
+#elif L3_LOGT_WRITE
+    logtype = L3_LOG_WRITE;
 #endif
 
     int e = l3_log_init(logtype, logfile);
