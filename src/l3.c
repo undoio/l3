@@ -129,6 +129,7 @@ static const char * L3_logtype_name[] = {
                           "L3_LOG_unknown"
                         , "L3_LOG_MMAP"
                         , "L3_LOG_FPRINTF"
+                        , "L3_LOG_WRITE"
                 };
 
 L3_STATIC_ASSERT((L3_ARRAY_LEN(L3_logtype_name) == L3_LOGTYPE_MAX),
@@ -138,7 +139,9 @@ L3_STATIC_ASSERT((L3_ARRAY_LEN(L3_logtype_name) == L3_LOGTYPE_MAX),
 L3_LOG *l3_log = NULL;      // L3_LOG_MMAP: Also referenced in l3.S for
                             // fast-logging.
 
-FILE *  l3_log_fh = NULL;  // L3_LOG_FPRINTF: Opened by fopen()
+FILE *  l3_log_fh = NULL;   // L3_LOG_FPRINTF: Opened by fopen()
+
+int     l3_log_fd = -1;     // L3_LOG_WRITE: Opened by open()
 
 /**
  * The L3-dump script expects a specific layout and its parsing routines
@@ -155,6 +158,7 @@ L3_STATIC_ASSERT(offsetof(L3_LOG,slots) == sizeof(L3_ENTRY),
  * ****************************************************************************
  */
 int l3_init_fprintf(const char *path);
+int l3_init_write(const char *path);
 
 
 #if __APPLE__
@@ -193,6 +197,10 @@ l3_log_init(const l3_log_t logtype, const char *path)
 
       case L3_LOG_FPRINTF:
         rv = l3_init_fprintf(path);
+        break;
+
+      case L3_LOG_WRITE:
+        rv = l3_init_write(path);
         break;
 
       default:
@@ -293,6 +301,28 @@ l3_init_fprintf(const char *path)
     return 0;
 }
 
+/**
+ * ****************************************************************************
+ * Initialize L3's logging sub-system to use write() to named `path`.
+ */
+int
+l3_init_write(const char *path)
+{
+    if (!path) {
+        fprintf(stderr, "%s: Invalid arg 'path'=%p\n", __func__, path);
+        return -1;
+    }
+
+    l3_log_fd = open(path, (O_RDWR | O_CREAT), 0666);
+    if (l3_log_fd == -1) {
+        fprintf(stderr, "%s: Error opening log-file at '%p'. Error=%d\n",
+                __func__, path, errno);
+        return -1;
+    }
+    printf("Initialized write() logging to '%s'\n", path);
+    return 0;
+}
+
 // ****************************************************************************
 static pid_t
 l3_mytid(void)
@@ -340,6 +370,29 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
     l3_log->slots[idx].msg = msg;
     l3_log->slots[idx].arg1 = arg1;
     l3_log->slots[idx].arg2 = arg2;
+}
+
+/**
+ * l3_log_write() - 'C' interface to log L3 log-entries using write()
+ */
+void
+l3_log_write(const char *msg, const uint64_t arg1, const uint64_t arg2)
+{
+    L3_ENTRY le     = {0};
+    L3_ENTRY *lep   = &le;
+
+    lep->tid = l3_mytid();
+
+    lep->msg = msg;
+    lep->arg1 = arg1;
+    lep->arg2 = arg2;
+
+    if (write(l3_log_fd, lep, sizeof(*lep) != sizeof(*lep))) {
+        fprintf(stderr, "%s(): write() failed. errno=%d\n",
+                __func__, errno);
+        return;
+    }
+    return;
 }
 
 /**

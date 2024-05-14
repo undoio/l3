@@ -137,6 +137,7 @@ const char * Options_str = "o:dhmprt";
 
 int parse_arguments(const int argc, char *argv[], int *clock_id, char **outfile);
 void print_usage(const char *program, struct option options[]);
+
 void printSummaryStats(const char *outfile, const char *run_descr,
                        Client_info *clients, unsigned int num_clients,
                        int clock_id, uint64_t elapsed_ns);
@@ -216,6 +217,8 @@ main(int argc, char *argv[])
 
 #if L3_LOGT_FPRINTF
     logtype = L3_LOG_FPRINTF;
+#elif L3_LOGT_WRITE
+    logtype = L3_LOG_WRITE;
 #endif
 
     int e = l3_log_init(logtype, logfile);
@@ -227,6 +230,8 @@ main(int argc, char *argv[])
     l3_log_mode = "fast ";
 #elif L3_LOGT_FPRINTF
     l3_log_mode = "fprintf() ";
+#elif L3_LOGT_WRITE
+    l3_log_mode = "write() ";
 #else
     l3_log_mode = "";
 #endif  // L3_FASTLOG_ENABLED

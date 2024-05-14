@@ -532,6 +532,14 @@ function test-build-and-run-client-server-perf-test()
                                           "fprintf"
 
     echo " "
+    echo "**** ${Me}: Client-server performance testing with L3-write logging ON:"
+    echo " "
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                           "${l3_log_enabled}"      \
+                                           "${l3_LOC_disabled}"     \
+                                           "write"
+
+    echo " "
     echo "**** ${Me}: Completed basic client(s)-server communication test."
     echo " "
 
@@ -689,6 +697,17 @@ function build-and-run-client-server-perf-test()
                     L3_LOGT_FPRINTF=1           \
                     make client-server-perf-test
                 ;;
+
+            "write")
+                set -x
+                make clean                      \
+                && CC=gcc LD=g++               \
+                    L3_ENABLED=${l3_enabled}    \
+                    BUILD_VERBOSE=1             \
+                    L3_LOGT_WRITE=1             \
+                    make client-server-perf-test
+                ;;
+
             *)
                 echo "${Me}: Unknown L3-logging type '${l3_log_type}'. Exiting."
                 exit 1
