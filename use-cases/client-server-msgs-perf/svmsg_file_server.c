@@ -192,7 +192,7 @@ main(int argc, char *argv[])
     // Initialize L3-Logging
 #if L3_ENABLED
     const char *logfile = "/tmp/l3.c-server-test.dat";
-    int e = l3_init(logfile);
+    int e = l3_log_init(L3_LOG_MMAP, logfile);
     if (e) {
         errExit("l3_init");
     }
