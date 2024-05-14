@@ -55,11 +55,15 @@ typedef enum {
       L3_LOG_UNDEF      = 0
     , L3_LOG_MMAP
     , L3_LOG_FPRINTF
+    , L3_LOGTYPE_MAX
     , L3_LOG_DEFAULT    = L3_LOG_MMAP
 } l3_log_t;
 
+extern FILE *  l3_log_fh;       // L3_LOG_FPRINTF: Opened by fopen()
+
 int l3_log_init(const l3_log_t logtype, const char *path);
 int l3_init(const char *path);
+const char *l3_logtype_name(l3_log_t logtype);
 
 #ifdef __cplusplus
 }
@@ -88,7 +92,13 @@ int l3_init(const char *path);
 
    #else   // L3_LOC_ENABLED
 
-    #define l3_log(msg, arg1, arg2)                                     \
+    #if defined(L3_LOGT_FPRINTF)
+
+    #  define l3_log(msg, arg1, arg2) l3_log_fprintf((msg), arg1, arg2)
+
+    #else
+
+    #  define l3_log(msg, arg1, arg2)                                   \
             if (1) {                                                    \
                 l3_log_mmap((msg),                                      \
                             (uint64_t) (arg1), (uint64_t) (arg2),       \
@@ -97,23 +107,32 @@ int l3_init(const char *path);
                 printf((msg), (arg1), (arg2));                          \
             } else
 
+    #endif  // L3_LOGT_FPRINTF, L3_LOGT_MMAP etc ...
+
   #endif  // L3_LOC_ENABLED
 
 #else   // defined(DEBUG)
 
   #ifdef L3_LOC_ENABLED
 
-    #define l3_log(msg, arg1, arg2)                                 \
-            l3_log_mmap((msg),                                      \
-                        (uint64_t) (arg1), (uint64_t) (arg2),       \
+    #define l3_log(msg, arg1, arg2)                                     \
+            l3_log_mmap((msg),                                          \
+                        (uint64_t) (arg1), (uint64_t) (arg2),           \
                         __LOC__)
 
   #else   // L3_LOC_ENABLED
 
-    #define l3_log(msg, arg1, arg2)                                 \
-            l3_log_mmap((msg),                                      \
-                        (uint64_t) (arg1), (uint64_t) (arg2),       \
+    #if defined(L3_LOGT_FPRINTF)
+
+    #define l3_log(msg, arg1, arg2) l3_log_fprintf((msg), arg1, arg2)
+
+    #else
+    #define l3_log(msg, arg1, arg2)                                     \
+            l3_log_mmap((msg),                                          \
+                        (uint64_t) (arg1), (uint64_t) (arg2),           \
                         L3_ARG_UNUSED)
+
+    #endif  // L3_LOGT_FPRINTF, L3_LOGT_MMAP etc ...
 
   #endif  // L3_LOC_ENABLED
 
@@ -142,6 +161,15 @@ void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
 void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
                  const uint32_t loc);
 #endif  // L3_LOC_ENABLED
+
+/**
+ * l3_log_fprintf() - Log a msg to a file using fprintf().
+ */
+static inline void
+l3_log_fprintf(const char *msg, const uint64_t arg1, const uint64_t arg2)
+{
+    fprintf(l3_log_fh, msg, arg1, arg2);
+}
 
 #ifdef __cplusplus
 }

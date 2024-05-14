@@ -210,15 +210,23 @@ main(int argc, char *argv[])
 
     // Initialize L3-Logging
 #if L3_ENABLED
+    char *l3_log_mode = "<unknown>";
     const char *logfile = "/tmp/l3.c-server-test.dat";
-    int e = l3_log_init(L3_LOG_MMAP, logfile);
+    l3_log_t    logtype = L3_LOG_DEFAULT;
+
+#if L3_LOGT_FPRINTF
+    logtype = L3_LOG_FPRINTF;
+#endif
+
+    int e = l3_log_init(logtype, logfile);
     if (e) {
         errExit("l3_log_init");
     }
 
-    char *l3_log_mode = "<unknown>";
 #if L3_FASTLOG_ENABLED
     l3_log_mode = "fast ";
+#elif L3_LOGT_FPRINTF
+    l3_log_mode = "fprintf() ";
 #else
     l3_log_mode = "";
 #endif  // L3_FASTLOG_ENABLED
