@@ -160,10 +160,8 @@ main(int argc, char *argv[])
 
     for (ictr = 0; ictr < niters; ictr++) {
 
-        if ((ictr % L3_100K) == 0) {
-            printf(".");
-            fflush(stdout);
-        }
+        // DEBUG: if ((ictr % L3_100K) == 0) { printf("."); fflush(stdout); }
+
         req.counter = resp.counter;
         req.mtype = REQ_MT_INCR;
 
@@ -203,7 +201,7 @@ main(int argc, char *argv[])
 
     printf("Client: ID=%d Performed %lu (%s) message send/receive operations"
            ", ctr=%" PRIu64 ", Avg. %" PRIu64 " ns/msg"
-           ", throughput=%lu (%s) ops/sec."
+           ", Client-throughput=%lu (%s) ops/sec."
            " Exiting.\n",
             clientId, ictr, value_str(ictr), resp.counter,
             (elapsed_ns / ictr),

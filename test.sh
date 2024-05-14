@@ -39,6 +39,9 @@ function cleanup()
 
 trap cleanup ERR
 
+# Number of clients started for client-server RPC-perf testing.
+NumClients=5
+
 # ##################################################################
 # Array of test function names. If you add a new test_<function>,
 # add it to this list, here, so that one can see it in --list output.
@@ -78,6 +81,9 @@ TestList=(
            "test-build-and-run-sample-c-appln"
            "test-build-and-run-sample-c-appln-with-LOC"
            "test-build-and-run-sample-c-appln-with-LOC-ELF"
+
+           # For dev-usage; not invoked thru CI.
+           "run-all-client-server-perf-tests"
 
            "test-build-and-run-client-server-perf-test"
            "test-build-and-run-client-server-perf-test-l3_loc_eq_1"
@@ -342,6 +348,35 @@ function build-and-run-sample-c-appln-with-LOC-encoding()
 }
 
 # #############################################################################
+# Driver method to run through all variations of client-server perf tests
+#
+# Parameters:
+#   $1  - (Opt) # of messages to exchange from client -> server (default: 1000)
+#   $2  - (Opt) # of clients to start-up (default: 5)
+#
+# Usage:
+#  $ ./test.sh run-all-client-server-perf-tests $((100 * 1000)) > /tmp/perf-test.100K-rows.5ct.out 2>&1
+#
+#  $ egrep -B1 -E 'Start Server|, num_ops=|Unpacked nentries|throughput=' /tmp/perf-test.100K-rows.5ct.out | egrep -v -E 'Client-throughput|enabled on server-side.'
+
+# #############################################################################
+function run-all-client-server-perf-tests()
+{
+    local num_msgs_per_client=1000
+    if [ $# -eq 1 ]; then
+        num_msgs_per_client=$1
+    fi
+
+    if [ $# -eq 2 ]; then
+        NumClients=$2
+    fi
+
+    test-build-and-run-client-server-perf-test "${num_msgs_per_client}"
+    test-build-and-run-client-server-perf-test-l3_loc_eq_1 "${num_msgs_per_client}"
+    test-build-and-run-client-server-perf-test-l3_loc_eq_2 "${num_msgs_per_client}"
+}
+
+# #############################################################################
 # Test build-and-run of client-server performance test benchmark.
 # This test-case runs with no-L3-logging and L3-logging enabled.
 # #############################################################################
@@ -496,17 +531,21 @@ function build-and-run-client-server-perf-test()
     local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
 
     set -x
-    make clean \
-    && CXX=g++ LD=g++ L3_ENABLED=${l3_enabled} L3_LOC_ENABLED=${l3_loc_enabled} BUILD_VERBOSE=1 \
-        make client-server-perf-test
+    make clean                              \
+    && CC=gcc LD=g++                        \
+       L3_ENABLED=${l3_enabled}             \
+       L3_LOC_ENABLED=${l3_loc_enabled}     \
+       BUILD_VERBOSE=1                      \
+       make client-server-perf-test
 
     ${server_bin} &
 
     set +x
     sleep 5
 
-    local numclients=5
+    local numclients=${NumClients}
     local ictr=0
+    # shellcheck disable=SC2086
     while [ ${ictr} -lt ${numclients} ]; do
 
         set -x

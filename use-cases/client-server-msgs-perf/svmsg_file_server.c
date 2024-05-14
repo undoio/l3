@@ -333,7 +333,7 @@ main(int argc, char *argv[])
                    ", cumu_time_ns=%" PRIu64
                    " (clock_id=%d)"
                    ", Avg. %s time=%" PRIu64 " ns/msg"
-                   ", throughput=%lu (%s) ops/sec"
+                   ", Server-throughput=%lu (%s) ops/sec"
                    ", # active clients=%d\n",
                    req.clientId,
                    clientp->num_ops, value_str(clientp->num_ops),
