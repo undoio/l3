@@ -137,9 +137,14 @@ const char * Options_str = "o:dhmprt";
 
 int parse_arguments(const int argc, char *argv[], int *clock_id, char **outfile);
 void print_usage(const char *program, struct option options[]);
+<<<<<<< HEAD
 void printSummaryStats(const char *outfile, const char *run_descr,
                        Client_info *clients, unsigned int num_clients,
                        int clock_id, uint64_t elapsed_ns);
+=======
+void printSummaryStats(Client_info *clients, unsigned int num_clients,
+                       int clock_id, const char * logging_type);
+>>>>>>> 53da764 (Rework test.sh to invoke fprintf/write logging. Improve info-msgs.)
 
 void svr_clock_calibrate(void);
 unsigned svr_clock_overhead(clockid_t clock_id);
@@ -206,7 +211,11 @@ main(int argc, char *argv[])
         errExit("sigaction");
     }
 
+<<<<<<< HEAD
     char run_descr[80];
+=======
+    char *logging_type = "";
+>>>>>>> 53da764 (Rework test.sh to invoke fprintf/write logging. Improve info-msgs.)
 
     // Initialize L3-Logging
 #if L3_ENABLED
@@ -245,6 +254,8 @@ main(int argc, char *argv[])
     const char *loc_scheme = "(no LOC)";
 #endif  // L3_LOC_ELF_ENCODING
 
+    logging_type = (char *) l3_logtype_name(logtype);
+
     printf("Start Server, using clock '%s'"
            ": Initiate L3-%slogging to log-file '%s'"
            ", using %s encoding scheme.\n",
@@ -255,9 +266,15 @@ main(int argc, char *argv[])
 
 #else // L3_ENABLED
 
+<<<<<<< HEAD
     printf("Start Server, using clock ID=%d '%s': No logging.\n",
            clock_id, clock_name(clock_id));
     snprintf(run_descr, sizeof(run_descr), "Baseline - No logging");
+=======
+    logging_type = "no logging";
+    printf("Start Server, using clock ID=%d '%s': %s.\n",
+           clock_id, clock_name(clock_id), logging_type);
+>>>>>>> 53da764 (Rework test.sh to invoke fprintf/write logging. Improve info-msgs.)
 
 #endif // L3_ENABLED
 
@@ -614,9 +631,14 @@ time_metric_name(int clock_id)
  * printSummaryStats() - Aggregate metrics and print summary across all clients.
  */
 void
+<<<<<<< HEAD
 printSummaryStats(const char *outfile, const char *run_descr,
                   Client_info *clients, unsigned int num_clients,
                   int clock_id, uint64_t elapsed_ns)
+=======
+printSummaryStats(Client_info *clients, unsigned int num_clients,
+                  int clock_id, const char *logging_type)
+>>>>>>> 53da764 (Rework test.sh to invoke fprintf/write logging. Improve info-msgs.)
 {
     size_t  num_ops = 0;
     size_t  sum_throughput = 0;
@@ -625,16 +647,23 @@ printSummaryStats(const char *outfile, const char *run_descr,
         num_ops += clients[cctr].num_ops;
         sum_throughput += clients[cctr].throughput;
     }
+<<<<<<< HEAD
     size_t svr_throughput = (uint64_t) ((num_ops * 1.0 / elapsed_ns)
                                             * L3_NS_IN_SEC);
     size_t cli_throughput = (sum_throughput / num_clients);
 
     printf("For %u clients, %s, num_ops=%lu (%s) ops"
            ", Elapsed time=%lu (%s) ns"
+=======
+    size_t throughput = (uint64_t) ((num_ops * 1.0 / cumu_time_ns)
+                                        * L3_NS_IN_SEC);
+    printf("For %u clients, logtype=%s, num_ops=%lu (%s) ops"
+>>>>>>> 53da764 (Rework test.sh to invoke fprintf/write logging. Improve info-msgs.)
            ", Avg. %s time=%lu ns/msg"
            ", Server throughput=%lu (%s) ops/sec"
            ", Client throughput=%lu (%s) ops/sec"
            "\n",
+<<<<<<< HEAD
            num_clients, run_descr, num_ops, value_str(num_ops),
            elapsed_ns, value_str(elapsed_ns),
            time_metric_name(clock_id), (elapsed_ns / num_ops),
@@ -660,4 +689,9 @@ printSummaryStats(const char *outfile, const char *run_descr,
                 elapsed_ns, value_str(elapsed_ns));
         fclose(fh);
     }
+=======
+           num_clients, logging_type, num_ops, value_str(num_ops),
+           time_metric_name(clock_id), (cumu_time_ns / num_ops),
+           throughput, value_str(throughput));
+>>>>>>> 53da764 (Rework test.sh to invoke fprintf/write logging. Improve info-msgs.)
 }
