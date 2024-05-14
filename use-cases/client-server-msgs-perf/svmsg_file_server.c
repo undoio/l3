@@ -408,6 +408,12 @@ end_forever_loop:
     if (msgctl(serverId, IPC_RMID, NULL) == -1) {
         errExit("msgctl");
     }
+
+    // Close L3-logging upon exit.
+#if L3_ENABLED
+    l3_log_deinit(logtype);
+#endif  // L3_ENABLED
+
     printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
            NumActiveClients, NumActiveClientsHWM);
 

@@ -64,6 +64,7 @@ extern FILE *  l3_log_fh;       // L3_LOG_FPRINTF: Opened by fopen()
 
 int l3_log_init(const l3_log_t logtype, const char *path);
 int l3_init(const char *path);
+int l3_log_deinit(const l3_log_t logtype);
 const char *l3_logtype_name(l3_log_t logtype);
 
 #ifdef __cplusplus

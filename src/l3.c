@@ -212,6 +212,45 @@ l3_log_init(const l3_log_t logtype, const char *path)
 
 /**
  * ****************************************************************************
+ * l3_log_deinit() - De-initialize L3-logging sub-system, selecting the type
+ * of logging that was being performed. Finalize the file and close its handle.
+ * ****************************************************************************
+ */
+int
+l3_log_deinit(const l3_log_t logtype)
+{
+    int rv = 0;
+    switch (logtype) {
+      case L3_LOG_MMAP:         // L3_LOG_DEFAULT:
+        rv = munmap(l3_log, sizeof(*l3_log));
+        break;
+
+      case L3_LOG_FPRINTF:
+        fflush(l3_log_fh);
+        rv = fclose(l3_log_fh);
+        break;
+
+      case L3_LOG_WRITE:
+#if !defined(__APPLE__)
+        syncfs(l3_log_fd);
+#endif  // !__APPLE__
+        rv = close(l3_log_fd);
+        break;
+
+      default:
+        printf("Unsupported L3-logging type=%d\n", logtype);
+        return -1;
+    }
+    if (rv) {
+        fprintf(stderr, "Error closing L3 log-file for logging type '%s'"
+                        ", errno=%d\n",
+                l3_logtype_name(logtype), errno);
+    }
+    return rv;
+}
+
+/**
+ * ****************************************************************************
  * L3's default logging sub-system, using mmap()'ed files.
  */
 int
@@ -313,7 +352,7 @@ l3_init_write(const char *path)
         return -1;
     }
 
-    l3_log_fd = open(path, (O_RDWR | O_CREAT), 0666);
+    l3_log_fd = open(path, (O_RDWR | O_CREAT | O_APPEND), 0666);
     if (l3_log_fd == -1) {
         fprintf(stderr, "%s: Error opening log-file at '%p'. Error=%d\n",
                 __func__, path, errno);
