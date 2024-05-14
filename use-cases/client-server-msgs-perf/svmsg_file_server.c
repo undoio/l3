@@ -122,7 +122,7 @@ const char * Options_str = ":hrmptd";
 int parse_arguments(const int argc, char *argv[], int *clock_id);
 void print_usage(const char *program, struct option options[]);
 void printSummaryStats(Client_info *clients, unsigned int num_clients,
-                       int clock_id);
+                       int clock_id, const char * logging_type);
 
 void svr_clock_getres(void);
 const char *clock_name(int clock_id);
@@ -189,6 +189,8 @@ main(int argc, char *argv[])
         errExit("sigaction");
     }
 
+    char *logging_type = "";
+
     // Initialize L3-Logging
 #if L3_ENABLED
     char *l3_log_mode = "<unknown>";
@@ -226,6 +228,8 @@ main(int argc, char *argv[])
     const char *loc_scheme = "(no LOC)";
 #endif  // L3_LOC_ELF_ENCODING
 
+    logging_type = (char *) l3_logtype_name(logtype);
+
     printf("Start Server, using clock '%s'"
            ": Initiate L3-%slogging to log-file '%s'"
            ", using logtype '%s', %s encoding scheme.\n",
@@ -234,8 +238,9 @@ main(int argc, char *argv[])
 
 #else // L3_ENABLED
 
-    printf("Start Server, using clock ID=%d '%s': No logging.\n",
-           clock_id, clock_name(clock_id));
+    logging_type = "no logging";
+    printf("Start Server, using clock ID=%d '%s': %s.\n",
+           clock_id, clock_name(clock_id), logging_type);
 
 #endif // L3_ENABLED
 
@@ -398,7 +403,8 @@ main(int argc, char *argv[])
     printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
            NumActiveClients, NumActiveClientsHWM);
 
-    printSummaryStats(ActiveClients, NumActiveClientsHWM, clock_id);
+    printSummaryStats(ActiveClients, NumActiveClientsHWM, clock_id,
+                      logging_type);
 
     exit(EXIT_SUCCESS);
 }
@@ -565,7 +571,7 @@ time_metric_name(int clock_id)
  */
 void
 printSummaryStats(Client_info *clients, unsigned int num_clients,
-                  int clock_id)
+                  int clock_id, const char *logging_type)
 {
     size_t  num_ops = 0;
     size_t  cumu_time_ns = 0;
@@ -576,11 +582,11 @@ printSummaryStats(Client_info *clients, unsigned int num_clients,
     }
     size_t throughput = (uint64_t) ((num_ops * 1.0 / cumu_time_ns)
                                         * L3_NS_IN_SEC);
-    printf("For %u clients, num_ops=%lu (%s) ops"
+    printf("For %u clients, logtype=%s, num_ops=%lu (%s) ops"
            ", Avg. %s time=%lu ns/msg"
            ", throughput=%lu (%s) ops/sec"
            "\n",
-           num_clients, num_ops, value_str(num_ops),
+           num_clients, logging_type, num_ops, value_str(num_ops),
            time_metric_name(clock_id), (cumu_time_ns / num_ops),
            throughput, value_str(throughput));
 }
