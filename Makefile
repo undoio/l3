@@ -50,6 +50,7 @@ help::
 	@echo ' '
 	@echo 'To build client-server performance test programs and run performance test(s)'
 	@echo ' make clean && CC=gcc LD=g++ L3_ENABLED=0         make client-server-perf-test  # Baseline'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_FPRINTF=1    make client-server-perf-test  # fprintf() logging'
 	@echo ' make clean && CC=gcc LD=g++                      make client-server-perf-test  # L3-logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_FASTLOG_ENABLED=1 make client-server-perf-test  # L3 Fast logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1     make client-server-perf-test  # L3+LOC logging'
@@ -572,11 +573,17 @@ ifeq ($(L3_ENABLED), $(L3_DEFAULT))
 
 # Under L3-logging, invoke the L3-fast logging API, which needs the .S file
 ifeq ($(L3_FASTLOG_ENABLED), 1)
+
     CLIENT_SERVER_NON_MAIN_SRCS += $(L3_ASSEMBLY)
     CFLAGS += -DL3_FASTLOG_ENABLED
-endif
+
+else ifeq ($(L3_LOGT_FPRINTF), 1)
+
+    CFLAGS += -DL3_LOGT_FPRINTF
 
 endif
+
+endif   # L3_ENABLED
 
 # Name of LOC-generated source file for the client-server perf-test program.
 ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))

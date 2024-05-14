@@ -105,7 +105,7 @@ main(int argc, char *argv[])
         niters = atoi(argv[1]);
     }
 
-    printf("Client: ID=%d Perform %lu (%s) message-exchanges to"
+    printf("Client ID=%d Perform %lu (%s) message-exchanges to"
            " increment a number"
 #if L3_ENABLED
            ", with L3-logging"

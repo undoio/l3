@@ -120,7 +120,25 @@ typedef struct l3_log
     L3_ENTRY        slots[L3_MAX_SLOTS];
 } L3_LOG;
 
-L3_LOG *l3_log; // Also referenced in l3.S for fast-logging.
+#define L3_ARRAY_LEN(arr)   (sizeof(arr) / sizeof(*arr))
+
+/**
+ * Support for different 'logging' types under L3's APIs.
+ */
+static const char * L3_logtype_name[] = {
+                          "L3_LOG_unknown"
+                        , "L3_LOG_MMAP"
+                        , "L3_LOG_FPRINTF"
+                };
+
+L3_STATIC_ASSERT((L3_ARRAY_LEN(L3_logtype_name) == L3_LOGTYPE_MAX),
+                  "Incorrect size of array L3_logtype_name[]");
+
+
+L3_LOG *l3_log = NULL;      // L3_LOG_MMAP: Also referenced in l3.S for
+                            // fast-logging.
+
+FILE *  l3_log_fh = NULL;  // L3_LOG_FPRINTF: Opened by fopen()
 
 /**
  * The L3-dump script expects a specific layout and its parsing routines
@@ -128,9 +146,16 @@ L3_LOG *l3_log; // Also referenced in l3.S for fast-logging.
  * L3_LOG{} and L3_ENTRY{}'s size is somewhat of a convenience. They just
  * happen to be of the same size, as of now, hence, this reuse.)
  */
-
 L3_STATIC_ASSERT(offsetof(L3_LOG,slots) == sizeof(L3_ENTRY),
                 "Expected layout of L3_LOG{} is != 32 bytes.");
+
+/**
+ * ****************************************************************************
+ * Function Prototypes
+ * ****************************************************************************
+ */
+int l3_init_fprintf(const char *path);
+
 
 #if __APPLE__
 
@@ -164,6 +189,10 @@ l3_log_init(const l3_log_t logtype, const char *path)
     switch (logtype) {
       case L3_LOG_MMAP:         // L3_LOG_DEFAULT:
         rv = l3_init(path);
+        break;
+
+      case L3_LOG_FPRINTF:
+        rv = l3_init_fprintf(path);
         break;
 
       default:
@@ -242,6 +271,28 @@ l3_init(const char *path)
     return 0;
 }
 
+/**
+ * ****************************************************************************
+ * Initialize L3's logging sub-system to use fprintf() to named `path`.
+ */
+int
+l3_init_fprintf(const char *path)
+{
+    if (!path) {
+        fprintf(stderr, "%s: Invalid arg 'path'=%p\n", __func__, path);
+        return -1;
+    }
+
+    l3_log_fh = fopen(path, "w+");
+    if (!l3_log_fh) {
+        fprintf(stderr, "%s: Error opening log-file at '%p'. Error=%d\n",
+                __func__, path, errno);
+        return -1;
+    }
+    printf("Initialized fprintf() logging to '%s'\n", path);
+    return 0;
+}
+
 // ****************************************************************************
 static pid_t
 l3_mytid(void)
@@ -289,6 +340,17 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
     l3_log->slots[idx].msg = msg;
     l3_log->slots[idx].arg1 = arg1;
     l3_log->slots[idx].arg2 = arg2;
+}
+
+/**
+ * l3_logtype_name() - Map log-type ID to its name.
+ */
+const char *
+l3_logtype_name(l3_log_t logtype)
+{
+    return (((logtype < 0) || (logtype >= L3_LOGTYPE_MAX))
+             ? L3_logtype_name[L3_LOG_UNDEF]
+             : L3_logtype_name[logtype]);
 }
 
 /**
