@@ -56,7 +56,6 @@ help::
 	@echo ' make clean && CC=gcc LD=g++ L3_FASTLOG_ENABLED=1 make client-server-perf-test  # L3 Fast logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1     make client-server-perf-test  # L3+LOC logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2     make client-server-perf-test  # L3+LOC-ELF logging'
-
 	@echo ' '
 	@echo 'To build L3-sample programs with LOC-enabled and run unit-tests:'
 	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests   && L3_LOC_ENABLED=1 make run-c-tests'
@@ -67,6 +66,9 @@ help::
 	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=2 make run-c-tests'
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=2 make run-cpp-tests'
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=2 make run-cc-tests'
+	@echo ' '
+	@echo 'To build spdlog:'
+	@echo ' make clean && CC=g++ LD=g++ make spdlog-cpp-program'
 	@echo ' '
 	@echo 'Environment variables: '
 	@echo '  BUILD_MODE={release,debug}'
@@ -80,6 +82,11 @@ help::
 #
 ifndef BUILD_VERBOSE
    BUILD_VERBOSE=0
+endif
+
+# Remember if this is being run in CI
+ifndef RUN_ON_CI
+    RUN_ON_CI=0
 endif
 
 # Setup echo formatting for messages.
@@ -408,6 +415,51 @@ SINGLE_FILE_CC_PROGRAM_BIN := $(BINDIR)/$(SINGLE_FILE_CC_PROGRAM)
 $(SINGLE_FILE_CC_PROGRAM_BIN): $(SINGLE_FILE_CC_PROGRAM_OBJS)
 
 TEST_CC_CODE_BINS := $(SINGLE_FILE_CC_PROGRAM_BIN)
+
+# ##############################################################################
+# Rules to build-and-run spdlog example program.
+# ##############################################################################
+SPDLOG_EXAMPLE_PROG_DIR     := $(USE_CASES)/spdlog-Cpp-program
+
+SPDLOG_EXAMPLE_PROG_SRCS    := $(wildcard $(SPDLOG_EXAMPLE_PROG_DIR)/*.cpp)
+
+# Map the list of sources to resulting list-of-objects
+SPDLOG_EXAMPLE_PROG_OBJS    := $(SPDLOG_EXAMPLE_PROG_SRCS:%.cpp=$(OBJDIR)/%.o)
+
+# Define a dependency of this example program's binary to its list of objects
+SPDLOG_EXAMPLE_PROGRAM_BIN  := $(BINDIR)/$(SPDLOG_EXAMPLE_PROG_DIR)
+$(SPDLOG_EXAMPLE_PROGRAM_BIN): $(SPDLOG_EXAMPLE_PROG_OBJS)
+
+# We need to effectively execute this build command:
+# g++ -I /usr/include/spdlog -o spdlog-Cpp-program test-main.cpp -L ~/Projects/spdlog/build -l spdlog -l fmt
+spdlog-cpp-program: CPPFLAGS = --std=c++17
+
+# Define SPD_INCLUDE to work for Linux / Darwin, based on the install tool used.
+ifeq ($(UNAME_S),Linux)
+    SPD_INCLUDE_ROOT := /usr
+else ifeq ($(UNAME_S),Darwin)
+
+    # There seems to be some weirdness when `brew install spdlog` is run on
+    # CI machines. On local Mac, this does set-up soft-link as:
+    # lld /usr/local/opt/spdlog : /usr/local/opt/spdlog@ -> ../Cellar/spdlog/1.13.0
+    #
+    # On CI build-machines, seems like this is not being setup. So we have
+    # to reset the SPD_INCLUDE_ROOT accordingly, to find the spdlog/ headers.
+    #   Found in: /opt/homebrew/Cellar/spdlog/1.13.0/include/spdlog
+    ifeq ($(RUN_ON_CI),1)
+        # Headers seem to be in: /opt/homebrew/include/spdlog
+        SPD_INCLUDE_ROOT := /opt/homebrew
+        SPD_LIBS_PATH    := -L /opt/homebrew/lib
+    else
+        SPD_INCLUDE_ROOT := /usr/local/opt
+    endif
+endif
+
+SPD_INCLUDE := $(SPD_INCLUDE_ROOT)/include
+
+spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE)
+spdlog-cpp-program: LIBS += $(SPD_LIBS_PATH) -l spdlog -l fmt
+spdlog-cpp-program: $(SPDLOG_EXAMPLE_PROGRAM_BIN)
 
 # ##############################################################################
 # Build symbols for single C & C++ unit-test binary that we run
