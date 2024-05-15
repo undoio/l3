@@ -25,12 +25,34 @@ jobs:
             sudo apt-get update -y
             sudo apt-get install -y pylint pip
 
+            # spdlog package needs 'fmt' library as a pre-requisite
+            sudo apt-get install -y libfmt-dev/jammy
+            sudo apt-get install -y libspdlog-dev
+
         elif [ "$RUNNER_OS" == "macOS" ]; then
             brew install python
             brew install pylint
 
             # To install llvm-readelf
             brew install llvm
+
+            # spdlog package needs 'fmt' library as a pre-requisite
+            brew install fmt
+            brew install spdlog
+
+            # Check required spdlog and fmt .h files
+            set -x
+            ls -l /opt/homebrew/include/spdlog
+
+            ls -l /opt/homebrew/include/fmt
+
+            ls -l /usr/local/opt
+
+            ls -l /opt/homebrew/include/spdlog/
+
+            ls -l /opt/homebrew/lib/*spdlog*
+
+            set +x
         fi
 
         pip install pytest
@@ -214,6 +236,10 @@ jobs:
     - name: test-build-and-run-client-server-perf-test-l3_loc_eq_2
       run: |
         BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test-l3_loc_eq_2
+
+    #! -------------------------------------------------------------------------
+    - name: test-build-and-run-spdlog-sample
+      run: RUN_ON_CI=1 ./test.sh test-build-and-run-spdlog-sample
 
     # -------------------------------------------------------------------------
     # Exercise the do-it-all perf-tests method, which is really intended for
