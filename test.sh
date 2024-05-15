@@ -107,6 +107,9 @@ TestList=(
 
            "test-pytests"
 
+           # spdlog-related test methods
+           "test-build-and-run-spdlog-sample"
+
            # Keep these two at the end, so that we can exercise this
            # script in CI with the --from-test interface, to run just
            # these two tests.
@@ -814,6 +817,25 @@ function test-pytests()
     pytest -v
 
     popd
+}
+
+# #############################################################################
+# Build-and-run spdlog sample tutorial program. This test-method validates that
+# the required dependencies for using spdlog, integrated with L3, are met.
+# #############################################################################
+function test-build-and-run-spdlog-sample()
+{
+    make clean && CC=g++ LD=g++ BUILD_VERBOSE=1 make spdlog-cpp-program
+
+    local test_prog="./build/${Build_mode}/bin/use-cases/spdlog-Cpp-program"
+
+    set +x
+    echo " "
+    echo "${Me}: Run spdlog sample program ..."
+    echo " "
+
+    set -x
+    ${test_prog}
 }
 
 # #############################################################################
