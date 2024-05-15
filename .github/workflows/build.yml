@@ -180,6 +180,17 @@ jobs:
         BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-sample-c-appln-with-LOC-ELF
 
     #! -------------------------------------------------------------------------
+    #  This test will build-and-run -ALL- client-server perf-test, with 1-client
+    #  each sending 1 Million messages to the server. This test-method is
+    #  turned OFF for normal CI-jobs. Enable this, and delete the rest of the
+    #  commands, to validate perf-related changes in a CI-build environment.
+    #  Just run with 1 client as CI-VMs seem to not be very high-powered CPUs.
+    #! -------------------------------------------------------------------------
+    # - name: test-run-all-client-server-perf-tests
+    #   run: |
+    #     BUILD_MODE=${{ matrix.build_type }} ./test.sh run-all-client-server-perf-tests $((1000 * 1000)) 1
+
+    #! -------------------------------------------------------------------------
     #  This test will build-and-run client-server perf-test, with L3-Logging OFF
     #  (baseline) and L3-Logging ON.
     #! -------------------------------------------------------------------------

@@ -636,9 +636,17 @@ ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
     INCLUDE += -I ./$(LOC_INCDIR)
 endif
 
+# -----------------------------------------------------------------------------
+# Ref: https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
+#   -Ofast: Disregard strict standards compliance. Enables all -O3 optimizations.
+#   -Og   : Optimize debugging experience. Should be the optimization level of
+#           choice for the standard edit-compile-debug cycle.
 # use += here, so that extra flags can be provided via the environment
+# -----------------------------------------------------------------------------
 ifeq "$(BUILD_MODE)" "debug"
-    CFLAGS += -DDEBUG
+    CFLAGS += -DDEBUG -Og
+else ifeq "$(BUILD_MODE)" "release"
+     CFLAGS += -Ofast
 endif
 
 # By default, L3-logging is always ON for all programs built here.
