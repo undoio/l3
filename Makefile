@@ -410,6 +410,28 @@ $(SINGLE_FILE_CC_PROGRAM_BIN): $(SINGLE_FILE_CC_PROGRAM_OBJS)
 TEST_CC_CODE_BINS := $(SINGLE_FILE_CC_PROGRAM_BIN)
 
 # ##############################################################################
+# Rules to build-and-run spdlog example program.
+# ##############################################################################
+SPDLOG_EXAMPLE_PROG_DIR     := $(USE_CASES)/spdlog-Cpp-program
+
+SPDLOG_EXAMPLE_PROG_SRCS    := $(wildcard $(SPDLOG_EXAMPLE_PROG_DIR)/*.cpp)
+
+# Map the list of sources to resulting list-of-objects
+SPDLOG_EXAMPLE_PROG_OBJS    := $(SPDLOG_EXAMPLE_PROG_SRCS:%.cpp=$(OBJDIR)/%.o)
+
+# Define a dependency of this example program's binary to its list of objects
+SPDLOG_EXAMPLE_PROGRAM_BIN  := $(BINDIR)/$(SPDLOG_EXAMPLE_PROG_DIR)
+$(SPDLOG_EXAMPLE_PROGRAM_BIN): $(SPDLOG_EXAMPLE_PROG_OBJS)
+
+# We need to effectively execute this build command:
+# g++ -I /usr/include/spdlog -o spdlog-Cpp-program test-main.cpp -L ~/Projects/spdlog/build -l spdlog -l fmt
+spdlog-cpp-program: CPPFLAGS = --std=c++17
+spdlog-cpp-program: INCLUDE += -I /usr/include/spdlog
+# spdlog-cpp-program: LDFLAGS += -L ~/Projects/spdlog/build -l spdlog -l fmt -L /usr/lib/x86_64-linux-gnu/ -l stdc++
+spdlog-cpp-program: LIBS += -L ~/Projects/spdlog/build -l spdlog -l fmt
+spdlog-cpp-program: $(SPDLOG_EXAMPLE_PROGRAM_BIN)
+
+# ##############################################################################
 # Build symbols for single C & C++ unit-test binary that we run
 # ##############################################################################
 C_UNIT_TEST_BIN     := $(SINGLE_FILE_C_PROGRAM_BIN)

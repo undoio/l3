@@ -31,9 +31,11 @@ void
 basic_example(void)
 {
     // Create basic file logger (not rotated).
-    auto my_logger = spdlog::basic_logger_mt("file_logger", "/tmp/basic-log.txt", true);
+    string logfile = "/tmp/basic-log.txt";
+    auto my_logger = spdlog::basic_logger_mt("file_logger", logfile, true);
     my_logger->info("Welcome to spdlog!");
     my_logger->critical("Support for int: {0:d};  hex: {0:x};  oct: {0:o}; bin: {0:b}", 42);
+    cout << "spdlog messages can be found in '" << logfile << "'\n";
 }
 
 /**
