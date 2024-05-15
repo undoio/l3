@@ -74,7 +74,7 @@ char *
 size_to_fmtstr(char *outbuf, size_t outbuflen, const char *fmtstr, size_t size);
 
 // Length of output buffer to snprintf()-into size as string w/ unit specifier
-#define SIZE_TO_STR_LEN 20
+#define SIZE_TO_STR_LEN 25
 
 /*
  * ----------------------------------------------------------------------

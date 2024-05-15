@@ -363,7 +363,7 @@ function build-and-run-sample-c-appln-with-LOC-encoding()
 function run-all-client-server-perf-tests()
 {
     local num_msgs_per_client=1000
-    if [ $# -eq 1 ]; then
+    if [ $# -ge 1 ]; then
         num_msgs_per_client=$1
     fi
 
