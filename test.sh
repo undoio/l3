@@ -393,15 +393,41 @@ function test-build-and-run-client-server-perf-test()
         num_msgs_per_client=$1
     fi
 
+    local l3_log_disabled=0
+    local l3_log_enabled=1
+    local l3_LOC_disabled=0
+
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging OFF:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}" 0
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"      \
+                                          "${l3_log_disabled}"
 
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging ON:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}" 1
+    build-and-run-client-server-perf-test "${num_msgs_per_client}" \
+                                          "${l3_log_enabled}"
+
+    local nentries=100
+    echo " "
+    echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+    echo " "
+
+    set -x
+    # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
+    ./l3_dump.py                                                                \
+            --log-file /tmp/l3.c-server-test.dat                                \
+            --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+        | tail -${nentries}
+
+    echo " "
+    echo "${Me}: Client-server performance testing with L3-fast-logging ON:"
+    echo " "
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                          "${l3_log_enabled}"       \
+                                          "${l3_LOC_disabled}"      \
+                                          "fast"
 
     local nentries=100
     echo " "
@@ -445,10 +471,15 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
         num_msgs_per_client=$1
     fi
 
+    local l3_log_enabled=1
+    local l3_LOC_enabled=1
+
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging and L3-LOC ON:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}" 1 1
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                          "${l3_log_enabled}"       \
+                                          "${l3_LOC_enabled}"
 
     local nentries=100
     echo " "
@@ -485,10 +516,15 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
         return
     fi
 
+    local l3_log_enabled=1
+    local l3_LOC_enabled=2
+
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging and LOC-ELF ON:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}" 1 2
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                          "${l3_log_enabled}"       \
+                                          "${l3_LOC_enabled}"
 
     local nentries=100
     echo " "
@@ -515,6 +551,7 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 #   $1  - (Reqd) # of messages to exchange from client -> server
 #   $2  - (Reqd) Boolean: Is L3 enabled?
 #   $3  - (Opt.) When L3 is enabled, type of L3-LOC encoding enabled
+#   $4  - (Opt.) L3-logging type: 'slow' (default), 'fast'
 # #############################################################################
 function build-and-run-client-server-perf-test()
 {
@@ -525,18 +562,46 @@ function build-and-run-client-server-perf-test()
         l3_loc_enabled=$3
     fi
 
+    local l3_log_type=
+    if [ $# -eq 4 ]; then
+        l3_log_type=$4
+    fi
+
     set +x
     # Makefile does not implement 'run' step. Do it here manually.
     local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
     local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
 
-    set -x
-    make clean                              \
-    && CC=gcc LD=g++                        \
-       L3_ENABLED=${l3_enabled}             \
-       L3_LOC_ENABLED=${l3_loc_enabled}     \
-       BUILD_VERBOSE=1                      \
-       make client-server-perf-test
+    # Default L3-intrinsic logging execution modes
+    if [ "${l3_log_type}" == "" ]; then
+        set -x
+        make clean                              \
+        && CC=gcc LD=g++                        \
+           L3_ENABLED=${l3_enabled}             \
+           L3_LOC_ENABLED=${l3_loc_enabled}     \
+           BUILD_VERBOSE=1                      \
+           make client-server-perf-test
+    else
+
+        # Execute the specified logging scheme under L3-logging APIs
+        case "${l3_log_type}" in
+
+            "fast")
+                set -x
+                make clean                          \
+                && CC=gcc LD=g++                    \
+                    L3_ENABLED=${l3_enabled}        \
+                    L3_FASTLOG_ENABLED=1            \
+                    BUILD_VERBOSE=1                 \
+                    make client-server-perf-test
+                ;;
+
+            *)
+                echo "${Me}: Unknown L3-logging type '${l3_log_type}'. Exiting."
+                exit 1
+                ;;
+        esac
+    fi
 
     ${server_bin} &
 

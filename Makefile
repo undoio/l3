@@ -49,10 +49,11 @@ help::
 	@echo ' make run-cc-tests'
 	@echo ' '
 	@echo 'To build client-server performance test programs and run performance test(s)'
-	@echo ' make clean && CC=gcc LD=g++ L3_ENABLED=0     make client-server-perf-test  # Baseline'
-	@echo ' make clean && CC=gcc LD=g++                  make client-server-perf-test  # L3-logging'
-	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1 make client-server-perf-test  # L3+LOC logging'
-	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2 make client-server-perf-test  # L3+LOC-ELF logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_ENABLED=0         make client-server-perf-test  # Baseline'
+	@echo ' make clean && CC=gcc LD=g++                      make client-server-perf-test  # L3-logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_FASTLOG_ENABLED=1 make client-server-perf-test  # L3 Fast logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1     make client-server-perf-test  # L3+LOC logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2     make client-server-perf-test  # L3+LOC-ELF logging'
 	@echo ' '
 	@echo 'Environment variables: '
 	@echo ' BUILD_MODE={release,debug}'
@@ -568,6 +569,13 @@ CLIENT_SERVER_NON_MAIN_SRCS     := $(filter-out $(CLIENT_SERVER_PERF_TESTS_DIR)/
 # If L3-logging is enabled in test-program, need to include core library file
 ifeq ($(L3_ENABLED), $(L3_DEFAULT))
     CLIENT_SERVER_NON_MAIN_SRCS += $(L3_SRC)
+
+# Under L3-logging, invoke the L3-fast logging API, which needs the .S file
+ifeq ($(L3_FASTLOG_ENABLED), 1)
+    CLIENT_SERVER_NON_MAIN_SRCS += $(L3_ASSEMBLY)
+    CFLAGS += -DL3_FASTLOG_ENABLED
+endif
+
 endif
 
 # Name of LOC-generated source file for the client-server perf-test program.
