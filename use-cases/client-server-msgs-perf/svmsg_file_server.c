@@ -197,6 +197,13 @@ main(int argc, char *argv[])
         errExit("l3_init");
     }
 
+    char *l3_log_mode = "<unknown>";
+#if L3_FASTLOG_ENABLED
+    l3_log_mode = "fast ";
+#else
+    l3_log_mode = "";
+#endif  // L3_FASTLOG_ENABLED
+
 // In build -D L3_LOC_ELF_ENABLED and -D L3_LOC_ENABLED are both ON.
 // So, check in this order.
 // Info-message to track how L3-logging is being done by server.
@@ -210,9 +217,9 @@ main(int argc, char *argv[])
 #endif  // L3_LOC_ELF_ENCODING
 
     printf("Start Server, using clock '%s'"
-           ": Initiate L3-logging to log-file '%s'"
+           ": Initiate L3-%slogging to log-file '%s'"
            ", using %s encoding scheme.\n",
-           logfile, loc_scheme, clock_name(clock_id));
+           logfile, l3_log_mode, loc_scheme, clock_name(clock_id));
 
 #else // L3_ENABLED
 
@@ -295,10 +302,18 @@ main(int argc, char *argv[])
             elapsed_ns = (nsec1 - nsec0);           // Elapsed-ns for this op
 
 #if L3_ENABLED
+
             // Record time-consumed. (NOTE: See clarification below.)
+#  if L3_FASTLOG_ENABLED
+            l3_log_fast("Server msg: Increment: ClientID=%d, "
+                        "Thread-CPU-time=%" PRIu64 " ns. (L3-fast-log)",
+                        resp.clientId, elapsed_ns);
+#  else
             l3_log_simple("Server msg: Increment: ClientID=%d, "
                           "Thread-CPU-time=%" PRIu64 " ns.",
                           resp.clientId, elapsed_ns);
+#  endif
+
 #endif // L3_ENABLED
 
             // Reuse variable to reacquire current TS for accumulation.
