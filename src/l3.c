@@ -27,6 +27,7 @@
 #include <pthread.h>
 #else
 #include <threads.h>
+#include <sys/single_threaded.h>
 #endif  // __APPLE__
 
 #include <string.h>
@@ -390,7 +391,14 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
             uint32_t loc)
 #endif
 {
-    int idx = __sync_fetch_and_add(&l3_log->idx, 1) % L3_MAX_SLOTS;
+
+#if  __APPLE__
+    int idx = __sync_fetch_and_add(&l3_log->idx, 1);
+#else
+    int idx = __libc_single_threaded ? l3_log->idx++
+                                     : __sync_fetch_and_add(&l3_log->idx, 1);
+#endif  // __APPLE__
+    idx %= L3_MAX_SLOTS;
     l3_log->slots[idx].tid = l3_my_tid;
 
 #ifdef L3_LOC_ENABLED

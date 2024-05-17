@@ -1,15 +1,20 @@
 .globl l3__log_fast // l3__log_fast(msg)
 .extern l3_log
+.extern __libc_single_threaded
 
 l3__log_fast:
     mov %fs:l3_my_tid@tpoff,%eax // Fetch the TLS-stashed TID into %eax
     mov l3_log(%rip), %r8   // fetch ptr to the global l3_log into register r8
-    mov  $1, %r9
-    lock xadd %r9, (%r8)    // atomically increment-and-fetch the index field in l3_log.
-    and $0x3fff, %r9        // idx %= L3_NUM_SLOTS
+    mov $1, %r9             // prepare to increment the index
+    cmpb $0, __libc_single_threaded(%rip) // Are we single-threaded?
+    jne .single_threaded    // __libc_single_threaded != 0 so skip the lock prefix
+    lock
+.single_threaded:
+    xadd %r9,(%r8)
     add $32, %r8            // point r8 at the beginning of the l3_log.slots array.
+    and $0x3fff, %r9        // idx %= L3_NUM_SLOTS
     shl $5, %r9             // scale the index by sizeof(L3_ENTRY)
-    add %r9, %r8            // point r9 at our entry in the slots array.
+    add %r9, %r8            // point r8 at our entry in the slots array.
     mov %eax, (%r8)         // The tid is in %eax from the call to to gettid above.
 #ifdef L3_LOC_ENABLED
     add $4, %r8             // Point r8 at the loc field of the slot.
