@@ -701,6 +701,8 @@ CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
 
 CPPFLAGS += --std=c++11
 
+LIBS += -ldl
+
 # ##############################################################################
 # Automatically create directories, based on
 # http://ismail.badawi.io/blog/2017/03/28/automatic-directory-creation-in-make/
