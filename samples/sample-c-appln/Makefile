@@ -44,6 +44,8 @@ SOURCES     := main.c functions.c
 
 CFLAGS       = -O3
 
+LIBS        += -ldl
+
 # Also include L3's include files' dir-path.
 INCLUDE += -I $(PROJECT_ROOT_DIR) -I ./$(L3_INCDIR)
 
@@ -131,7 +133,7 @@ all: $(C_SAMPLES_LOC_GENSRC) $(SOURCES) $(TARGET)
 	$(CC) $(CFLAGS) $(DFLAGS) $(INCLUDE) -o $@ -c $<
 
 $(TARGET): $(C_SAMPLES_LOC_GENSRC) $(OBJS)
-	$(CC) $(LFLAGS) $(OBJS) $(LDFLAGS) $(L3_ASSEMBLY) -o $(TARGET)
+	$(CC) $(LFLAGS) $(OBJS) $(LDFLAGS) $(L3_ASSEMBLY) -o $(TARGET) $(LIBS)
 	./$(TARGET)
 
 purge: clean
