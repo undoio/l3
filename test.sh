@@ -333,7 +333,8 @@ function build-and-run-sample-c-appln-with-LOC-encoding()
 
     local program="./c-sample"
 
-    make clean && L3_LOC_ENABLED=${loc_encoding}  make c-sample
+    L3_LOC_ENABLED=${loc_encoding} make clean
+    L3_LOC_ENABLED=${loc_encoding} make c-sample
 
     set +x
 
