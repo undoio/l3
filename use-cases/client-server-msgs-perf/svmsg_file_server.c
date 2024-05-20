@@ -231,12 +231,6 @@ main(int argc, char *argv[])
            clock_name(clock_id), logfile, logging_type);
 
 #elif L3_ENABLED
-    int e = l3_log_init(logtype, logfile);
-    if (e) {
-        errExit("l3_init");
-    }
-    logging_type = (char *) l3_logtype_name(logtype);
-
     // Initialize L3-Logging
     const char *l3_log_mode = "<unknown>";
     l3_log_t    logtype = L3_LOG_DEFAULT;
@@ -246,6 +240,12 @@ main(int argc, char *argv[])
 #elif L3_LOGT_WRITE
     logtype = L3_LOG_WRITE;
 #endif
+
+    int e = l3_log_init(logtype, logfile);
+    if (e) {
+        errExit("l3_init");
+    }
+    logging_type = (char *) l3_logtype_name(logtype);
 
 #if L3_FASTLOG_ENABLED
     l3_log_mode = "fast ";
@@ -276,8 +276,8 @@ main(int argc, char *argv[])
 #else // L3_ENABLED
 
     logging_type = "no logging";
-    printf("Start Server, using clock ID=%d '%s': %s.\n",
-           clock_id, clock_name(clock_id), logging_type);
+    printf("Start Server, using clock ID=%d '%s': %s. (logfile '%s' unused)\n",
+           clock_id, clock_name(clock_id), logging_type, logfile);
 
 #endif // L3_ENABLED
 
@@ -433,15 +433,14 @@ main(int argc, char *argv[])
 
     // RESOLVE: C++ compilation raises an error if this block is
     // defined. Suppress it when building w/spdlog in C++
-#if !defined(L3_LOGT_SPDLOG) and !defined(L3_LOGT_SPDLOG_BACKTRACE)
-
+#if !defined(__cplusplus)
           case REQ_MT_DECR:
           case REQ_MT_GET_CTR:
           case REQ_MT_QUIT:
           default:
             assert(1 == 0);
             break;
-#endif  // L3_LOGT_SPDLOG
+#endif  // __cplusplus
 
         }
 

@@ -580,7 +580,7 @@ function test-build-and-run-client-server-perf-test-spdlog()
     fi
 
     # spdlog is used here only for performance benchmarking.
-    local l3_log_enabled=1
+    local l3_log_enabled=0
     local l3_LOC_enabled=0
 
     echo " "
@@ -594,6 +594,14 @@ function test-build-and-run-client-server-perf-test-spdlog()
     local nentries=100
     echo " "
     tail -${nentries} /tmp/l3.c-server-test.dat
+
+    echo " "
+    echo "${Me}: Client-server performance testing with spdlog-backtrace logging:"
+    echo " "
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                          "${l3_log_enabled}"       \
+                                          "${l3_LOC_enabled}"       \
+                                          "spdlog-backtrace"
 
     echo " "
     echo "${Me}: Completed basic client(s)-server communication test with spdlog-logging."
@@ -681,6 +689,16 @@ function build-and-run-client-server-perf-test()
                 && CC=g++ LD=g++                    \
                     L3_ENABLED=${l3_enabled}        \
                     L3_LOGT_SPDLOG=1                \
+                    BUILD_VERBOSE=1                 \
+                    make client-server-perf-test
+                ;;
+
+            "spdlog-backtrace")
+                set -x
+                make clean                          \
+                && CC=g++ LD=g++                    \
+                    L3_ENABLED=${l3_enabled}        \
+                    L3_LOGT_SPDLOG=2                \
                     BUILD_VERBOSE=1                 \
                     make client-server-perf-test
                 ;;
