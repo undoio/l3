@@ -625,6 +625,8 @@ else ifeq ($(L3_LOGT_SPDLOG), 1)
     CFLAGS += -DL3_LOGT_SPDLOG
     # Compile all .c sources using c++ compiler as c++ sources.
     CC_X_FLAG := $(CXX_X_FLAG)
+    # spdlog-cpp-program:
+    CPPFLAGS = --std=c++17
 
 endif
 
@@ -738,7 +740,9 @@ endif
 
 CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
 
-CPPFLAGS += --std=c++11
+# Build of client-server program in C++ mode overrides this.
+# So, define this only if it's not already set in the build-flow.
+CPPFLAGS ?= --std=c++11
 
 # Required for building on Docker. Rebase.
 LIBS += -ldl
@@ -769,7 +773,7 @@ $(BINDIR)/%/.:
 #
 # For all-test-code, we need to use -I test-code/<subdir>
 # Dependencies for the main executables
-COMPILE.c       = $(CC)  -x $(CC_X_FLAG) $(CFLAGS) $(INCLUDE) -c
+COMPILE.c       = $(CC)  -x $(CC_X_FLAG) $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
 COMPILE.cpp     = $(CXX) -x $(CXX_X_FLAG) $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
 COMPILE.cc      = $(CXX) -x c++ $(CFLAGS) $(INCLUDE) -c
 COMPILE.loc.c   = $(LOC_C_CC) $(CFLAGS) $(INCLUDE) -c

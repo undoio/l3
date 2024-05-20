@@ -68,19 +68,21 @@ Usage: ./svmsg_file_server --help
 #include <time.h>
 #include <assert.h>
 #include <getopt.h>     // For getopt_long()
-#include "svmsg_file.h"
-#include "l3.h"
-#include "size_str.h"
 
-#if defined(L3_LOGT_SPDLOG)
+#ifdef __cplusplus
+#  if defined(L3_LOGT_SPDLOG)
 
 #   include <iostream>
 #   include "spdlog/spdlog.h"
 #   include "spdlog/sinks/basic_file_sink.h"
     using namespace std;
 
-#  endif
+#  endif    // L3_LOGT_SPDLOG
+#endif  // __cplusplus
 
+#include "svmsg_file.h"
+#include "l3.h"
+#include "size_str.h"
 
 /**
  * Global data structures to track client-specific information.
@@ -199,11 +201,11 @@ main(int argc, char *argv[])
         errExit("sigaction");
     }
 
-    char *logging_type = "";
+    const char *logging_type = "";
 
     // Initialize L3-Logging or C++ spdlog-logging
 #if L3_ENABLED
-    char *l3_log_mode = "<unknown>";
+    const char *l3_log_mode = "<unknown>";
     const char *logfile = "/tmp/l3.c-server-test.dat";
     l3_log_t    logtype = L3_LOG_DEFAULT;
 
@@ -214,16 +216,19 @@ main(int argc, char *argv[])
 #endif
 
     // L3 does not directly support spdlog. Manaage it separately.
-#if L3_LOGT_SPDLOG
+#if defined(L3_LOGT_SPDLOG)
     // Create basic file logger (not rotated).
     // string logfile = "/tmp/basic-log.txt";
-    auto my_logger = spdlog::basic_logger_mt("file_logger", logfile,
+    auto spd_logger = spdlog::basic_logger_mt("file_logger", logfile,
                                               true);
+    logging_type = "spdlog";
 #else
     int e = l3_log_init(logtype, logfile);
     if (e) {
         errExit("l3_init");
     }
+    logging_type = (char *) l3_logtype_name(logtype);
+
 #endif  // L3_LOGT_SPDLOG
 
 
@@ -247,13 +252,11 @@ main(int argc, char *argv[])
     const char *loc_scheme = "(no LOC)";
 #endif  // L3_LOC_ELF_ENCODING
 
-    logging_type = (char *) l3_logtype_name(logtype);
-
     printf("Start Server, using clock '%s'"
            ": Initiate L3-%slogging to log-file '%s'"
            ", using logtype '%s', %s encoding scheme.\n",
            clock_name(clock_id), l3_log_mode, logfile,
-           l3_logtype_name(logtype), loc_scheme);
+           logging_type, loc_scheme);
 
 #else // L3_ENABLED
 
@@ -287,7 +290,7 @@ main(int argc, char *argv[])
         uint64_t nsec1 = 0;
         uint64_t elapsed_ns = 0;
 
-        switch (req.mtype) {
+        switch ((int) req.mtype) {
 
           case REQ_MT_INIT:
             resp.mtype = req.mtype;         // Confirm initialization is done
@@ -339,7 +342,12 @@ main(int argc, char *argv[])
 #if L3_ENABLED
 
             // Record time-consumed. (NOTE: See clarification below.)
-#  if L3_FASTLOG_ENABLED
+#  if defined(L3_LOGT_SPDLOG)
+            spd_logger->info("Server msg: Increment: ClientID={}, "
+                             "Thread-CPU-time={} ns.",
+                             resp.clientId, elapsed_ns);
+
+#  elif L3_FASTLOG_ENABLED
             l3_log_fast("Server msg: Increment: ClientID=%d, "
                         "Thread-CPU-time=%" PRIu64 " ns. (L3-fast-log)",
                         resp.clientId, elapsed_ns);
@@ -400,15 +408,23 @@ main(int argc, char *argv[])
             req.clientId = 0;
             break;
 
+    // RESOLVE: C++ compilation raises an error if this block is
+    // defined. Suppress it when building w/spdlog in C++
+#if !defined(L3_LOGT_SPDLOG)
+
           case REQ_MT_DECR:
           case REQ_MT_GET_CTR:
           case REQ_MT_QUIT:
           default:
             assert(1 == 0);
             break;
+#endif  // L3_LOGT_SPDLOG
+
         }
+
         // Client may have exited, so no need to send ack-response back to it.
-        if (req.clientId && msgsnd(req.clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
+        if (   req.clientId
+            && msgsnd(req.clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
             break;
         }
 
@@ -601,7 +617,7 @@ printSummaryStats(Client_info *clients, unsigned int num_clients,
     size_t  num_ops = 0;
     size_t  cumu_time_ns = 0;
 
-    for (int cctr = 0 ; cctr < num_clients; cctr++) {
+    for (unsigned int cctr = 0 ; cctr < num_clients; cctr++) {
         num_ops += clients[cctr].num_ops;
         cumu_time_ns += clients[cctr].cumu_time_ns;
     }
