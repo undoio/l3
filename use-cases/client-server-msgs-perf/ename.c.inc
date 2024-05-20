@@ -10,7 +10,7 @@
 
 // Generated file. cp'ed here from `make all` output of the full repo sources.
 
-static char *ename[] = {
+static const char *ename[] = {
     /*   0 */ "",
     /*   1 */ "EPERM", "ENOENT", "ESRCH", "EINTR", "EIO", "ENXIO",
     /*   7 */ "E2BIG", "ENOEXEC", "EBADF", "ECHILD",

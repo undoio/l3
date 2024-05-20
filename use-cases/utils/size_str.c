@@ -37,7 +37,7 @@ size_to_str(char *outbuf, size_t outbuflen, size_t size)
    size_t frac_val  = 0;
    int is_approx = false;
 
-   char *units = NULL;
+   const char *units = NULL;
    if (size >= SZ_TiB) {
       unit_val  = SZ_B_TO_TiB(size);
       frac_val  = SZ_B_TO_TiB_FRACT(size);
@@ -100,7 +100,7 @@ value_to_str(char *outbuf, size_t outbuflen, size_t value)
    size_t frac_val  = 0;
    int is_approx = false;
 
-   char *units = NULL;
+   const char *units = NULL;
    if (value >= VAL_Trillion) {
       unit_val  = VAL_N_TO_Trillion(value);
       frac_val  = VAL_N_TO_Trillion_FRACT(value);

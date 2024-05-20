@@ -69,6 +69,18 @@ Usage: ./svmsg_file_server --help
 #include <time.h>
 #include <assert.h>
 #include <getopt.h>     // For getopt_long()
+
+#ifdef __cplusplus
+#  if defined(L3_LOGT_SPDLOG) or defined(L3_LOGT_SPDLOG_BACKTRACE)
+
+#   include <iostream>
+#   include "spdlog/spdlog.h"
+#   include "spdlog/sinks/basic_file_sink.h"
+    using namespace std;
+
+#  endif    // L3_LOGT_SPDLOG
+#endif  // __cplusplus
+
 #include "svmsg_file.h"
 #include "l3.h"
 #include "size_str.h"
@@ -208,9 +220,42 @@ main(int argc, char *argv[])
 
     char run_descr[80];
 
+
+    // L3 does not directly support spdlog. Manaage it separately.
+#if defined(L3_LOGT_SPDLOG)
+    // Create basic file logger (not rotated).
+    // string logfile = "/tmp/basic-log.txt";
+    const char *logfile = "/tmp/l3.c-server-test.dat";
+    auto spd_logger = spdlog::basic_logger_mt("file_logger", logfile,
+                                              true);
+    const char *logging_type = "spdlog";
+
+    printf("Start Server, using clock '%s'"
+           ": Initiate spdlog-logging to log-file '%s'"
+           ", using logtype '%s'.\n",
+           clock_name(clock_id), logfile, logging_type);
+
+    snprintf(run_descr, sizeof(run_descr), "%s-logging", logging_type);
+
+#elif defined(L3_LOGT_SPDLOG_BACKTRACE)
+
+    const char *logfile = "/tmp/l3.c-server-test.dat";
+    // Configure same # of backtrace msg-capacity to spdlog as
+    // is being configured for L3's mmap()-ed buffer.
+    spdlog::enable_backtrace(L3_MAX_SLOTS);
+
+    const char *logging_type = "spdlog-backtrace";
+
+    printf("Start Server, using clock '%s'"
+           ": Initiate spdlog-logging (log-file '%s' unused)"
+           ", using logtype '%s'.\n",
+           clock_name(clock_id), logfile, logging_type);
+
+    snprintf(run_descr, sizeof(run_descr), "%s-logging", logging_type);
+
+#elif L3_ENABLED
     // Initialize L3-Logging
-#if L3_ENABLED
-    char *l3_log_mode = "<unknown>";
+    const char *l3_log_mode = "<unknown>";
     const char *logfile = "/tmp/l3.c-server-test.dat";
     l3_log_t    logtype = L3_LOG_DEFAULT;
 
@@ -264,6 +309,7 @@ main(int argc, char *argv[])
 #endif // L3_ENABLED
 
     /* Read requests, handle each in a separate child process */
+    Client_info *clientp = NULL;
     requestMsg req;
     responseMsg resp;
 
@@ -272,7 +318,7 @@ main(int argc, char *argv[])
     if (clock_gettime(clock_id, &ts0)) {    // ***** Timing begins
         errExit("clock_gettime-ts0");
     }
-    Client_info *clientp = NULL;
+
     for (;;) {
 
         msgLen = msgrcv(serverId, &req, REQ_MSG_SIZE, 0, 0);
@@ -284,7 +330,7 @@ main(int argc, char *argv[])
             break;                      /* ... so terminate loop */
         }
 
-        switch (req.mtype) {
+        switch ((int) req.mtype) {
 
           case REQ_MT_INIT:
             resp.mtype = req.mtype;         // Confirm initialization is done
@@ -322,18 +368,28 @@ main(int argc, char *argv[])
             resp.counter = ++clientp->client_ctr;   // Do Increment
             clientp->num_ops++;                     // Track # of operations
 
-#if L3_ENABLED
+            // Record time-consumed. (NOTE: See clarification below.)
+#  if defined(L3_LOGT_SPDLOG)
+            spd_logger->info("Server spdlog: "
+                             "Increment: ClientID={}, Counter{}.",
+                             resp.clientId, resp.counter);
 
-            // Record new-counter value, to show that something can be logged.
+#  elif defined(L3_LOGT_SPDLOG_BACKTRACE)
+
+            spdlog::debug("Server spdlog-Backtrace: "
+                         "Increment: ClientID={}, Counter={}.",
+                         resp.clientId, resp.counter);
+
+#elif L3_ENABLED
+
 #  if L3_FASTLOG_ENABLED
-            l3_log_fast("Server msg: Increment: ClientID=%d, "
-                        "Elapsed time=%" PRIu64 " ns. (L3-fast-log)",
+            l3_log_fast("Server msg: Increment: ClientID=%d, Counter=%" PRIu64
+                        ". (L3-fast-log)",
                         resp.clientId, resp.counter);
 #  else
-            l3_log("Server msg: Increment: ClientID=%d, "
-                   "Elapsed time=%" PRIu64 " ns.",
+            l3_log("Server msg: Increment: ClientID=%d, Counter=%" PRIu64 ".",
                    resp.clientId, resp.counter);
-#  endif
+#  endif    // L3_FASTLOG_ENABLED
 
 #endif // L3_ENABLED
 
@@ -380,11 +436,15 @@ main(int argc, char *argv[])
             }
             break;
 
+#if !defined(__cplusplus)
           case REQ_MT_QUIT:
           default:
             assert(1 == 0);
             break;
+#endif  // __cplusplus
+
         }
+
         // Client may have exited, so no need to send ack-response back to it.
         if (req.clientId && msgsnd(req.clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
             printf("Warning: msgsnd() to client ID=%d failed to deliver.\n",
@@ -410,8 +470,15 @@ end_forever_loop:
     }
 
     // Close L3-logging upon exit.
-#if L3_ENABLED
+#if defined(L3_LOGT_SPDLOG_BACKTRACE)
+
+    // Log the messages now! show the last n-messages
+    spdlog::dump_backtrace();
+
+#elif L3_ENABLED
+
     l3_log_deinit(logtype);
+
 #endif  // L3_ENABLED
 
     printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
@@ -422,9 +489,20 @@ end_forever_loop:
 
     // For visibility into how clocks are performing on user's machine,
     // run clock-calibration after all workload / metrics collection is done.
+
+#if defined(__cplusplus)
+
+#if !defined(L3_ENABLED) and !defined(L3_LOGT_SPDLOG) and !defined(L3_LOGT_SPDLOG_BACKTRACE)
+    svr_clock_calibrate();
+#endif
+
+#else   // __cplusplus
+
 #if !defined(L3_ENABLED)
     svr_clock_calibrate();
 #endif  // L3_ENABLED
+
+#endif  // __cplusplus
 
     exit(EXIT_SUCCESS);
 }
@@ -531,7 +609,7 @@ svr_clock_calibrate(void)
 
     printf("Calibrate clock overheads over %d (%s) iterations:\n",
            NUM_ITERATIONS, value_str(NUM_ITERATIONS));
-    for (int cctr = 0; cctr < ARRAY_LEN(clockids); cctr++) {
+    for (unsigned cctr = 0; cctr < ARRAY_LEN(clockids); cctr++) {
         clockid_t clockid = clockids[cctr];
 
         struct timespec ts_clock;
@@ -629,7 +707,7 @@ printSummaryStats(const char *outfile, const char *run_descr,
     size_t  num_ops = 0;
     size_t  sum_throughput = 0;
 
-    for (int cctr = 0 ; cctr < num_clients; cctr++) {
+    for (unsigned int cctr = 0 ; cctr < num_clients; cctr++) {
         num_ops += clients[cctr].num_ops;
         sum_throughput += clients[cctr].throughput;
     }
