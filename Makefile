@@ -49,13 +49,15 @@ help::
 	@echo ' make run-cc-tests'
 	@echo ' '
 	@echo 'To build client-server performance test programs and run performance test(s)'
-	@echo ' make clean && CC=gcc LD=g++ L3_ENABLED=0         make client-server-perf-test  # Baseline'
-	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_FPRINTF=1    make client-server-perf-test  # fprintf() logging'
-	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_WRITE=1      make client-server-perf-test  # write() msg logging'
-	@echo ' make clean && CC=gcc LD=g++                      make client-server-perf-test  # L3-logging'
-	@echo ' make clean && CC=gcc LD=g++ L3_FASTLOG_ENABLED=1 make client-server-perf-test  # L3 Fast logging'
-	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1     make client-server-perf-test  # L3+LOC logging'
-	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2     make client-server-perf-test  # L3+LOC-ELF logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_ENABLED=0                  make client-server-perf-test  # Baseline'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_FPRINTF=1             make client-server-perf-test  # fprintf() logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_WRITE=1               make client-server-perf-test  # write() logging'
+	@echo ' make clean && CC=g++ LD=g++ L3_ENABLED=0 L3_LOGT_SPDLOG=1 make client-server-perf-test  # C++ spdlog logging'
+	@echo ' make clean && CC=g++ LD=g++ L3_ENABLED=0 L3_LOGT_SPDLOG=2 make client-server-perf-test  # C++ spdlog backtrace'
+	@echo ' make clean && CC=gcc LD=g++                               make client-server-perf-test  # L3-logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_FASTLOG_ENABLED=1          make client-server-perf-test  # L3 Fast logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1              make client-server-perf-test  # L3+LOC logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2              make client-server-perf-test  # L3+LOC-ELF logging'
 	@echo ' '
 	@echo 'To build L3-sample programs with LOC-enabled and run unit-tests:'
 	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests   && L3_LOC_ENABLED=1 make run-c-tests'
@@ -116,6 +118,10 @@ UNAME_P := $(shell uname -p)
 CC  ?= gcc
 CXX ?= g++
 LD  ?= gcc
+
+# cc -x flag default specification
+CC_X_FLAG   := c
+CXX_X_FLAG  := c++
 
 # ###################################################################
 # Symbols for L3 SOURCE DIRECTORIES AND FILES, LOC-Generator Package
@@ -432,7 +438,6 @@ $(SPDLOG_EXAMPLE_PROGRAM_BIN): $(SPDLOG_EXAMPLE_PROG_OBJS)
 
 # We need to effectively execute this build command:
 # g++ -I /usr/include/spdlog -o spdlog-Cpp-program test-main.cpp -L ~/Projects/spdlog/build -l spdlog -l fmt
-spdlog-cpp-program: CPPFLAGS = --std=c++17
 
 # Define SPD_INCLUDE to work for Linux / Darwin, based on the install tool used.
 ifeq ($(UNAME_S),Linux)
@@ -456,7 +461,6 @@ else ifeq ($(UNAME_S),Darwin)
 endif
 
 SPD_INCLUDE := $(SPD_INCLUDE_ROOT)/include
-
 spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE)
 spdlog-cpp-program: LIBS += $(SPD_LIBS_PATH) -l spdlog -l fmt
 spdlog-cpp-program: $(SPDLOG_EXAMPLE_PROGRAM_BIN)
@@ -619,6 +623,12 @@ all-unit-tests: $(UNIT_TESTBINS)
 # all: all-c-tests all-cpp-tests all-cc-tests all-unit-tests all-loc-tests
 
 # ##############################################################################
+# Build of client-server program in C++ mode overrides this.
+# So, define this only if it's not already set in the build-flow.
+# ##############################################################################
+CPPFLAGS ?= --std=c++11
+
+# ##############################################################################
 # Rules to build-and-run Client-Server message exchange performance tests.
 # ##############################################################################
 
@@ -655,7 +665,28 @@ else ifeq ($(L3_LOGT_WRITE), 1)
 
     CFLAGS += -DL3_LOGT_WRITE
 
-endif
+endif   # L3_FASTLOG_ENABLED, L3_LOGT_FPRINTF, L3_LOGT_WRITE
+
+else ifeq ($(L3_ENABLED), $(L3_DISABLED))
+
+# Rules triggered for client-server program enhanced with spdlog-logging:
+ifeq ($(L3_LOGT_SPDLOG), 1)
+
+    CFLAGS += -DL3_LOGT_SPDLOG
+    # Compile all .c sources using c++ compiler as c++ sources.
+    CC_X_FLAG := $(CXX_X_FLAG)
+    SPD_CPPFLAGS = $(CPPFLAGS)
+    LIBS += -l spdlog -l fmt
+
+else ifeq ($(L3_LOGT_SPDLOG), 2)
+
+    CFLAGS += -DL3_LOGT_SPDLOG_BACKTRACE
+    # Compile all .c sources using c++ compiler as c++ sources.
+    CC_X_FLAG := $(CXX_X_FLAG)
+    SPD_CPPFLAGS = $(CPPFLAGS)
+    LIBS += -l spdlog -l fmt
+
+endif   # L3_LOGT_SPDLOG
 
 endif   # L3_ENABLED
 
@@ -767,8 +798,6 @@ endif
 
 CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
 
-CPPFLAGS += --std=c++11
-
 LIBS += -ldl
 
 # ##############################################################################
@@ -797,8 +826,8 @@ $(BINDIR)/%/.:
 #
 # For all-test-code, we need to use -I test-code/<subdir>
 # Dependencies for the main executables
-COMPILE.c       = $(CC)  -x c $(CFLAGS) $(DFLAGS_UNIT) $(INCLUDE) -c
-COMPILE.cpp     = $(CXX) -x c++ $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
+COMPILE.c       = $(CC)  -x $(CC_X_FLAG)  $(SPD_CPPFLAGS) $(CFLAGS) $(DFLAGS_UNIT) $(INCLUDE) -c
+COMPILE.cpp     = $(CXX) -x $(CXX_X_FLAG) $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
 COMPILE.cc      = $(CXX) -x c++ $(CFLAGS) $(INCLUDE) -c
 COMPILE.loc.c   = $(LOC_C_CC) $(CFLAGS) $(INCLUDE) -c
 

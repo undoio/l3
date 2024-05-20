@@ -90,14 +90,14 @@ L3_STATIC_ASSERT(sizeof(loc_t) == sizeof(uint32_t),
  * tool / technique can be used to unpack log-entries when dumping the contents
  * of a L3-log file.
  */
-typedef uint8_t platform_t;
+typedef uint8_t platform_u8_t;
 enum platform_t
 {
       L3_LOG_PLATFORM_LINUX             =  ((uint8_t) 1)
     , L3_LOG_PLATFORM_MACOSX            // ((uint8_t) 2)
 };
 
-typedef uint8_t loc_type_t;
+typedef uint8_t loc_type_u8_t;
 enum loc_type_t
 {
       L3_LOG_LOC_NONE                   =  ((uint8_t) 0)
