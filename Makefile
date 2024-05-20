@@ -431,8 +431,9 @@ $(SPDLOG_EXAMPLE_PROGRAM_BIN): $(SPDLOG_EXAMPLE_PROG_OBJS)
 # spdlog-cpp-program: LDFLAGS += -L ~/Projects/spdlog/build -l spdlog -l fmt -L /usr/lib/x86_64-linux-gnu/ -l stdc++
 
 spdlog-cpp-program: CPPFLAGS = --std=c++17
-spdlog-cpp-program: SPD_INCLUDE := -I /usr/include/spdlog
-spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE) -I ~/Projects/spdlog/include/spdlog
+spdlog-cpp-program: SPD_INCLUDE := /usr/include/spdlog
+# spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE) -I ~/Projects/spdlog/include
+spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE)
 spdlog-cpp-program: LIBS += -L ~/Projects/spdlog/build -l spdlog -l fmt
 spdlog-cpp-program: $(SPDLOG_EXAMPLE_PROGRAM_BIN)
 
