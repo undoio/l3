@@ -10,7 +10,9 @@
 
 // Generated file. cp'ed here from `make all` output of the full repo sources.
 
-static char *ename[] = {
+#ifdef __cplusplus
+
+static const char *ename[] = {
     /*   0 */ "",
     /*   1 */ "EPERM", "ENOENT", "ESRCH", "EINTR", "EIO", "ENXIO",
     /*   7 */ "E2BIG", "ENOEXEC", "EBADF", "ECHILD",
@@ -43,5 +45,6 @@ static char *ename[] = {
     /* 127 */ "EKEYEXPIRED", "EKEYREVOKED", "EKEYREJECTED",
     /* 130 */ "EOWNERDEAD", "ENOTRECOVERABLE", "ERFKILL", "EHWPOISON"
 };
+#endif  // __cplusplus
 
 #define MAX_ENAME 133

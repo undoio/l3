@@ -114,6 +114,10 @@ CC  ?= gcc
 CXX ?= g++
 LD  ?= gcc
 
+# cc -x flag default specification
+CC_X_FLAG   := c
+CXX_X_FLAG  := c++
+
 # ###################################################################
 # Symbols for L3 SOURCE DIRECTORIES AND FILES, LOC-Generator Package
 # ###################################################################
@@ -431,7 +435,7 @@ $(SPDLOG_EXAMPLE_PROGRAM_BIN): $(SPDLOG_EXAMPLE_PROG_OBJS)
 # g++ -I /usr/include/spdlog -o spdlog-Cpp-program test-main.cpp -L ~/Projects/spdlog/build -l spdlog -l fmt
 # spdlog-cpp-program: LDFLAGS += -L ~/Projects/spdlog/build -l spdlog -l fmt -L /usr/lib/x86_64-linux-gnu/ -l stdc++
 
-spdlog-cpp-program: CPPFLAGS = --std=c++17
+# spdlog-cpp-program: CPPFLAGS = --std=c++17
 spdlog-cpp-program: SPD_INCLUDE := /usr/include/spdlog
 # spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE) -I ~/Projects/spdlog/include
 spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE)
@@ -619,6 +623,8 @@ else ifeq ($(L3_LOGT_WRITE), 1)
 else ifeq ($(L3_LOGT_SPDLOG), 1)
 
     CFLAGS += -DL3_LOGT_SPDLOG
+    # Compile all .c sources using c++ compiler as c++ sources.
+    CC_X_FLAG := $(CXX_X_FLAG)
 
 endif
 
@@ -763,8 +769,8 @@ $(BINDIR)/%/.:
 #
 # For all-test-code, we need to use -I test-code/<subdir>
 # Dependencies for the main executables
-COMPILE.c       = $(CC)  -x c $(CFLAGS) $(INCLUDE) -c
-COMPILE.cpp     = $(CXX) -x c++ $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
+COMPILE.c       = $(CC)  -x $(CC_X_FLAG) $(CFLAGS) $(INCLUDE) -c
+COMPILE.cpp     = $(CXX) -x $(CXX_X_FLAG) $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
 COMPILE.cc      = $(CXX) -x c++ $(CFLAGS) $(INCLUDE) -c
 COMPILE.loc.c   = $(LOC_C_CC) $(CFLAGS) $(INCLUDE) -c
 

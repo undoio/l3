@@ -72,8 +72,15 @@ Usage: ./svmsg_file_server --help
 #include "l3.h"
 #include "size_str.h"
 
-#ifdef __cplusplus
-#endif
+#if defined(L3_LOGT_SPDLOG)
+
+#   include <iostream>
+#   include "spdlog/spdlog.h"
+#   include "spdlog/sinks/basic_file_sink.h"
+    using namespace std;
+
+#  endif
+
 
 /**
  * Global data structures to track client-specific information.
@@ -194,7 +201,7 @@ main(int argc, char *argv[])
 
     char *logging_type = "";
 
-    // Initialize L3-Logging
+    // Initialize L3-Logging or C++ spdlog-logging
 #if L3_ENABLED
     char *l3_log_mode = "<unknown>";
     const char *logfile = "/tmp/l3.c-server-test.dat";
@@ -206,10 +213,19 @@ main(int argc, char *argv[])
     logtype = L3_LOG_WRITE;
 #endif
 
+    // L3 does not directly support spdlog. Manaage it separately.
+#if L3_LOGT_SPDLOG
+    // Create basic file logger (not rotated).
+    // string logfile = "/tmp/basic-log.txt";
+    auto my_logger = spdlog::basic_logger_mt("file_logger", logfile,
+                                              true);
+#else
     int e = l3_log_init(logtype, logfile);
     if (e) {
         errExit("l3_init");
     }
+#endif  // L3_LOGT_SPDLOG
+
 
 #if L3_FASTLOG_ENABLED
     l3_log_mode = "fast ";
