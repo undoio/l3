@@ -52,7 +52,8 @@ help::
 	@echo ' make clean && CC=gcc LD=g++ L3_ENABLED=0         make client-server-perf-test  # Baseline'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_FPRINTF=1    make client-server-perf-test  # fprintf() logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_WRITE=1      make client-server-perf-test  # write() logging'
-	@echo ' make clean && CC=g++ LD=g++ L3_LOGT_SPDLOG=1     make client-server-perf-test  # C++ spdlog logging'
+	@echo ' make clean && CC=g++ LD=g++ L3_ENABLED=0 L3_LOGT_SPDLOG=1     make client-server-perf-test  # C++ spdlog logging'
+	@echo ' make clean && CC=g++ LD=g++ L3_ENABLED=0 L3_LOGT_SPDLOG=2     make client-server-perf-test  # C++ spdlog backtrace'
 	@echo ' make clean && CC=gcc LD=g++                      make client-server-perf-test  # L3-logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_FASTLOG_ENABLED=1 make client-server-perf-test  # L3 Fast logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1     make client-server-perf-test  # L3+LOC logging'
@@ -620,7 +621,11 @@ else ifeq ($(L3_LOGT_WRITE), 1)
 
     CFLAGS += -DL3_LOGT_WRITE
 
-else ifeq ($(L3_LOGT_SPDLOG), 1)
+endif   # L3_FASTLOG_ENABLED, L3_LOGT_FPRINTF, L3_LOGT_WRITE
+
+else ifeq ($(L3_ENABLED), $(L3_DISABLED))
+
+ifeq ($(L3_LOGT_SPDLOG), 1)
 
     CFLAGS += -DL3_LOGT_SPDLOG
     # Compile all .c sources using c++ compiler as c++ sources.
@@ -628,7 +633,15 @@ else ifeq ($(L3_LOGT_SPDLOG), 1)
     # spdlog-cpp-program:
     CPPFLAGS = --std=c++17
 
-endif
+else ifeq ($(L3_LOGT_SPDLOG), 2)
+
+    CFLAGS += -DL3_LOGT_SPDLOG_BACKTRACE
+    # Compile all .c sources using c++ compiler as c++ sources.
+    CC_X_FLAG := $(CXX_X_FLAG)
+    # spdlog-cpp-program:
+    CPPFLAGS = --std=c++17
+
+endif   # L3_LOGT_SPDLOG
 
 endif   # L3_ENABLED
 

@@ -70,7 +70,7 @@ Usage: ./svmsg_file_server --help
 #include <getopt.h>     // For getopt_long()
 
 #ifdef __cplusplus
-#  if defined(L3_LOGT_SPDLOG)
+#  if defined(L3_LOGT_SPDLOG) or defined(L3_LOGT_SPDLOG_BACKTRACE)
 
 #   include <iostream>
 #   include "spdlog/spdlog.h"
@@ -202,18 +202,7 @@ main(int argc, char *argv[])
     }
 
     const char *logging_type = "";
-
-    // Initialize L3-Logging or C++ spdlog-logging
-#if L3_ENABLED
-    const char *l3_log_mode = "<unknown>";
     const char *logfile = "/tmp/l3.c-server-test.dat";
-    l3_log_t    logtype = L3_LOG_DEFAULT;
-
-#if L3_LOGT_FPRINTF
-    logtype = L3_LOG_FPRINTF;
-#elif L3_LOGT_WRITE
-    logtype = L3_LOG_WRITE;
-#endif
 
     // L3 does not directly support spdlog. Manaage it separately.
 #if defined(L3_LOGT_SPDLOG)
@@ -222,15 +211,41 @@ main(int argc, char *argv[])
     auto spd_logger = spdlog::basic_logger_mt("file_logger", logfile,
                                               true);
     logging_type = "spdlog";
-#else
+
+    printf("Start Server, using clock '%s'"
+           ": Initiate spdlog-logging to log-file '%s'"
+           ", using logtype '%s'.\n",
+           clock_name(clock_id), logfile, logging_type);
+
+#elif defined(L3_LOGT_SPDLOG_BACKTRACE)
+
+    // Configure same # of backtrace msg-capacity to spdlog as
+    // is being configured for L3's mmap()-ed buffer.
+    spdlog::enable_backtrace(L3_MAX_SLOTS);
+
+    logging_type = "spdlog-backtrace";
+
+    printf("Start Server, using clock '%s'"
+           ": Initiate spdlog-logging (log-file '%s' unused)"
+           ", using logtype '%s'.\n",
+           clock_name(clock_id), logfile, logging_type);
+
+#elif L3_ENABLED
     int e = l3_log_init(logtype, logfile);
     if (e) {
         errExit("l3_init");
     }
     logging_type = (char *) l3_logtype_name(logtype);
 
-#endif  // L3_LOGT_SPDLOG
+    // Initialize L3-Logging
+    const char *l3_log_mode = "<unknown>";
+    l3_log_t    logtype = L3_LOG_DEFAULT;
 
+#if L3_LOGT_FPRINTF
+    logtype = L3_LOG_FPRINTF;
+#elif L3_LOGT_WRITE
+    logtype = L3_LOG_WRITE;
+#endif
 
 #if L3_FASTLOG_ENABLED
     l3_log_mode = "fast ";
@@ -339,15 +354,23 @@ main(int argc, char *argv[])
             nsec1 = timespec_to_ns(&ts1);
             elapsed_ns = (nsec1 - nsec0);           // Elapsed-ns for this op
 
-#if L3_ENABLED
 
             // Record time-consumed. (NOTE: See clarification below.)
 #  if defined(L3_LOGT_SPDLOG)
-            spd_logger->info("Server msg: Increment: ClientID={}, "
+            spd_logger->info("Server spdlog: Increment: ClientID={}, "
                              "Thread-CPU-time={} ns.",
                              resp.clientId, elapsed_ns);
 
-#  elif L3_FASTLOG_ENABLED
+#  elif defined(L3_LOGT_SPDLOG_BACKTRACE)
+
+            spdlog::debug("Server spdlog-Backtrace: "
+                         "Increment: ClientID={}, "
+                         "Thread-CPU-time={} ns.",
+                         resp.clientId, elapsed_ns);
+
+#elif L3_ENABLED
+
+#  if L3_FASTLOG_ENABLED
             l3_log_fast("Server msg: Increment: ClientID=%d, "
                         "Thread-CPU-time=%" PRIu64 " ns. (L3-fast-log)",
                         resp.clientId, elapsed_ns);
@@ -410,7 +433,7 @@ main(int argc, char *argv[])
 
     // RESOLVE: C++ compilation raises an error if this block is
     // defined. Suppress it when building w/spdlog in C++
-#if !defined(L3_LOGT_SPDLOG)
+#if !defined(L3_LOGT_SPDLOG) and !defined(L3_LOGT_SPDLOG_BACKTRACE)
 
           case REQ_MT_DECR:
           case REQ_MT_GET_CTR:
@@ -436,13 +459,20 @@ main(int argc, char *argv[])
         errExit("msgctl");
     }
 
-    // Close L3-logging upon exit.
-#if L3_ENABLED
-    l3_log_deinit(logtype);
-#endif  // L3_ENABLED
-
     printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
            NumActiveClients, NumActiveClientsHWM);
+
+    // Close L3-logging upon exit.
+#if defined(L3_LOGT_SPDLOG_BACKTRACE)
+
+    // Log the messages now! show the last n-messages
+    spdlog::dump_backtrace();
+
+#elif L3_ENABLED
+
+    l3_log_deinit(logtype);
+
+#endif  // L3_ENABLED
 
     printSummaryStats(ActiveClients, NumActiveClientsHWM, clock_id,
                       logging_type);
