@@ -102,6 +102,7 @@ TestList=(
            "test-build-and-run-client-server-perf-test"
            "test-build-and-run-client-server-perf-test-l3_loc_eq_1"
            "test-build-and-run-client-server-perf-test-l3_loc_eq_2"
+           "test-build-and-run-client-server-perf-test-spdlog"
 
            "test-pytests"
 
@@ -441,6 +442,8 @@ function run-all-client-server-perf-tests()
 
     test-build-and-run-client-server-perf-test-l3_loc_eq_2 "${num_msgs_per_client}"
 
+    test-build-and-run-client-server-perf-test-spdlog "${num_msgs_per_client}"
+
     echo " "
     set -x
     ./scripts/perf_report.py --file "${outfile}"
@@ -638,6 +641,46 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 }
 
 # #############################################################################
+# Test build-and-run of client-server performance test benchmark,
+# with C++ spdlog logging.
+# #############################################################################
+function test-build-and-run-client-server-perf-test-spdlog()
+{
+    local num_msgs_per_client=1000
+    if [ $# -eq 1 ]; then
+        num_msgs_per_client=$1
+    fi
+    set +x
+
+    # spdlog is used here only for performance benchmarking.
+    local l3_log_enabled=0
+    local l3_LOC_enabled=0
+
+    echo " "
+    echo "${Me}: Client-server performance testing with spdlog-logging:"
+    echo " "
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                          "${l3_log_enabled}"       \
+                                          "${l3_LOC_enabled}"       \
+                                          "spdlog"
+
+    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
+    if [ "${UNAME_S}" == "Linux" ]; then
+        local nentries=100
+        echo " "
+        tail -${nentries} /tmp/l3.c-server-test.dat
+    fi
+
+    echo " "
+    echo "${Me}: Client-server performance testing with spdlog-backtrace logging:"
+    echo " "
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                          "${l3_log_enabled}"       \
+                                          "${l3_LOC_enabled}"       \
+                                          "spdlog-backtrace"
+}
+
+# #############################################################################
 # Minion to test-build-and-run-client-server-perf-test(), to actually perform
 # the build and run the client/server application for performance benchmarking.
 #
@@ -662,6 +705,7 @@ function build-and-run-client-server-perf-test()
         l3_log_type=$4
     fi
 
+    echo "${Me}: ${num_msgs_per_client}, '${l3_enabled}', '${l3_loc_enabled}', '${l3_log_type}'"
     set +x
     # Makefile does not implement 'run' step. Do it here manually.
     local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
@@ -708,6 +752,26 @@ function build-and-run-client-server-perf-test()
                     L3_ENABLED=${l3_enabled}    \
                     BUILD_VERBOSE=1             \
                     L3_LOGT_WRITE=1             \
+                    make client-server-perf-test
+                ;;
+
+            "spdlog")
+                set -x
+                make clean                          \
+                && CC=g++ LD=g++                    \
+                    L3_ENABLED=${l3_enabled}        \
+                    L3_LOGT_SPDLOG=1                \
+                    BUILD_VERBOSE=1                 \
+                    make client-server-perf-test
+                ;;
+
+            "spdlog-backtrace")
+                set -x
+                make clean                          \
+                && CC=g++ LD=g++                    \
+                    L3_ENABLED=${l3_enabled}        \
+                    L3_LOGT_SPDLOG=2                \
+                    BUILD_VERBOSE=1                 \
                     make client-server-perf-test
                 ;;
 
