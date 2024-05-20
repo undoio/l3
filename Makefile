@@ -58,12 +58,6 @@ help::
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2     make client-server-perf-test  # L3+LOC-ELF logging'
 
 	@echo ' '
-	@echo 'Environment variables: '
-	@echo ' BUILD_MODE={release,debug}'
-	@echo ' BUILD_VERBOSE={0,1}'
-	@echo ' L3_LOC_ENABLED={0,1,2}'
-	@echo ' Defaults: CC=gcc CXX=g++ LD=g++'
-	@echo ' '
 	@echo 'To build L3-sample programs with LOC-enabled and run unit-tests:'
 	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests   && L3_LOC_ENABLED=1 make run-c-tests'
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cpp-tests && L3_LOC_ENABLED=1 make run-cpp-tests'
@@ -73,6 +67,15 @@ help::
 	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=2 make run-c-tests'
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=2 make run-cpp-tests'
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=2 make run-cc-tests'
+	@echo ' '
+	@echo 'To build spdlog:'
+	@echo ' make clean && CC=g++ LD=g++ make spdlog-cpp-program'
+	@echo ' '
+	@echo 'Environment variables: '
+	@echo ' BUILD_MODE={release,debug}'
+	@echo ' BUILD_VERBOSE={0,1}'
+	@echo ' L3_LOC_ENABLED={0,1,2}'
+	@echo ' Defaults: CC=gcc CXX=g++ LD=g++'
 	@echo ' '
 
 #
@@ -425,9 +428,11 @@ $(SPDLOG_EXAMPLE_PROGRAM_BIN): $(SPDLOG_EXAMPLE_PROG_OBJS)
 
 # We need to effectively execute this build command:
 # g++ -I /usr/include/spdlog -o spdlog-Cpp-program test-main.cpp -L ~/Projects/spdlog/build -l spdlog -l fmt
-spdlog-cpp-program: CPPFLAGS = --std=c++17
-spdlog-cpp-program: INCLUDE += -I /usr/include/spdlog
 # spdlog-cpp-program: LDFLAGS += -L ~/Projects/spdlog/build -l spdlog -l fmt -L /usr/lib/x86_64-linux-gnu/ -l stdc++
+
+spdlog-cpp-program: CPPFLAGS = --std=c++17
+spdlog-cpp-program: SPD_INCLUDE := -I /usr/include/spdlog
+spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE) -I ~/Projects/spdlog/include/spdlog
 spdlog-cpp-program: LIBS += -L ~/Projects/spdlog/build -l spdlog -l fmt
 spdlog-cpp-program: $(SPDLOG_EXAMPLE_PROGRAM_BIN)
 
