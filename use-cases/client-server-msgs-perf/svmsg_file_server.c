@@ -72,6 +72,9 @@ Usage: ./svmsg_file_server --help
 #include "l3.h"
 #include "size_str.h"
 
+#ifdef __cplusplus
+#endif
+
 /**
  * Global data structures to track client-specific information.
  */
