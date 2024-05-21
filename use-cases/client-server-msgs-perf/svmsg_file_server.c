@@ -309,9 +309,9 @@ main(int argc, char *argv[])
                         "Thread-CPU-time=%" PRIu64 " ns. (L3-fast-log)",
                         resp.clientId, elapsed_ns);
 #  else
-            l3_log_simple("Server msg: Increment: ClientID=%d, "
-                          "Thread-CPU-time=%" PRIu64 " ns.",
-                          resp.clientId, elapsed_ns);
+            l3_log("Server msg: Increment: ClientID=%d, "
+                   "Thread-CPU-time=%" PRIu64 " ns.",
+                   resp.clientId, elapsed_ns);
 #  endif
 
 #endif // L3_ENABLED

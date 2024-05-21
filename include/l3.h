@@ -66,7 +66,7 @@ int l3_init(const char *path);
 #endif
 
 /**
- * \brief Caller-macro to invoke L3 simple logging.
+ * \brief Caller-macro to invoke L3 logging.
  *
  * Macro to synthesize LOC-encoding value, if needed, under conditional
  * compilation flags. DEBUG-version of macros are provided to cross-check
@@ -77,7 +77,7 @@ int l3_init(const char *path);
 
   #ifdef L3_LOC_ENABLED
 
-    #define l3_log_simple(msg, arg1, arg2)                              \
+    #define l3_log(msg, arg1, arg2)                                     \
             if (1) {                                                    \
                 l3_log_mmap((msg),                                      \
                             (uint64_t) (arg1), (uint64_t) (arg2),       \
@@ -88,7 +88,7 @@ int l3_init(const char *path);
 
    #else   // L3_LOC_ENABLED
 
-    #define l3_log_simple(msg, arg1, arg2)                              \
+    #define l3_log(msg, arg1, arg2)                                     \
             if (1) {                                                    \
                 l3_log_mmap((msg),                                      \
                             (uint64_t) (arg1), (uint64_t) (arg2),       \
@@ -103,14 +103,14 @@ int l3_init(const char *path);
 
   #ifdef L3_LOC_ENABLED
 
-    #define l3_log_simple(msg, arg1, arg2)                          \
+    #define l3_log(msg, arg1, arg2)                                 \
             l3_log_mmap((msg),                                      \
                         (uint64_t) (arg1), (uint64_t) (arg2),       \
                         __LOC__)
 
   #else   // L3_LOC_ENABLED
 
-    #define l3_log_simple(msg, arg1, arg2)                          \
+    #define l3_log(msg, arg1, arg2)                                 \
             l3_log_mmap((msg),                                      \
                         (uint64_t) (arg1), (uint64_t) (arg2),       \
                         L3_ARG_UNUSED)
@@ -152,7 +152,7 @@ void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
  */
 #if __APPLE__
 
-#define l3_log_fast(msg, arg1, arg2) l3_log_simple(msg, arg1, arg2)
+#define l3_log_fast(msg, arg1, arg2) l3_log(msg, arg1, arg2)
 
 #else   // __APPLE__
 
@@ -200,7 +200,7 @@ void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
 /**
  * \brief Log a message in as fast a way as possible.
  *
- * Like l3_log_simple() but does not take arguments. Only available on x86-64.
+ * Like l3_log() but does not take arguments. Only available on x86-64.
  */
 #ifdef __cplusplus
 extern "C"

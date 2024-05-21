@@ -10,8 +10,8 @@ void call_function() {
          loc, LOC_FILE(loc), LOC_LINE(loc));
 #endif  // L3_LOC_ENABLED
 
-  l3_log_simple("Hello World with L3-logging, addr=%p, size=%d bytes",
-                0xdeadbeef, 42);
+  l3_log("Hello World with L3-logging, addr=%p, size=%d bytes",
+         0xdeadbeef, 42);
 
   l3_log_fast("Fast L3-logging, with assembly support, bp=%p, refcount=%d",
                 0xfadedeaf, 2);
