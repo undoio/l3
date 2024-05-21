@@ -562,13 +562,13 @@ def build_exp_loc_msg_list(prog_dir:str, main_file:str) -> (list, list):
     # a form that we can use to re-construct the unpacked LOC-ID.
     #
     # NOTE: Be careful while constructing this command.
-    # `grep -E` seems-to-need space after `-E`, like `-E 'l3_log_simple|l3_log_fast`
+    # `grep -E` seems-to-need space after `-E`, like `-E 'l3_log|l3_log_fast`
     # So, rearrange -E, -n, so that this grep -E works correctly!
     #
     # For some reason, grep | grep -v -E 'Perf|\*' ... is not working
     # through this Python interfaces. So, just do a plain 'grep -E' for now.
     # -----------------------------------------------------------------------
-    grep_cmd = r'''egrep -E -n "l3_log_simple|l3_log_fast" '''    \
+    grep_cmd = r'''egrep -E -n -w "l3_log|l3_log_fast" '''    \
               + src_filename + '/' + main_file
 
     cmdargs = shlex.split(grep_cmd)
@@ -594,7 +594,7 @@ def build_exp_loc_msg_list(prog_dir:str, main_file:str) -> (list, list):
         # --------------------------------------------------------------------
         # split_array[1] will be one of:
         #
-        #  '    l3_log_simple("Simple-log-msg-Args(1,2)", 1, 2);'
+        #  '    l3_log("Simple-log-msg-Args(1,2)", 1, 2);'
         #  '    l3_log_fast("Fast-logging msg1", 10, 0xdeadbeef);'
         #
         # Split this further on '"' to extract out the actual printf() msg.

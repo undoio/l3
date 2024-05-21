@@ -46,12 +46,12 @@ void test_l3_slow_log(void)
     if (e) {
         abort();
     }
-    l3_log_simple("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
-    l3_log_simple("Simple-log-msg-Args(arg3=%d, arg4=%d)", 3, 4);
+    l3_log("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
+    l3_log("Simple-log-msg-Args(arg3=%d, arg4=%d)", 3, 4);
 
     char *bp = (char *) 0xdeadbabe;
-    l3_log_simple("Potential memory overwrite (addr=%p, size=%d)", bp, 1024);
-    l3_log_simple("Invalid buffer handle (addr=0x%x), lockrec=0x%p", 0xbeefabcd, NULL);
+    l3_log("Potential memory overwrite (addr=%p, size=%d)", bp, 1024);
+    l3_log("Invalid buffer handle (addr=0x%x), lockrec=0x%p", 0xbeefabcd, NULL);
 
     printf("Generated slow log-entries to log-file: %s\n", log);
 }

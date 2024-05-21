@@ -73,13 +73,13 @@ main(const int argc, const char * argv[])
             abort();
         }
         printf("L3-logging unit-tests log file: %s\n", logfile);
-        l3_log_simple("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
+        l3_log("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
 
         char *bp = (char *) 0xdeadbabe;
-        l3_log_simple("Potential memory overwrite (addr=%p, size=%d)", bp, 1024);
+        l3_log("Potential memory overwrite (addr=%p, size=%d)", bp, 1024);
 
         bp = (char *) 0xbeefabcd;
-        l3_log_simple("Invalid buffer handle (addr=%p), refcount=%d", bp, 0);
+        l3_log("Invalid buffer handle (addr=%p), refcount=%d", bp, 0);
 
         l3_log_fast("Fast-logging msg1=%d, addr=%p", 10, (void *) 0xdeadbeef);
         l3_log_fast("Fast-logging msg2=%d, addr=%p", 20, (char *) 0xbeefbabe);
@@ -99,7 +99,7 @@ test_perf_slow_logging(int nMil)
 
     uint32_t n = 0;
     for (n = 0; n < (nMil * L3_MILLION); n++) {
-        l3_log_simple("Perf-300-Mil Simple l3-log msgs, ctr=%d, value=%d", n, 0);
+        l3_log("Perf-300-Mil Simple l3-log msgs, ctr=%d, value=%d", n, 0);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
