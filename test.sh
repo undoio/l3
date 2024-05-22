@@ -39,8 +39,18 @@ function cleanup()
 
 trap cleanup ERR
 
+# ##################################################################
+# Global variables to support different workloads / configurations to
+# execute client-server performance u-benchmarking tests.
+# ##################################################################
+# Number of messages sent by each client to the server
+NumMsgsPerClient=1000
+
 # Number of clients started for client-server RPC-perf testing.
 NumClients=5
+
+# Server-clock cmdline arg. Default is CLOCK_REALTIME clock
+SvrClockArg=
 
 # ##################################################################
 # Array of test function names. If you add a new test_<function>,
@@ -103,6 +113,25 @@ TestList=(
 function usage()
 {
    echo "Usage: $Me [--help | --list] [ --from-test <test-function-name> ] [test_all]"
+
+   echo " "
+   echo "Run client-server performance tests as follows:"
+   echo " "
+   echo " ${Me} run-all-client-server-perf-tests [ server-clock-ID [ num-msgs [ num-clients ] ] ]"
+   echo " "
+   echo " ${Me} test-build-and-run-client-server-perf-test [ num-msgs [ server-clock-ID ] ]"
+   echo " "
+   echo " ${Me} test-build-and-run-client-server-perf-test-l3_loc_eq_1 [ num-msgs [ server-clock-ID ] ]"
+   echo " "
+   echo " ${Me} test-build-and-run-client-server-perf-test-l3_loc_eq_2 [ num-msgs [ server-clock-ID ] ]"
+   echo " "
+   echo "  Client-Server performance u-benchmarking defaults:"
+   echo "    Number of clients                      = ${NumClients}"
+   echo "    Number of messages sent by each client = ${NumMsgsPerClient}"
+   echo "    Default clock-ID used (client)         = CLOCK_REALTIME"
+   echo "    Default clock-ID used (server)         = CLOCK_REALTIME"
+   echo "    Alternate server clock-selector: See \`svmsg_file_server --help\`"
+   echo "       One of: --clock-default | --clock-monotonic | --clock-process-cputime-id | --clock-realtime | --clock-thread-cputime-id"
 }
 
 # --------------------------------------------------------------------------
@@ -352,24 +381,30 @@ function build-and-run-sample-c-appln-with-LOC-encoding()
 # Driver method to run through all variations of client-server perf tests
 #
 # Parameters:
-#   $1  - (Opt) # of messages to exchange from client -> server (default: 1000)
-#   $2  - (Opt) # of clients to start-up (default: 5)
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
+#   $3  - (Opt) # of clients to start-up (default: 5)
 #
 # Usage:
-#  $ ./test.sh run-all-client-server-perf-tests $((100 * 1000)) > /tmp/perf-test.100K-rows.5ct.out 2>&1
+#  $ ./test.sh run-all-client-server-perf-tests --clock-default $((100 * 1000)) > /tmp/perf-test.100K-rows.5ct.out 2>&1
 #
 #  $ egrep -B1 -E 'Start Server|, num_ops=|Unpacked nentries|throughput=' /tmp/perf-test.100K-rows.5ct.out | egrep -v -E 'Client-throughput|enabled on server-side.'
 
 # #############################################################################
 function run-all-client-server-perf-tests()
 {
-    local num_msgs_per_client=1000
+    # Reset global if arg-1 provided. Minions will grab it from there.
     if [ $# -ge 1 ]; then
-        num_msgs_per_client=$1
+        SvrClockArg=$1
     fi
 
-    if [ $# -eq 2 ]; then
-        NumClients=$2
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 2 ]; then
+        num_msgs_per_client=$2
+    fi
+
+    if [ $# -ge 3 ]; then
+        NumClients=$3
     fi
 
     test-build-and-run-client-server-perf-test "${num_msgs_per_client}"
@@ -389,9 +424,13 @@ function test-build-and-run-client-server-perf-test()
         return
     fi
 
-    local num_msgs_per_client=1000
-    if [ $# -eq 1 ]; then
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 1 ]; then
         num_msgs_per_client=$1
+    fi
+
+    if [ $# -ge 2 ]; then
+        SvrClockArg=$2
     fi
 
     local l3_log_disabled=0
@@ -399,13 +438,13 @@ function test-build-and-run-client-server-perf-test()
     local l3_LOC_disabled=0
 
     echo " "
-    echo "${Me}: Client-server performance testing with L3-logging OFF:"
+    echo "${Me}: Client-server performance testing with L3-logging OFF ${SvrClockArg}:"
     echo " "
     build-and-run-client-server-perf-test "${num_msgs_per_client}"      \
                                           "${l3_log_disabled}"
 
     echo " "
-    echo "${Me}: Client-server performance testing with L3-logging ON:"
+    echo "${Me}: Client-server performance testing with L3-logging ON ${SvrClockArg}:"
     echo " "
     build-and-run-client-server-perf-test "${num_msgs_per_client}" \
                                           "${l3_log_enabled}"
@@ -423,7 +462,7 @@ function test-build-and-run-client-server-perf-test()
         | tail -${nentries}
 
     echo " "
-    echo "${Me}: Client-server performance testing with L3-fast-logging ON:"
+    echo "${Me}: Client-server performance testing with L3-fast-logging ON ${SvrClockArg}:"
     echo " "
     build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
                                           "${l3_log_enabled}"       \
@@ -467,16 +506,20 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
         return
     fi
 
-    local num_msgs_per_client=1000
-    if [ $# -eq 1 ]; then
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 1 ]; then
         num_msgs_per_client=$1
+    fi
+
+    if [ $# -ge 2 ]; then
+        SvrClockArg=$2
     fi
 
     local l3_log_enabled=1
     local l3_LOC_enabled=1
 
     echo " "
-    echo "${Me}: Client-server performance testing with L3-logging and L3-LOC ON:"
+    echo "${Me}: Client-server performance testing with L3-logging and L3-LOC ON ${SvrClockArg}:"
     echo " "
     build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
                                           "${l3_log_enabled}"       \
@@ -506,22 +549,26 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
 # #############################################################################
 function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 {
-    local num_msgs_per_client=1000
-    if [ $# -eq 1 ]; then
-        num_msgs_per_client=$1
-    fi
     set +x
-
     if [ "${UNAME_S}" = "Darwin" ]; then
         echo "${Me}: Client-server performance tests not supported currently on Mac/OSX."
         return
+    fi
+
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 1 ]; then
+        num_msgs_per_client=$1
+    fi
+
+    if [ $# -ge 2 ]; then
+        SvrClockArg=$2
     fi
 
     local l3_log_enabled=1
     local l3_LOC_enabled=2
 
     echo " "
-    echo "${Me}: Client-server performance testing with L3-logging and LOC-ELF ON:"
+    echo "${Me}: Client-server performance testing with L3-logging and LOC-ELF ON ${SvrClockArg}:"
     echo " "
     build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
                                           "${l3_log_enabled}"       \
@@ -604,7 +651,10 @@ function build-and-run-client-server-perf-test()
         esac
     fi
 
-    ${server_bin} &
+    # User can execute perf-bm tests with different server-clocks,
+    # using the --clock-<...> argument.
+    # shellcheck disable=SC2086
+    ${server_bin} ${SvrClockArg} &
 
     set +x
     sleep 5

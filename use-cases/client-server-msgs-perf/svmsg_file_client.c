@@ -158,25 +158,22 @@ main(int argc, char *argv[])
     struct timespec ts1;
     uint64_t        elapsed_ns = 0;
 
-    for (ictr = 0; ictr < niters; ictr++) {
+    req.mtype = REQ_MT_INCR;    // All ops are simply an increment
+
+    if (clock_gettime(CLOCK_REALTIME, &ts0)) {          // **** Timing begins
+        errExit("clock_gettime-ts0");
+    }
+    for (ictr = 0; ictr < niters; ictr++) {                 // Perform n-iterations
 
         // DEBUG: if ((ictr % L3_100K) == 0) { printf("."); fflush(stdout); }
 
         req.counter = resp.counter;
-        req.mtype = REQ_MT_INCR;
 
-        if (clock_gettime(CLOCK_REALTIME, &ts0)) {              // Timing begins
-            errExit("clock_gettime-ts0");
-        }
         if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {    // --> Send
             errExit("msgsnd");
         }
 
         msgLen = msgrcv(clientId, &resp, RESP_MSG_SIZE, 0, 0);  // <-- Recv
-
-        if (clock_gettime(CLOCK_REALTIME, &ts1)) {              // Timing ends
-            errExit("clock_gettime-ts1");
-        }
         if (msgLen == -1) {
             errExit("msgrcv");
         }
@@ -186,19 +183,32 @@ main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
-        uint64_t nsec0 = timespec_to_ns(&ts0);
-        uint64_t nsec1 = timespec_to_ns(&ts1);
-        elapsed_ns += (nsec1 - nsec0);                          // Elapsed-ns
-
         // Early-quit msg received from server
         if (resp.mtype == REQ_MT_QUIT) {
             break;
         }
     }
+    if (clock_gettime(CLOCK_REALTIME, &ts1)) {          // **** Timing ends
+        errExit("clock_gettime-ts1");
+    }
+    uint64_t nsec0 = timespec_to_ns(&ts0);
+    uint64_t nsec1 = timespec_to_ns(&ts1);
+    elapsed_ns += (nsec1 - nsec0);                      // Elapsed-ns
 
     size_t throughput = (uint64_t)
                 ( ((ictr * 1.0) / elapsed_ns) * L3_NS_IN_SEC );
 
+    req.mtype = REQ_MT_SET_THROUGHPUT;
+    req.counter = throughput;
+    // Send our throughput, so server can aggregate across all clients.
+    if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {
+        errExit("msgsnd-throughput");
+    }
+
+    req.mtype = REQ_MT_EXIT;
+    if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {
+        errExit("msgsnd-exit");
+    }
     printf("Client: ID=%d Performed %lu (%s) message send/receive operations"
            ", ctr=%" PRIu64 ", Avg. %" PRIu64 " ns/msg"
            ", Client-throughput=%lu (%s) ops/sec."
@@ -206,11 +216,6 @@ main(int argc, char *argv[])
             clientId, ictr, value_str(ictr), resp.counter,
             (elapsed_ns / ictr),
             throughput, value_str(throughput));
-
-    req.mtype = REQ_MT_EXIT;
-    if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {
-        errExit("msgsnd");
-    }
 
     exit(EXIT_SUCCESS);
 }

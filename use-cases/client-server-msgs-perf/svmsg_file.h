@@ -42,8 +42,7 @@ typedef enum {
       REQ_MT_UNKNOWN    = 0
     , REQ_MT_INIT       = 1     // New client initialization
     , REQ_MT_INCR               // Increment client's counter
-    , REQ_MT_DECR               // Decrement client's counter
-    , REQ_MT_GET_CTR            // Retrieve current state of counter
+    , REQ_MT_SET_THROUGHPUT     // Record client's avg throughput nops/sec
     , REQ_MT_QUIT               // This client wants to quit
 
     // Server will send RESP_MT_QUIT to all active clients.
@@ -54,7 +53,6 @@ typedef enum {
     , RESP_MT_DATA              // Message contains data (counter)
     , RESP_MT_END               // End of message stream (unused)
     , RESP_MT_INCR  = REQ_MT_INCR
-    , RESP_MT_DECR  = REQ_MT_DECR
     , RESP_MT_QUIT  = REQ_MT_QUIT
 
 } req_resp_type_t;
