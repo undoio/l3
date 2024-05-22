@@ -19,7 +19,8 @@
    https://man7.org/tlpi/code/online/all_files_by_chapter.html
 
 Usage: ./svmsg_file_server --help
-       ./svmsg_file_server [ --clock-monotonic
+       ./svmsg_file_server [  --clock-default
+                            | --clock-monotonic
                             | --clock-realtime
                             | --clock-process-cputime-id
                             | --clock-thread-cputime-id ]
@@ -74,14 +75,21 @@ Usage: ./svmsg_file_server --help
 
 /**
  * Global data structures to track client-specific information.
+ *
+ * NOTE: This program can be configured to use different clocks to measure
+ * time, using the --clock<arg> argument. The cumu_time_ns tracks the
+ * cumulative time elapsed to implement the msg, including the time for
+ * any logging that might have been done in a build/experiment.
  */
 typedef struct client_info {
     int             clientId;
-    int             client_idx;     // Into ActiveClients[] array, below
-    int64_t         client_ctr;     // Current value of client's counter
-    uint64_t        cumu_time_ns;   // Cumulative time for operation.
-    uint64_t        num_ops;        // # of msg-op requests received
-    req_resp_type_t last_mtype;     // Last requests->mtype
+    int             client_idx;         // Into ActiveClients[] array, below
+    int64_t         client_ctr;         // Current value of client's counter
+    uint64_t        cumu_time_ns;       // Cumulative elapsed-time for operation,
+                                        // including logging overheads.
+    uint64_t        num_ops;            // # of msg-op requests received
+    uint64_t        throughput;         // Client-side avg throughput nops/sec
+    req_resp_type_t last_mtype;         // Last request's->mtype
 } Client_info;
 
 Client_info ActiveClients[MAX_CLIENTS];
@@ -107,7 +115,8 @@ static unsigned int   NumActiveClients    = 0;
  * Simple argument parsing structure.
  */
 struct option Long_options[] = {
-      { "help"                      , no_argument         , NULL, 'h'}
+      { "clock-default"             , no_argument         , NULL, 'd'}
+    , { "help"                      , no_argument         , NULL, 'h'}
     , { "clock-monotonic"           , no_argument         , NULL, 'm'}
     , { "clock-process-cputime-id"  , no_argument         , NULL, 'p'}
     , { "clock-realtime"            , no_argument         , NULL, 'r'}
@@ -115,16 +124,21 @@ struct option Long_options[] = {
     , { NULL, 0, NULL, 0}           // End of options
 };
 
-const char * Options_str = ":hrmptd";
+const char * Options_str = ":dhmprt";
+
+// Useful macros
+#define ARRAY_LEN(arr)  (sizeof(arr) / sizeof(*arr))
 
 // Function Prototypes
 
 int parse_arguments(const int argc, char *argv[], int *clock_id);
 void print_usage(const char *program, struct option options[]);
-void printSummaryStats(Client_info *clients, unsigned int num_clients,
-                       int clock_id);
+void printSummaryStats(const char *run_descr, Client_info *clients,
+                       unsigned int num_clients, int clock_id,
+                       uint64_t elapsed_ns);
 
-void svr_clock_getres(void);
+void svr_clock_calibrate(void);
+unsigned svr_clock_overhead(clockid_t clock_id);
 const char *clock_name(int clock_id);
 const char *time_metric_name(int clock_id);
 
@@ -162,7 +176,8 @@ main(int argc, char *argv[])
     exit(EXIT_SUCCESS);
 #endif
 
-    clock_id = CLOCK_THREAD_CPUTIME_ID;
+    // Default, so throughput (nops/sec) is consistent with normal expectation.
+    clock_id = CLOCK_REALTIME;
 
     // Arg-parsing is only supported on Linux.
     int rv = parse_arguments(argc, argv, &clock_id);
@@ -170,7 +185,9 @@ main(int argc, char *argv[])
         errExit("Argument error.");
     }
 
-    svr_clock_getres();
+#if !defined(L3_ENABLED)
+    svr_clock_calibrate();
+#endif  // L3_ENABLED
 
     /* Create server message queue */
 
@@ -188,6 +205,8 @@ main(int argc, char *argv[])
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
         errExit("sigaction");
     }
+
+    char run_descr[80];
 
     // Initialize L3-Logging
 #if L3_ENABLED
@@ -219,12 +238,16 @@ main(int argc, char *argv[])
     printf("Start Server, using clock '%s'"
            ": Initiate L3-%slogging to log-file '%s'"
            ", using %s encoding scheme.\n",
-           logfile, l3_log_mode, loc_scheme, clock_name(clock_id));
+           clock_name(clock_id), l3_log_mode, logfile, loc_scheme);
+
+    snprintf(run_descr, sizeof(run_descr), "L3-%slogging %s",
+             l3_log_mode, loc_scheme);
 
 #else // L3_ENABLED
 
     printf("Start Server, using clock ID=%d '%s': No logging.\n",
            clock_id, clock_name(clock_id));
+    snprintf(run_descr, sizeof(run_descr), "No logging");
 
 #endif // L3_ENABLED
 
@@ -232,6 +255,12 @@ main(int argc, char *argv[])
     requestMsg req;
     responseMsg resp;
 
+    struct timespec ts0 = {0};
+    struct timespec ts1 = {0};
+    if (clock_gettime(clock_id, &ts0)) {    // ***** Timing begins
+        errExit("clock_gettime-ts0");
+    }
+    Client_info *clientp = NULL;
     for (;;) {
 
         msgLen = msgrcv(serverId, &req, REQ_MSG_SIZE, 0, 0);
@@ -242,15 +271,6 @@ main(int argc, char *argv[])
             errMsg("msgrcv");           /* Some other error */
             break;                      /* ... so terminate loop */
         }
-
-        Client_info *clientp = NULL;
-
-        // To track elapsed-time measurement for block of case: body
-        struct timespec ts0;
-        struct timespec ts1;
-        uint64_t nsec0 = 0;
-        uint64_t nsec1 = 0;
-        uint64_t elapsed_ns = 0;
 
         switch (req.mtype) {
 
@@ -278,9 +298,6 @@ main(int argc, char *argv[])
             break;
 
           case REQ_MT_INCR:
-            if (clock_gettime(clock_id, &ts0)) {    // Timing begins
-                errExit("clock_gettime-ts0");
-            }
 
             clientp = &ActiveClients[req.client_idx];
             assert(clientp->clientId == req.clientId);
@@ -293,40 +310,28 @@ main(int argc, char *argv[])
             resp.counter = ++clientp->client_ctr;   // Do Increment
             clientp->num_ops++;                     // Track # of operations
 
-            if (clock_gettime(clock_id, &ts1)) {    // Timing ends
-                errExit("clock_gettime-ts1");
-            }
-
-            nsec0 = timespec_to_ns(&ts0);
-            nsec1 = timespec_to_ns(&ts1);
-            elapsed_ns = (nsec1 - nsec0);           // Elapsed-ns for this op
-
 #if L3_ENABLED
 
-            // Record time-consumed. (NOTE: See clarification below.)
+            // Record new-counter value, to show that something can be logged.
 #  if L3_FASTLOG_ENABLED
             l3_log_fast("Server msg: Increment: ClientID=%d, "
-                        "Thread-CPU-time=%" PRIu64 " ns. (L3-fast-log)",
-                        resp.clientId, elapsed_ns);
+                        "Elapsed time=%" PRIu64 " ns. (L3-fast-log)",
+                        resp.clientId, resp.counter);
 #  else
             l3_log("Server msg: Increment: ClientID=%d, "
-                   "Thread-CPU-time=%" PRIu64 " ns.",
-                   resp.clientId, elapsed_ns);
+                   "Elapsed time=%" PRIu64 " ns.",
+                   resp.clientId, resp.counter);
 #  endif
 
 #endif // L3_ENABLED
 
-            // Reuse variable to reacquire current TS for accumulation.
-            // Cumulative time-consumed gives a read into impact of any
-            // logging call that might be done in diff micro-benchmarks.
+            break;
 
-            if (clock_gettime(clock_id, &ts1)) {    // Cumulative timing ends
-                errExit("clock_gettime-ts1");
-            }
-            nsec1 = timespec_to_ns(&ts1);
-            elapsed_ns = (nsec1 - nsec0);
-            clientp->cumu_time_ns += elapsed_ns;    // Cumulative elapsed-ns
-
+          case REQ_MT_SET_THROUGHPUT:
+            // Record client-side computed avg throughput
+            clientp = &ActiveClients[req.client_idx];
+            clientp->throughput = req.counter;
+            req.clientId = 0;           // Client is not interested in a response
             break;
 
           case REQ_MT_EXIT:
@@ -340,33 +345,29 @@ main(int argc, char *argv[])
             // misleading. It needs to be hard-coded to a literal string at
             // compile-time. The metric's name given below is the right one
             // corresponding to the active clock.
-            size_t throughput = (uint64_t)
-                        ((clientp->num_ops * 1.0 / clientp->cumu_time_ns)
-                                    * L3_NS_IN_SEC);
+            size_t throughput = 0;
 
             printf("Server: Client ID=%d exited. num_ops=%" PRIu64 " (%s)"
-                   ", cumu_time_ns=%" PRIu64
+                   ", cumu_time_ns=%" PRIu64 " (%s ns)"
                    " (clock_id=%d)"
                    ", Avg. %s time=%" PRIu64 " ns/msg"
                    ", Server-throughput=%lu (%s) ops/sec"
                    ", # active clients=%d\n",
                    req.clientId,
                    clientp->num_ops, value_str(clientp->num_ops),
-                   clientp->cumu_time_ns,
+                   clientp->cumu_time_ns, value_str(clientp->cumu_time_ns),
                    clock_id, time_metric_name(clock_id),
                    (clientp->cumu_time_ns / clientp->num_ops),
                    throughput, value_str(throughput),
                    NumActiveClients);
 
-            if (NumActiveClients == 0) {
-                break;
-            }
             // Client has exited, so no need to send ack-response back to it.
             req.clientId = 0;
+            if (NumActiveClients == 0) {
+                goto end_forever_loop;
+            }
             break;
 
-          case REQ_MT_DECR:
-          case REQ_MT_GET_CTR:
           case REQ_MT_QUIT:
           default:
             assert(1 == 0);
@@ -374,12 +375,23 @@ main(int argc, char *argv[])
         }
         // Client may have exited, so no need to send ack-response back to it.
         if (req.clientId && msgsnd(req.clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
+            printf("Warning: msgsnd() to client ID=%d failed to deliver.\n",
+                   req.clientId);
             break;
         }
 
         /* Parent loops to receive next client request */
     }
+
+end_forever_loop:
+    if (clock_gettime(clock_id, &ts1)) {        // **** Timing ends
+        errExit("clock_gettime-ts1");
+    }
     assert(NumActiveClients == 0);
+
+    uint64_t nsec0 = timespec_to_ns(&ts0);
+    uint64_t nsec1 = timespec_to_ns(&ts1);
+    uint64_t elapsed_ns = (nsec1 - nsec0);
 
     if (msgctl(serverId, IPC_RMID, NULL) == -1) {
         errExit("msgctl");
@@ -387,7 +399,8 @@ main(int argc, char *argv[])
     printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
            NumActiveClients, NumActiveClientsHWM);
 
-    printSummaryStats(ActiveClients, NumActiveClientsHWM, clock_id);
+    printSummaryStats(run_descr, ActiveClients, NumActiveClientsHWM, clock_id,
+                      elapsed_ns);
 
     exit(EXIT_SUCCESS);
 }
@@ -417,6 +430,7 @@ parse_arguments(const int argc, char *argv[], int *clock_id)
                        argv[0], optopt);
                 return EXIT_FAILURE;
 
+            case 'd':   // Default clock
             case 'r':
                 *clock_id = CLOCK_REALTIME;
                 break;
@@ -470,40 +484,66 @@ print_usage(const char *program_name, struct option options[])
     }
 }
 
-// Find the resolution of the clock used in the program's timing measurement.
+#define NUM_ITERATIONS 1000000
+
+/**
+ * Calibrate the clocks available on this host.
+ * Find the resolution of the clock used in the program's timing measurement.
+ * Report avg. 'estimated' overhead of making a clock_gettime() call.
+ */
 void
-svr_clock_getres(void)
+svr_clock_calibrate(void)
 {
-    struct timespec ts_real;
-    if (clock_getres(CLOCK_REALTIME, &ts_real)) {
-        errExit("clock_getres-ts_real");
-    }
+    clockid_t clockids[] = {  CLOCK_REALTIME
+                            , CLOCK_MONOTONIC
+                            , CLOCK_PROCESS_CPUTIME_ID
+                            , CLOCK_THREAD_CPUTIME_ID
+                           };
 
-    struct timespec ts_monotonic;
-    if (clock_getres(CLOCK_MONOTONIC, &ts_monotonic)) {
-        errExit("clock_getres-ts_monotonic");
-    }
+    printf("Calibrate clock overheads over %d (%s) iterations:\n",
+           NUM_ITERATIONS, value_str(NUM_ITERATIONS));
+    for (int cctr = 0; cctr < ARRAY_LEN(clockids); cctr++) {
+        clockid_t clockid = clockids[cctr];
 
-    struct timespec ts_processCPU;
-    if (clock_getres(CLOCK_PROCESS_CPUTIME_ID, &ts_processCPU)) {
-        errExit("clock_getres-ts_processCPU");
-    }
+        struct timespec ts_clock;
+        if (clock_getres(clockid, &ts_clock)) {
+            errExit("clock_getres");
+        }
+        unsigned ovhd = svr_clock_overhead(clockid);
+        printf("Average overhead for clock_id=%d (%s): %u ns"
+               ", Resolution = %" PRIu64 " ns\n",
+               clockid, clock_name(clockid), ovhd,
+               timespec_to_ns(&ts_clock));
 
-    struct timespec ts_threadCPU;
-    if (clock_getres(CLOCK_THREAD_CPUTIME_ID, &ts_threadCPU)) {
-        errExit("clock_getres-ts_threadCPU");
     }
-    printf("# Debug info:"
-           " Server clocks resolution"
-           ": CLOCK_REALTIME [id=%d] = %" PRIu64 " ns"
-           ", CLOCK_MONOTONIC [id=%d] = %" PRIu64 " ns"
-           ", CLOCK_PROCESS_CPUTIME_ID [id=%d] = %" PRIu64 " ns"
-           ", CLOCK_THREAD_CPUTIME_ID [id=%d] = %" PRIu64 " ns"
-           "\n\n",
-           CLOCK_REALTIME, timespec_to_ns(&ts_real),
-           CLOCK_MONOTONIC, timespec_to_ns(&ts_monotonic),
-           CLOCK_PROCESS_CPUTIME_ID, timespec_to_ns(&ts_processCPU),
-           CLOCK_THREAD_CPUTIME_ID, timespec_to_ns(&ts_threadCPU));
+}
+
+/**
+ * Helper method to calibrate m/c-specific clock-overheads for a specific clock.
+ * Gives us an idea of how-much impact the call to clock_gettime() itself has
+ * on the overall 'measured' elapsed-time.
+ *
+ * Returns: Overhead estimated in ns.
+ */
+unsigned
+svr_clock_overhead(clockid_t clock_id)
+{
+    struct timespec start;
+    struct timespec end;
+    size_t          total_time_ns = 0;
+    uint32_t        nops = 0;
+
+    for (int i = 0; i < NUM_ITERATIONS; ++i) {
+        clock_gettime(clock_id, &start);
+        clock_gettime(clock_id, &end);
+        int delta_ns = (timespec_to_ns(&end) - timespec_to_ns(&start));
+        // Account for aberrations that might return negative time-deltas.
+        if (delta_ns > 0) {
+            total_time_ns += delta_ns;
+            nops++;
+        }
+    }
+    return (total_time_ns / nops);
 }
 
 // Return hard-code string of clock-name given clock-ID
@@ -553,23 +593,29 @@ time_metric_name(int clock_id)
  * printSummaryStats() - Aggregate metrics and print summary across all clients.
  */
 void
-printSummaryStats(Client_info *clients, unsigned int num_clients,
-                  int clock_id)
+printSummaryStats(const char *run_descr, Client_info *clients, unsigned int num_clients,
+                  int clock_id, uint64_t elapsed_ns)
 {
     size_t  num_ops = 0;
-    size_t  cumu_time_ns = 0;
+    size_t  sum_throughput = 0;
 
     for (int cctr = 0 ; cctr < num_clients; cctr++) {
         num_ops += clients[cctr].num_ops;
-        cumu_time_ns += clients[cctr].cumu_time_ns;
+        sum_throughput += clients[cctr].throughput;
     }
-    size_t throughput = (uint64_t) ((num_ops * 1.0 / cumu_time_ns)
-                                        * L3_NS_IN_SEC);
-    printf("For %u clients, num_ops=%lu (%s) ops"
+    size_t svr_throughput = (uint64_t) ((num_ops * 1.0 / elapsed_ns)
+                                            * L3_NS_IN_SEC);
+    size_t cli_throughput = (sum_throughput / num_clients);
+
+    printf("For %u clients, %s, num_ops=%lu (%s) ops"
+           ", Elapsed time=%lu (%s) ns"
            ", Avg. %s time=%lu ns/msg"
-           ", throughput=%lu (%s) ops/sec"
+           ", Server throughput=%lu (%s) ops/sec"
+           ", Client throughput=%lu (%s) ops/sec"
            "\n",
-           num_clients, num_ops, value_str(num_ops),
-           time_metric_name(clock_id), (cumu_time_ns / num_ops),
-           throughput, value_str(throughput));
+           num_clients, run_descr, num_ops, value_str(num_ops),
+           elapsed_ns, value_str(elapsed_ns),
+           time_metric_name(clock_id), (elapsed_ns / num_ops),
+           svr_throughput, value_str(svr_throughput),
+           cli_throughput, value_str(cli_throughput));
 }
