@@ -166,28 +166,22 @@ main(int argc, char *argv[])
     int     serverId;
     struct sigaction sa;
 
-    // On MacOSX, only the CLOCK_THREAD_CPUTIME_ID clock has a resolution of 1ns.
-    // On Linux, all clocks seem to have 1 ns resolution, so, default is to also
-    // use the same CLOCK_THREAD_CPUTIME_ID.
-    int clock_id;
-
 #if __APPLE__
     printf("%s is currently not supported on Mac/OSX\n", argv[0]);
     exit(EXIT_SUCCESS);
 #endif
 
-    // Default, so throughput (nops/sec) is consistent with normal expectation.
-    clock_id = CLOCK_REALTIME;
+    // On MacOSX, only the CLOCK_THREAD_CPUTIME_ID clock has a resolution of 1ns.
+    // On Linux, all clocks seem to have 1 ns resolution, so, default is to
+    // use the CLOCK_REALTIME, so throughput (nops/sec) is metris's calculation
+    // is consistent with normal expectation.
+    int clock_id = CLOCK_REALTIME;
 
     // Arg-parsing is only supported on Linux.
     int rv = parse_arguments(argc, argv, &clock_id);
     if (rv) {
         errExit("Argument error.");
     }
-
-#if !defined(L3_ENABLED)
-    svr_clock_calibrate();
-#endif  // L3_ENABLED
 
     /* Create server message queue */
 
@@ -401,6 +395,12 @@ end_forever_loop:
 
     printSummaryStats(run_descr, ActiveClients, NumActiveClientsHWM, clock_id,
                       elapsed_ns);
+
+    // For visibility into how clocks are performing on user's machine,
+    // run clock-calibration after all workload / metrics collection is done.
+#if !defined(L3_ENABLED)
+    svr_clock_calibrate();
+#endif  // L3_ENABLED
 
     exit(EXIT_SUCCESS);
 }
