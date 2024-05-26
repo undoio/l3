@@ -115,27 +115,31 @@ static unsigned int   NumActiveClients    = 0;
  * Simple argument parsing structure.
  */
 struct option Long_options[] = {
+    // Options that need no arguments
       { "clock-default"             , no_argument         , NULL, 'd'}
     , { "help"                      , no_argument         , NULL, 'h'}
     , { "clock-monotonic"           , no_argument         , NULL, 'm'}
     , { "clock-process-cputime-id"  , no_argument         , NULL, 'p'}
     , { "clock-realtime"            , no_argument         , NULL, 'r'}
     , { "clock-thread-cputime-id"   , no_argument         , NULL, 't'}
+
+    // Options that need arguments
+    , { "perf-outfile"              , required_argument   , NULL, 'o'}
     , { NULL, 0, NULL, 0}           // End of options
 };
 
-const char * Options_str = ":dhmprt";
+const char * Options_str = "o:dhmprt";
 
 // Useful macros
 #define ARRAY_LEN(arr)  (sizeof(arr) / sizeof(*arr))
 
 // Function Prototypes
 
-int parse_arguments(const int argc, char *argv[], int *clock_id);
+int parse_arguments(const int argc, char *argv[], int *clock_id, char **outfile);
 void print_usage(const char *program, struct option options[]);
-void printSummaryStats(const char *run_descr, Client_info *clients,
-                       unsigned int num_clients, int clock_id,
-                       uint64_t elapsed_ns);
+void printSummaryStats(const char *outfile, const char *run_descr,
+                       Client_info *clients, unsigned int num_clients,
+                       int clock_id, uint64_t elapsed_ns);
 
 void svr_clock_calibrate(void);
 unsigned svr_clock_overhead(clockid_t clock_id);
@@ -177,8 +181,10 @@ main(int argc, char *argv[])
     // is consistent with normal expectation.
     int clock_id = CLOCK_REALTIME;
 
+    char *outfile = NULL;
+
     // Arg-parsing is only supported on Linux.
-    int rv = parse_arguments(argc, argv, &clock_id);
+    int rv = parse_arguments(argc, argv, &clock_id, &outfile);
     if (rv) {
         errExit("Argument error.");
     }
@@ -241,7 +247,7 @@ main(int argc, char *argv[])
 
     printf("Start Server, using clock ID=%d '%s': No logging.\n",
            clock_id, clock_name(clock_id));
-    snprintf(run_descr, sizeof(run_descr), "No logging");
+    snprintf(run_descr, sizeof(run_descr), "Baseline - No logging");
 
 #endif // L3_ENABLED
 
@@ -393,8 +399,8 @@ end_forever_loop:
     printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
            NumActiveClients, NumActiveClientsHWM);
 
-    printSummaryStats(run_descr, ActiveClients, NumActiveClientsHWM, clock_id,
-                      elapsed_ns);
+    printSummaryStats(outfile, run_descr, ActiveClients, NumActiveClientsHWM,
+                      clock_id, elapsed_ns);
 
     // For visibility into how clocks are performing on user's machine,
     // run clock-calibration after all workload / metrics collection is done.
@@ -413,7 +419,7 @@ end_forever_loop:
  * Simple argument parsing support.
  */
 int
-parse_arguments(const int argc, char *argv[], int *clock_id)
+parse_arguments(const int argc, char *argv[], int *clock_id, char **outfile)
 {
     int option_index = 0;
     int opt;
@@ -445,6 +451,11 @@ parse_arguments(const int argc, char *argv[], int *clock_id)
 
             case 't':
                 *clock_id = CLOCK_THREAD_CPUTIME_ID;
+                break;
+
+            // --options that need an argument
+            case 'o':
+                *outfile = optarg;
                 break;
 
             case '?': // Invalid option or missing argument
@@ -593,7 +604,8 @@ time_metric_name(int clock_id)
  * printSummaryStats() - Aggregate metrics and print summary across all clients.
  */
 void
-printSummaryStats(const char *run_descr, Client_info *clients, unsigned int num_clients,
+printSummaryStats(const char *outfile, const char *run_descr,
+                  Client_info *clients, unsigned int num_clients,
                   int clock_id, uint64_t elapsed_ns)
 {
     size_t  num_ops = 0;
@@ -618,4 +630,24 @@ printSummaryStats(const char *run_descr, Client_info *clients, unsigned int num_
            time_metric_name(clock_id), (elapsed_ns / num_ops),
            svr_throughput, value_str(svr_throughput),
            cli_throughput, value_str(cli_throughput));
+
+    // Generate one-line summary for post-processing by perf-report.py
+    if (outfile) {
+        printf("tail -f %s\n", outfile);
+        FILE *fh = fopen(outfile, "a");
+        if (!fh) {
+            printf("Error! Unable to open perf-metrics output file '%s\n",
+                   outfile);
+            exit(EXIT_FAILURE);
+        }
+        fprintf(fh, "%s, NumClients=%u, NumOps=%" PRIu64 " (%s)"
+                    ", Server throughput=%lu (%s) ops/sec"
+                    ", Client throughput=%lu (%s) ops/sec"
+                    ", elapsed_ns=%lu (%s) ns\n",
+                run_descr, num_clients, num_ops, value_str(num_ops),
+                svr_throughput, value_str(svr_throughput),
+                cli_throughput, value_str(cli_throughput),
+                elapsed_ns, value_str(elapsed_ns));
+        fclose(fh);
+    }
 }

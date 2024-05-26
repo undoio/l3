@@ -34,6 +34,7 @@ jobs:
         fi
 
         pip install pytest
+        pip install prettytable
 
         set -x
         echo " "

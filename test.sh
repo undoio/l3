@@ -52,6 +52,10 @@ NumClients=5
 # Server-clock cmdline arg. Default is CLOCK_REALTIME clock
 SvrClockArg=
 
+# Server --perf-outfile arg. Default is none. Used by test-method
+# that runs all client-server perf benchmarking tests
+SvrPerfOutfileArg=
+
 # ##################################################################
 # Array of test function names. If you add a new test_<function>,
 # add it to this list, here, so that one can see it in --list output.
@@ -407,9 +411,36 @@ function run-all-client-server-perf-tests()
         NumClients=$3
     fi
 
+    set +x
+    local outfile="/tmp/${Me}.${FUNCNAME[0]}.out"
+    echo "${Me} tail -f $outfile"
+    echo " "
+    if [ -f "${outfile}" ]; then rm -rf "${outfile}"; fi
+
+    # Reset global, so it will be picked up when server binary is started.
+    SvrPerfOutfileArg="--perf-outfile ${outfile}"
+
+    set -x
+    local start_seconds=$SECONDS
+
+    echo "${Me}: $(TZ="America/Los_Angeles" date) Run all client(s)-server communication test."
+    echo " "
     test-build-and-run-client-server-perf-test "${num_msgs_per_client}"
+
     test-build-and-run-client-server-perf-test-l3_loc_eq_1 "${num_msgs_per_client}"
+
     test-build-and-run-client-server-perf-test-l3_loc_eq_2 "${num_msgs_per_client}"
+
+    echo " "
+    ./scripts/perf_report.py --file "${outfile}"
+
+    local total_seconds=$((SECONDS - start_seconds))
+    el_h=$((total_seconds / 3600))
+    el_m=$((total_seconds % 3600 / 60))
+    el_s=$((total_seconds % 60))
+    echo " "
+    echo "${Me}: $(TZ="America/Los_Angeles" date) Completed all client(s)-server communication test [ ${el_h}h ${el_m}m ${el_s}s ]."
+    echo " "
 }
 
 # #############################################################################
@@ -482,10 +513,6 @@ function test-build-and-run-client-server-perf-test()
         | tail -${nentries}
 
     set +x
-    echo " "
-    echo "${Me}: Completed basic client(s)-server communication test."
-    echo " "
-
     local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
     local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
 
@@ -537,10 +564,6 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
                 | tail -${nentries}
 
     set +x
-
-    echo " "
-    echo "${Me}: Completed basic client(s)-server communication test."
-    echo " "
 }
 
 # #############################################################################
@@ -585,10 +608,6 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
                         --log-file /tmp/l3.c-server-test.dat                                \
                         --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
                 | tail -${nentries}
-
-    echo " "
-    echo "${Me}: Completed basic client(s)-server communication test."
-    echo " "
 }
 
 # #############################################################################
@@ -606,12 +625,12 @@ function build-and-run-client-server-perf-test()
     local num_msgs_per_client=$1
     local l3_enabled=$2
     local l3_loc_enabled=
-    if [ $# -eq 3 ]; then
+    if [ $# -ge 3 ]; then
         l3_loc_enabled=$3
     fi
 
     local l3_log_type=
-    if [ $# -eq 4 ]; then
+    if [ $# -ge 4 ]; then
         l3_log_type=$4
     fi
 
@@ -651,10 +670,15 @@ function build-and-run-client-server-perf-test()
         esac
     fi
 
+    set +x
+    echo " "
+    echo "${Me}: $(TZ="America/Los_Angeles" date) Started basic client(s)-server communication test."
+    echo " "
+
     # User can execute perf-bm tests with different server-clocks,
     # using the --clock-<...> argument.
     # shellcheck disable=SC2086
-    ${server_bin} ${SvrClockArg} &
+    ${server_bin} ${SvrClockArg} ${SvrPerfOutfileArg} &
 
     set +x
     sleep 5
@@ -672,6 +696,11 @@ function build-and-run-client-server-perf-test()
     done
 
     wait
+
+    set +x
+    echo " "
+    echo "${Me}: $(TZ="America/Los_Angeles" date) Completed basic client(s)-server communication test."
+    echo " "
 }
 
 # #############################################################################
