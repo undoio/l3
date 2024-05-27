@@ -55,12 +55,6 @@ help::
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1     make client-server-perf-test  # L3+LOC logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2     make client-server-perf-test  # L3+LOC-ELF logging'
 	@echo ' '
-	@echo 'Environment variables: '
-	@echo ' BUILD_MODE={release,debug}'
-	@echo ' BUILD_VERBOSE={0,1}'
-	@echo ' L3_LOC_ENABLED={0,1,2}'
-	@echo ' Defaults: CC=gcc CXX=g++ LD=g++'
-	@echo ' '
 	@echo 'To build L3-sample programs with LOC-enabled and run unit-tests:'
 	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests   && L3_LOC_ENABLED=1 make run-c-tests'
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cpp-tests && L3_LOC_ENABLED=1 make run-cpp-tests'
@@ -71,6 +65,12 @@ help::
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=2 make run-cpp-tests'
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=2 make run-cc-tests'
 	@echo ' '
+	@echo 'Environment variables: '
+	@echo '  BUILD_MODE={release,debug}'
+	@echo '  BUILD_VERBOSE={0,1}'
+	@echo '  L3_ENABLED={0,1}'
+	@echo '  L3_LOC_ENABLED={0,1,2}'
+	@echo '  Defaults: CC=gcc CXX=g++ LD=g++'
 
 #
 # Verbosity
