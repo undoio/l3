@@ -397,6 +397,13 @@ function build-and-run-sample-c-appln-with-LOC-encoding()
 # #############################################################################
 function run-all-client-server-perf-tests()
 {
+    set +x
+    if [ "${UNAME_S}" = "Darwin" ]; then
+        echo "${Me}: Client-server performance tests not supported currently on Mac/OSX."
+        return
+    fi
+
+    set -x
     # Reset global if arg-1 provided. Minions will grab it from there.
     if [ $# -ge 1 ]; then
         SvrClockArg=$1
@@ -432,7 +439,9 @@ function run-all-client-server-perf-tests()
     test-build-and-run-client-server-perf-test-l3_loc_eq_2 "${num_msgs_per_client}"
 
     echo " "
+    set -x
     ./scripts/perf_report.py --file "${outfile}"
+    set +x
 
     local total_seconds=$((SECONDS - start_seconds))
     el_h=$((total_seconds / 3600))
