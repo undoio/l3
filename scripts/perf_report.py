@@ -167,8 +167,11 @@ def gen_perf_report(heading:list, metrics:dict, base_svr_value:int, base_cli_val
     Given a dictionary of metrics, ordered by run-type 'key', generate the
     comparative performance reports.
     Ref: https://www.geeksforgeeks.org/how-to-make-a-table-in-python/
+         https://ptable.readthedocs.io/en/latest/tutorial.html
     """
-    perf_table = PrettyTable([heading[0], heading[1], "S:%-Drop", heading[2], "C:%-Drop"])
+    srv_head = 'Srv:Drop'
+    cli_head = 'Cli:Drop'
+    perf_table = PrettyTable([heading[0], heading[1], srv_head, heading[2], cli_head])
 
     for run_type in metrics.keys():
         svr_value = metrics[run_type][0]
@@ -178,6 +181,10 @@ def gen_perf_report(heading:list, metrics:dict, base_svr_value:int, base_cli_val
         perf_table.add_row([  run_type
                             , svr_str, compute_pct_drop(base_svr_value, svr_value)
                             , cli_str, compute_pct_drop(base_cli_value, cli_value)])
+
+    perf_table.align[heading[0]] = "l"
+    perf_table.custom_format[srv_head] = lambda f, v: f"{ v:.2f} %"
+    perf_table.custom_format[cli_head] = lambda f, v: f"{ v:.2f} %"
 
     print(perf_table)
 
