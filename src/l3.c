@@ -231,7 +231,9 @@ l3_log_deinit(const l3_log_t logtype)
         break;
 
       case L3_LOG_WRITE:
+#if !defined(__APPLE__)
         syncfs(l3_log_fd);
+#endif // !defined(__APPLE__)
         rv = close(l3_log_fd);
         break;
 

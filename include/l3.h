@@ -94,7 +94,16 @@ const char *l3_logtype_name(l3_log_t logtype);
 
    #else   // L3_LOC_ENABLED
 
-    #define l3_log(msg, arg1, arg2)                                     \
+    #if defined(L3_LOGT_FPRINTF)
+
+    #  define l3_log(msg, arg1, arg2) l3_log_fprintf((msg), arg1, arg2) \
+
+    #elif defined(L3_LOGT_WRITE)
+
+    #  define l3_log(msg, arg1, arg2) l3_log_write((msg), arg1, arg2)   \
+
+    #else
+    #  define l3_log(msg, arg1, arg2)                                   \
             if (1) {                                                    \
                 l3_log_mmap((msg),                                      \
                             (uint64_t) (arg1), (uint64_t) (arg2),       \
@@ -103,33 +112,33 @@ const char *l3_logtype_name(l3_log_t logtype);
                 printf((msg), (arg1), (arg2));                          \
             } else
 
+    #endif  // L3_LOGT_FPRINTF, L3_LOGT_MMAP etc ...
+
   #endif  // L3_LOC_ENABLED
 
 #else   // defined(DEBUG)
 
   #ifdef L3_LOC_ENABLED
 
-    #define l3_log(msg, arg1, arg2)                                 \
-            l3_log_mmap((msg),                                      \
-                        (uint64_t) (arg1), (uint64_t) (arg2),       \
+    #define l3_log(msg, arg1, arg2)                                     \
+            l3_log_mmap((msg),                                          \
+                        (uint64_t) (arg1), (uint64_t) (arg2),           \
                         __LOC__)
 
   #else   // L3_LOC_ENABLED
 
     #if defined(L3_LOGT_FPRINTF)
 
-    #define l3_log_simple(msg, arg1, arg2)                          \
-            l3_log_fprintf((msg), arg1, arg2)
+    #  define l3_log(msg, arg1, arg2) l3_log_fprintf((msg), arg1, arg2) \
 
     #elif defined(L3_LOGT_WRITE)
 
-    #define l3_log_simple(msg, arg1, arg2)                          \
-            l3_log_write((msg), arg1, arg2)
+    #  define l3_log(msg, arg1, arg2) l3_log_write((msg), arg1, arg2)   \
 
     #else
-    #define l3_log(msg, arg1, arg2)                                 \
-            l3_log_mmap((msg),                                      \
-                        (uint64_t) (arg1), (uint64_t) (arg2),       \
+    #  define l3_log(msg, arg1, arg2)                                   \
+            l3_log_mmap((msg),                                          \
+                        (uint64_t) (arg1), (uint64_t) (arg2),           \
                         L3_ARG_UNUSED)
 
     #endif  // L3_LOGT_FPRINTF, L3_LOGT_MMAP etc ...
