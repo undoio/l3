@@ -216,6 +216,13 @@ jobs:
         BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test-l3_loc_eq_2
 
     # -------------------------------------------------------------------------
+    # Exercise the do-it-all perf-tests method, which is really intended for
+    # use by developers, to benchmark with large # of messages. A default
+    # invocation will run with small # clients & messages.
+    - name: test-run-all-client-server-perf-tests
+      run: ./test.sh run-all-client-server-perf-tests
+
+    # -------------------------------------------------------------------------
     # Exercise the --from-test interface to verify that it still works to
     # run thru last pair of code-formatting tests. (Minor duplication of
     # these two low-impact tests.)
