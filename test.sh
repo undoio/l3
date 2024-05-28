@@ -458,12 +458,6 @@ function run-all-client-server-perf-tests()
 # #############################################################################
 function test-build-and-run-client-server-perf-test()
 {
-    set +x
-    if [ "${UNAME_S}" = "Darwin" ]; then
-        echo "${Me}: Client-server performance tests not supported currently on Mac/OSX."
-        return
-    fi
-
     local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 1 ]; then
         num_msgs_per_client=$1
@@ -489,17 +483,20 @@ function test-build-and-run-client-server-perf-test()
     build-and-run-client-server-perf-test "${num_msgs_per_client}" \
                                           "${l3_log_enabled}"
 
-    local nentries=100
-    echo " "
-    echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
-    echo " "
+    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
+    if [ "${UNAME_S}" == "Linux" ]; then
+        local nentries=100
+        echo " "
+        echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+        echo " "
 
-    set -x
-    # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
-    ./l3_dump.py                                                                \
-            --log-file /tmp/l3.c-server-test.dat                                \
-            --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
-        | tail -${nentries}
+        set -x
+        # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
+        ./l3_dump.py                                                                \
+                --log-file /tmp/l3.c-server-test.dat                                \
+                --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+            | tail -${nentries}
+    fi
 
     echo " "
     echo "${Me}: Client-server performance testing with L3-fast-logging ON ${SvrClockArg}:"
@@ -509,17 +506,20 @@ function test-build-and-run-client-server-perf-test()
                                           "${l3_LOC_disabled}"      \
                                           "fast"
 
-    local nentries=100
-    echo " "
-    echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
-    echo " "
+    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
+    if [ "${UNAME_S}" == "Linux" ]; then
+        local nentries=100
+        echo " "
+        echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+        echo " "
 
-    set -x
-    # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
-    ./l3_dump.py                                                                \
-            --log-file /tmp/l3.c-server-test.dat                                \
-            --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
-        | tail -${nentries}
+        set -x
+        # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
+        ./l3_dump.py                                                                \
+                --log-file /tmp/l3.c-server-test.dat                                \
+                --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+            | tail -${nentries}
+    fi
 
     set +x
     local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
@@ -536,12 +536,6 @@ function test-build-and-run-client-server-perf-test()
 # #############################################################################
 function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
 {
-    set +x
-    if [ "${UNAME_S}" = "Darwin" ]; then
-        echo "${Me}: Client-server performance tests not supported currently on Mac/OSX."
-        return
-    fi
-
     local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 1 ]; then
         num_msgs_per_client=$1
@@ -561,16 +555,19 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
                                           "${l3_log_enabled}"       \
                                           "${l3_LOC_enabled}"
 
-    local nentries=100
-    echo " "
-    echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
-    echo " "
-    set -x
-    L3_LOC_ENABLED=1 ./l3_dump.py                                                           \
-                        --log-file /tmp/l3.c-server-test.dat                                \
-                        --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
-                        --loc-binary "./build/${Build_mode}/bin/use-cases/client-server-msgs-perf_loc" \
-                | tail -${nentries}
+    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
+    if [ "${UNAME_S}" == "Linux" ]; then
+        local nentries=100
+        echo " "
+        echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+        echo " "
+        set -x
+        L3_LOC_ENABLED=1 ./l3_dump.py                                   \
+                            --log-file /tmp/l3.c-server-test.dat        \
+                            --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+                            --loc-binary "./build/${Build_mode}/bin/use-cases/client-server-msgs-perf_loc" \
+                    | tail -${nentries}
+    fi
 
     set +x
 }
@@ -581,12 +578,6 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
 # #############################################################################
 function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 {
-    set +x
-    if [ "${UNAME_S}" = "Darwin" ]; then
-        echo "${Me}: Client-server performance tests not supported currently on Mac/OSX."
-        return
-    fi
-
     local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 1 ]; then
         num_msgs_per_client=$1
@@ -606,17 +597,20 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
                                           "${l3_log_enabled}"       \
                                           "${l3_LOC_enabled}"
 
-    local nentries=100
-    echo " "
-    echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
-    echo " "
+    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
+    if [ "${UNAME_S}" == "Linux" ]; then
+        local nentries=100
+        echo " "
+        echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+        echo " "
 
-    # Currently, we are not unpacking LOC-ELF-IDs, so, for dumping this kind
-    # of logging, we don't need the --loc-binary argument.
-    L3_LOC_ENABLED=2 ./l3_dump.py                                                           \
-                        --log-file /tmp/l3.c-server-test.dat                                \
-                        --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
-                | tail -${nentries}
+        # Currently, we are not unpacking LOC-ELF-IDs, so, for dumping this kind
+        # of logging, we don't need the --loc-binary argument.
+        L3_LOC_ENABLED=2 ./l3_dump.py                                   \
+                            --log-file /tmp/l3.c-server-test.dat        \
+                            --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+                    | tail -${nentries}
+    fi
 }
 
 # #############################################################################
@@ -677,6 +671,12 @@ function build-and-run-client-server-perf-test()
                 exit 1
                 ;;
         esac
+    fi
+
+    set +x
+    if [ "${UNAME_S}" = "Darwin" ]; then
+        echo "${Me}: Execution of client-server performance tests not supported currently on Mac/OSX."
+        return
     fi
 
     set +x
@@ -822,38 +822,3 @@ fi
 
 test_all ""
 exit 0
-
-# Currently, this is a simplistic driver, just executing basic `make` commands
-# to ensure that all code / tools build correctly in release mode.
-
-echo " "
-echo "${Me}: Run build-and-test for core L3 package and tests"
-echo " "
-set -x
-make clean && CC=gcc LD=g++ make all-c-tests
-make run-c-tests
-
-make clean-l3 && CC=g++ CXX=g++ LD=g++ make all-cpp-tests
-make run-cpp-tests
-
-make clean-l3 && CC=g++ CXX=g++ LD=g++ make all-cc-tests
-make run-cc-tests
-
-# Do it all test execution.
-make clean && CC=g++ CXX=g++ LD=g++ make all
-make run-tests
-
-echo " "
-echo "${Me}: Run build-and-test for core L3 integration with LOC package and tests"
-echo " "
-set -x
-make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1 make all-c-tests
-L3_LOC_ENABLED=1 make run-c-tests
-
-test_l3_dump_py_missing_loc_decoder
-
-make clean-l3 && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cpp-tests
-L3_LOC_ENABLED=1 make run-cpp-tests
-
-make clean-l3 && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cc-tests
-L3_LOC_ENABLED=1 make run-cc-tests
