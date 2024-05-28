@@ -314,12 +314,11 @@ main(int argc, char *argv[])
 
             // Record new-counter value, to show that something can be logged.
 #  if L3_FASTLOG_ENABLED
-            l3_log_fast("Server msg: Increment: ClientID=%d, "
-                        "Elapsed time=%" PRIu64 " ns. (L3-fast-log)",
+            l3_log_fast("Server msg: Increment: ClientID=%d, Counter=%" PRIu64
+                        ". (L3-fast-log)",
                         resp.clientId, resp.counter);
 #  else
-            l3_log("Server msg: Increment: ClientID=%d, "
-                   "Elapsed time=%" PRIu64 " ns.",
+            l3_log("Server msg: Increment: ClientID=%d, Counter=%" PRIu64 ".",
                    resp.clientId, resp.counter);
 #  endif
 
@@ -620,8 +619,8 @@ printSummaryStats(const char *outfile, const char *run_descr,
     size_t cli_throughput = (sum_throughput / num_clients);
 
     printf("For %u clients, %s, num_ops=%lu (%s) ops"
-           ", Elapsed time=%lu (%s) ns"
-           ", Avg. %s time=%lu ns/msg"
+           ", Elapsed time=%" PRIu64 " (%s) ns"
+           ", Avg. %s time=%" PRIu64 " ns/msg"
            ", Server throughput=%lu (%s) ops/sec"
            ", Client throughput=%lu (%s) ops/sec"
            "\n",
@@ -640,10 +639,10 @@ printSummaryStats(const char *outfile, const char *run_descr,
                    outfile);
             exit(EXIT_FAILURE);
         }
-        fprintf(fh, "%s, NumClients=%u, NumOps=%" PRIu64 " (%s)"
+        fprintf(fh, "%s, NumClients=%u, NumOps=%lu (%s)"
                     ", Server throughput=%lu (%s) ops/sec"
                     ", Client throughput=%lu (%s) ops/sec"
-                    ", elapsed_ns=%lu (%s) ns\n",
+                    ", elapsed_ns=%" PRIu64 " (%s) ns\n",
                 run_descr, num_clients, num_ops, value_str(num_ops),
                 svr_throughput, value_str(svr_throughput),
                 cli_throughput, value_str(cli_throughput),
