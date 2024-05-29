@@ -419,6 +419,10 @@ L3_C_UNIT_TEST_BIN  := $(BINDIR)/$(UNIT_DIR)/l3_dump.py-test
 LOC_MACRO_TEST_BIN  := $(LOC_MACRO_TEST_CPP_PROGRAM_BIN)
 SIZE_UNIT_TEST_BIN  := $(BINDIR)/$(UNIT_DIR)/size_str-test
 
+# L3-logging interfaces' performance unit-tests
+FPRINTF_PERF_UNIT_TEST_BIN  := $(BINDIR)/$(UNIT_DIR)/l3-fprintf-perf-test
+WRITE_PERF_UNIT_TEST_BIN    := $(BINDIR)/$(UNIT_DIR)/l3-write-perf-test
+
 # ##############################################################################
 # Generate symbols and dependencies to build unit-test sources
 # ##############################################################################
@@ -463,6 +467,13 @@ else
 
 $(BINDIR)/$(UNIT_DIR)/l3_dump.py-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3_dump.py-test.o \
                                         $(OBJDIR)/$(SRCDIR)/l3.o
+
+$(BINDIR)/$(UNIT_DIR)/l3-fprintf-perf-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3-fprintf-perf-test.o \
+                                            $(OBJDIR)/$(SRCDIR)/l3.o
+
+$(BINDIR)/$(UNIT_DIR)/l3-write-perf-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3-write-perf-test.o \
+                                          $(OBJDIR)/$(SRCDIR)/l3.o
+
 endif
 
 # We only need this extra include to find size_str.h, needed to build the
@@ -470,6 +481,11 @@ endif
 $(BINDIR)/$(UNIT_DIR)/size_str-test: INCLUDE += -I ./$(L3_UTILSDIR)
 $(BINDIR)/$(UNIT_DIR)/size_str-test: $(OBJDIR)/$(UNITTESTS_DIR)/size_str-test.o \
                                      $(OBJDIR)/$(L3_UTILSDIR)/size_str.o
+
+# Unit-test for l3-write interfaces needs this defined so that l3_log()
+# gets correctly redefined to l3_log_fprintf() / l3_log_write() interface
+$(BINDIR)/$(UNIT_DIR)/l3-fprintf-perf-test: DFLAGS_UNIT := -DL3_LOGT_FPRINTF
+$(BINDIR)/$(UNIT_DIR)/l3-write-perf-test: DFLAGS_UNIT := -DL3_LOGT_WRITE
 
 # ###################################################################
 # Report build machine details and compiler version for troubleshooting,
@@ -729,7 +745,7 @@ $(BINDIR)/%/.:
 #
 # For all-test-code, we need to use -I test-code/<subdir>
 # Dependencies for the main executables
-COMPILE.c       = $(CC)  -x c $(CFLAGS) $(INCLUDE) -c
+COMPILE.c       = $(CC)  -x c $(CFLAGS) $(DFLAGS_UNIT) $(INCLUDE) -c
 COMPILE.cpp     = $(CXX) -x c++ $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
 COMPILE.cc      = $(CXX) -x c++ $(CFLAGS) $(INCLUDE) -c
 COMPILE.loc.c   = $(LOC_C_CC) $(CFLAGS) $(INCLUDE) -c
@@ -817,6 +833,13 @@ run-unit-tests: all-unit-tests
 	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_FAST_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
 	@echo
 	./$(SIZE_UNIT_TEST_BIN)
+	@echo
+	./$(FPRINTF_PERF_UNIT_TEST_BIN)
+	# L3-write performance test seems to work better on subsequent runs.
+	@echo
+	./$(WRITE_PERF_UNIT_TEST_BIN)
+	@echo
+	./$(WRITE_PERF_UNIT_TEST_BIN)
 
 run-loc-tests: all-loc-tests
 	@echo

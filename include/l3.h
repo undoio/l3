@@ -182,6 +182,8 @@ l3_log_fprintf(const char *msg, const uint64_t arg1, const uint64_t arg2)
 
 void l3_log_write(const char *msg, const uint64_t arg1, const uint64_t arg2);
 
+void l3_log_write_msg(const char *msg, const uint64_t arg1, const uint64_t arg2);
+
 #ifdef __cplusplus
 }
 #endif
