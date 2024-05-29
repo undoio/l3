@@ -194,7 +194,7 @@ main(int argc, char *argv[])
     serverId = msgget(SERVER_KEY,
                       (IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IWGRP));
     if (serverId == -1) {
-        errExit("msgget");
+        errExit("msgget SERVER_KEY");
     }
 
     /* Establish SIGCHLD handler to reap terminated children */
@@ -203,7 +203,7 @@ main(int argc, char *argv[])
     sa.sa_flags = SA_RESTART;
     sa.sa_handler = grimReaper;
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        errExit("sigaction");
+        errExit("sigaction SIGCHLD");
     }
 
     char run_descr[80];
@@ -213,7 +213,7 @@ main(int argc, char *argv[])
     const char *logfile = "/tmp/l3.c-server-test.dat";
     int e = l3_log_init(L3_LOG_MMAP, logfile);
     if (e) {
-        errExit("l3_init");
+        errExit("l3_log_init");
     }
 
     char *l3_log_mode = "<unknown>";
@@ -393,7 +393,7 @@ end_forever_loop:
     uint64_t elapsed_ns = (nsec1 - nsec0);
 
     if (msgctl(serverId, IPC_RMID, NULL) == -1) {
-        errExit("msgctl");
+        errExit("msgctl serverId");
     }
     printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
            NumActiveClients, NumActiveClientsHWM);
@@ -517,7 +517,7 @@ svr_clock_calibrate(void)
 
         struct timespec ts_clock;
         if (clock_getres(clockid, &ts_clock)) {
-            errExit("clock_getres");
+            errExit("clock_getres-Calibrate");
         }
         unsigned ovhd = svr_clock_overhead(clockid);
         printf("Average overhead for clock_id=%d (%s): %u ns"

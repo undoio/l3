@@ -58,7 +58,7 @@ static void
 removeQueue(void)
 {
     if (msgctl(clientId, IPC_RMID, NULL) == -1) {
-        errExit("msgctl");
+        errExit("msgctl clientId");
     }
 }
 
@@ -129,13 +129,13 @@ main(int argc, char *argv[])
     req.counter     = 0;
 
     if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {
-        errExit("msgsnd");
+        errExit("msgsnd serverId");
     }
 
     responseMsg resp;
     msgLen = msgrcv(clientId, &resp, RESP_MSG_SIZE, 0, 0);
     if (msgLen == -1) {
-        errExit("msgrcv");
+        errExit("msgrcv clientId");
     }
 
     if (resp.mtype == RESP_MT_FAILURE) {
@@ -170,12 +170,12 @@ main(int argc, char *argv[])
         req.counter = resp.counter;
 
         if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {    // --> Send
-            errExit("msgsnd");
+            errExit("msgsnd serverId2");
         }
 
         msgLen = msgrcv(clientId, &resp, RESP_MSG_SIZE, 0, 0);  // <-- Recv
         if (msgLen == -1) {
-            errExit("msgrcv");
+            errExit("msgrcv clientId2");
         }
         if (resp.mtype == RESP_MT_FAILURE) {
             /* Display msg from server */
