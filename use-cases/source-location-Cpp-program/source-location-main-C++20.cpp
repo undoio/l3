@@ -26,18 +26,18 @@ int main(const int argc, char * argv[])
 {
     std::cout << __func__ << "(): Size of std::source_location: "
               << sizeof(std::source_location) << " bytes"
-              << std::endl;
+              << '\n';
 
-    std::source_location callee = LOG("Hello world!");
+    std::source_location callee = LOG("Hello world: Lock Acquire!");
 
     std::cout << callee.file_name()     << ':'
               << callee.line()          << ':'
               << callee.column()        << "::"
               << callee.function_name()
-              << " [Callee main()]"
+              << " [whoami main()]"
               << '\n';
 
-    func("Hello C++20!");
+    func("Hello C++20: Lock Release!");
 
     minion();
 }
