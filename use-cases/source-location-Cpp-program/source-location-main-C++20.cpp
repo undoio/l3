@@ -12,47 +12,12 @@
 #include "source-location.h"
 
 /**
- * log() - Generic logging method to print source-code-location and a msg.
- */
-std::source_location
-log(const std::string_view message,
-    const std::source_location location = std::source_location::current())
-{
-    std::cout << "\n" << location.file_name() << ':'
-              << location.line() << ':'
-              << location.column() << "::"
-              << location.function_name()
-              << ": '" << message << "'"
-              << '\n';
-
-    // Return instance of source_location where this logging happened at.
-    std::source_location curr_location = std::source_location::current();
-
-    return curr_location;
-}
-
-/**
- * pr_source_location() - Print the contents of a source-code-location object.
- */
-void
-pr_source_location(const std::source_location loc,
-                   const std::string msg = "")
-{
-    std::cout << loc.file_name() << ':'
-              << loc.line() << ':'
-              << loc.column() << "::"
-              << loc.function_name()
-              << msg
-              << '\n';
-}
-
-/**
  * func() - Some templatized function to invoke generic log()'ging method.
  */
 template<typename T>
 void func(T x)
 {
-    std::source_location callee = log(x);
+    std::source_location callee = LOG(x);
 
     pr_source_location(callee, " [Callee template<T> func()]");
 }
@@ -63,11 +28,11 @@ int main(const int argc, char * argv[])
               << sizeof(std::source_location) << " bytes"
               << std::endl;
 
-    std::source_location callee = log("Hello world!");
+    std::source_location callee = LOG("Hello world!");
 
-    std::cout << callee.file_name() << ':'
-              << callee.line() << ':'
-              << callee.column() << "::"
+    std::cout << callee.file_name()     << ':'
+              << callee.line()          << ':'
+              << callee.column()        << "::"
               << callee.function_name()
               << " [Callee main()]"
               << '\n';
