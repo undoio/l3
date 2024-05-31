@@ -132,6 +132,7 @@ static const char * L3_logtype_name[] = {
                         , "L3_LOG_MMAP"
                         , "L3_LOG_FPRINTF"
                         , "L3_LOG_WRITE"
+                        , "L3_LOG_WRITE_MSG"
                 };
 
 L3_STATIC_ASSERT((L3_ARRAY_LEN(L3_logtype_name) == L3_LOGTYPE_MAX),
@@ -202,6 +203,7 @@ l3_log_init(const l3_log_t logtype, const char *path)
         break;
 
       case L3_LOG_WRITE:
+      case L3_LOG_WRITE_MSG:
         rv = l3_init_write(path);
         break;
 

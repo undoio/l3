@@ -56,6 +56,7 @@ typedef enum {
     , L3_LOG_MMAP
     , L3_LOG_FPRINTF
     , L3_LOG_WRITE
+    , L3_LOG_WRITE_MSG
     , L3_LOGTYPE_MAX
     , L3_LOG_DEFAULT    = L3_LOG_MMAP
 } l3_log_t;
@@ -134,6 +135,10 @@ const char *l3_logtype_name(l3_log_t logtype);
     #elif defined(L3_LOGT_WRITE)
 
     #define l3_log(msg, arg1, arg2) l3_log_write((msg), arg1, arg2)
+
+    #elif defined(L3_LOGT_WRITE_MSG)
+
+    #define l3_log(msg, arg1, arg2) l3_log_write_msg((msg), arg1, arg2)
 
     #else
     #define l3_log(msg, arg1, arg2)                                     \
