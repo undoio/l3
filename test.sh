@@ -100,6 +100,7 @@ TestList=(
            "run-all-client-server-perf-tests"
 
            "test-build-and-run-client-server-perf-test"
+           "test-build-and-run-client-server-perf-test-fprintf"
            "test-build-and-run-client-server-perf-test-l3_loc_eq_1"
            "test-build-and-run-client-server-perf-test-l3_loc_eq_2"
 
@@ -434,6 +435,8 @@ function run-all-client-server-perf-tests()
     echo " "
     test-build-and-run-client-server-perf-test "${num_msgs_per_client}"
 
+    test-build-and-run-client-server-perf-test-fprintf "${num_msgs_per_client}"
+
     test-build-and-run-client-server-perf-test-l3_loc_eq_1 "${num_msgs_per_client}"
 
     test-build-and-run-client-server-perf-test-l3_loc_eq_2 "${num_msgs_per_client}"
@@ -522,15 +525,6 @@ function test-build-and-run-client-server-perf-test()
     fi
 
     set +x
-
-    echo " "
-    echo "**** ${Me}: Client-server performance testing with L3-fprintf logging ON:"
-    echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
-                                          "${l3_log_enabled}"       \
-                                          "${l3_LOC_disabled}"      \
-                                          "fprintf"
-
     echo " "
     echo "**** ${Me}: Completed basic client(s)-server communication test."
     echo " "
@@ -541,6 +535,33 @@ function test-build-and-run-client-server-perf-test()
     ${client_bin} --help
 
     ${server_bin} --help
+}
+
+# #############################################################################
+# Test build-and-run of client-server performance test benchmark, using the
+# fprintf() logging interface under L3..
+# #############################################################################
+function test-build-and-run-client-server-perf-test-fprintf()
+{
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 1 ]; then
+        num_msgs_per_client=$1
+    fi
+
+    if [ $# -ge 2 ]; then
+        SvrClockArg=$2
+    fi
+
+    local l3_log_enabled=1
+    local l3_LOC_disabled=0
+
+    echo " "
+    echo "**** ${Me}: Client-server performance testing with L3-fprintf logging ON:"
+    echo " "
+    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
+                                           "${l3_log_enabled}"      \
+                                           "${l3_LOC_disabled}"     \
+                                           "fprintf"
 }
 
 # #############################################################################
