@@ -136,10 +136,6 @@ const char *l3_logtype_name(l3_log_t logtype);
 
     #define l3_log(msg, arg1, arg2) l3_log_write((msg), arg1, arg2)
 
-    #elif defined(L3_LOGT_WRITE_MSG)
-
-    #define l3_log(msg, arg1, arg2) l3_log_write_msg((msg), arg1, arg2)
-
     #else
     #define l3_log(msg, arg1, arg2)                                     \
             l3_log_mmap((msg),                                          \
@@ -185,9 +181,7 @@ l3_log_fprintf(const char *msg, const uint64_t arg1, const uint64_t arg2)
     fprintf(l3_log_fh, msg, arg1, arg2);
 }
 
-void l3_log_write(const char *msg, const uint64_t arg1, const uint64_t arg2);
-
-void l3_log_write_msg(const char *msg, const uint64_t arg1, const uint64_t arg2);
+void l3_log_write(const char *msgfmt, const uint64_t arg1, const uint64_t arg2);
 
 #ifdef __cplusplus
 }

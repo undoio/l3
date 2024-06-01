@@ -379,34 +379,11 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
 
 /**
  * l3_log_write() - 'C' interface to log L3 log-entries using write()
+ * The user's msg is sprintf()'ed using 'msgfmt' format specifiers, requiring
+ * 2 arguments.
  */
 void
-l3_log_write(const char *msg, const uint64_t arg1, const uint64_t arg2)
-{
-    L3_ENTRY le     = {0};
-    L3_ENTRY *lep   = &le;
-
-    lep->tid = l3_mytid();
-
-    lep->msg = msg;
-    lep->arg1 = arg1;
-    lep->arg2 = arg2;
-
-    if (write(l3_log_fd, lep, sizeof(*lep)) != sizeof(*lep)) {
-        fprintf(stderr, "%s(): write() failed. errno=%d\n",
-                __func__, errno);
-        return;
-    }
-    return;
-}
-
-/**
- * l3_log_write_msg() - 'C' interface to log L3 log-entries using write()
- * Similar to l3_log_write(), but the msg is sprintf()'ed using 'msgfmt' format
- * specifiers, requiring 2 arguments.
- */
-void
-l3_log_write_msg(const char *msgfmt, const uint64_t arg1, const uint64_t arg2)
+l3_log_write(const char *msgfmt, const uint64_t arg1, const uint64_t arg2)
 {
     char msgbuf[255];
 

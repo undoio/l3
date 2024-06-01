@@ -24,8 +24,6 @@
 #include "l3-perf-test.h"
 
 static void test_write_logging_perf(int nMil);
-static void test_write_msg_logging_perf(int nMil);
-static void test_msg_logging_perf(const char *logtype, int nMil, const char *filename);
 
 /**
  * *****************************************************************************
@@ -46,7 +44,6 @@ main(const int argc, const char * argv[])
     test_write_logging_perf(1);
 
     test_write_logging_perf(nMil);
-    test_write_msg_logging_perf(nMil);
 
     return 0;
 }
@@ -64,17 +61,6 @@ test_write_logging_perf(int nMil)
     test_logging_perf("write", nMil, logfile);
 }
 
-static void
-test_write_msg_logging_perf(int nMil)
-{
-    // Logging perf benchmarking methods below share this log-file.
-    const char *logfile = "/tmp/l3-writemsg-logging-test.dat";
-    int e = l3_log_init(L3_LOG_WRITE, logfile);
-    if (e) {
-        abort();
-    }
-    test_msg_logging_perf("write", nMil, logfile);
-}
 #endif  // L3_LOGT_WRITE
 
 /**
@@ -96,35 +82,6 @@ test_logging_perf(const char *logtype, int nMil, const char *filename)
     uint32_t n = 0;
     for (n = 0; n < (nMil * L3_MILLION); n++) {
         l3_log("Perf-l3-log msgs, ctr=%d, value=%d\n", n, 0);
-    }
-
-    if (clock_gettime(CLOCK_REALTIME, &ts1)) {
-        abort();
-    }
-    uint64_t nsec0 = timespec_to_ns(&ts0);
-    uint64_t nsec1 = timespec_to_ns(&ts1);
-
-    printf("%d Mil %s() log msgs: %" PRIu64 " ns/msg (avg): %s\n",
-            nMil, logtype, ((nsec1 - nsec0) / n), filename);
-}
-
-/**
- * Identical to shared test_logging_perf() method, but this invokes the
- * write_msg() interface which will format the message w/ parameters
- * before logging it.
- */
-static void
-test_msg_logging_perf(const char *logtype, int nMil, const char *filename)
-{
-    struct timespec ts0;
-    struct timespec ts1;
-    if (clock_gettime(CLOCK_REALTIME, &ts0)) {
-        abort();
-    }
-
-    uint32_t n = 0;
-    for (n = 0; n < (nMil * L3_MILLION); n++) {
-        l3_log_write_msg("Perf-l3-log msgs, ctr=%d, value=%d\n", n, 0);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
