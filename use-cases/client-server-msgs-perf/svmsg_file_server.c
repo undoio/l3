@@ -219,8 +219,6 @@ main(int argc, char *argv[])
     logtype = L3_LOG_FPRINTF;
 #elif L3_LOGT_WRITE
     logtype = L3_LOG_WRITE;
-#elif L3_LOGT_WRITE_MSG
-    logtype = L3_LOG_WRITE_MSG;
 #endif
 
     int e = l3_log_init(logtype, logfile);
@@ -234,8 +232,6 @@ main(int argc, char *argv[])
     l3_log_mode = "fprintf() ";
 #elif L3_LOGT_WRITE
     l3_log_mode = "write() ";
-#elif L3_LOGT_WRITE_MSG
-    l3_log_mode = "write()-msg ";
 #else
     l3_log_mode = "";
 #endif  // L3_FASTLOG_ENABLED
@@ -335,7 +331,7 @@ main(int argc, char *argv[])
                         ". (L3-fast-log)",
                         resp.clientId, resp.counter);
 #  else
-            l3_log("Server msg: Increment: ClientID=%d, Counter=%" PRIu64 ".",
+            l3_log("Server msg: Increment: ClientID=%d, Counter=%" PRIu64 ".\n",
                    resp.clientId, resp.counter);
 #  endif
 

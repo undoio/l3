@@ -51,8 +51,7 @@ help::
 	@echo 'To build client-server performance test programs and run performance test(s)'
 	@echo ' make clean && CC=gcc LD=g++ L3_ENABLED=0         make client-server-perf-test  # Baseline'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_FPRINTF=1    make client-server-perf-test  # fprintf() logging'
-	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_WRITE=1      make client-server-perf-test  # write() logging'
-	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_WRITE=2      make client-server-perf-test  # write()-msg logging'
+	@echo ' make clean && CC=gcc LD=g++ L3_LOGT_WRITE=1      make client-server-perf-test  # write() msg logging'
 	@echo ' make clean && CC=gcc LD=g++                      make client-server-perf-test  # L3-logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_FASTLOG_ENABLED=1 make client-server-perf-test  # L3 Fast logging'
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=1     make client-server-perf-test  # L3+LOC logging'
@@ -603,10 +602,6 @@ else ifeq ($(L3_LOGT_FPRINTF), 1)
 else ifeq ($(L3_LOGT_WRITE), 1)
 
     CFLAGS += -DL3_LOGT_WRITE
-
-else ifeq ($(L3_LOGT_WRITE), 2)
-
-    CFLAGS += -DL3_LOGT_WRITE_MSG
 
 endif
 
