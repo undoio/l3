@@ -15,5 +15,7 @@ sudo apt-get install -y libspdlog-dev
 
 pip install pytest prettytable
 
+git submodule update --remote
+
 export PATH="/home/ubuntu/.local/bin:$PATH"
 
