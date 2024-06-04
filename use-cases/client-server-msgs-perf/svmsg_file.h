@@ -38,7 +38,8 @@
 /**
  * Message Types for request / response messages sent from server to client
  */
-typedef enum {
+typedef long req_resp_type_t;
+enum req_resp_type {
       REQ_MT_UNKNOWN    = 0
     , REQ_MT_INIT       = 1     // New client initialization
     , REQ_MT_INCR               // Increment client's counter
@@ -54,8 +55,7 @@ typedef enum {
     , RESP_MT_END               // End of message stream (unused)
     , RESP_MT_INCR  = REQ_MT_INCR
     , RESP_MT_QUIT  = REQ_MT_QUIT
-
-} req_resp_type_t;
+};
 
 
 typedef struct requestMsg {             /* Requests (client to server) */

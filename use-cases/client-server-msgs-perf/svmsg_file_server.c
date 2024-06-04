@@ -69,6 +69,7 @@ Usage: ./svmsg_file_server --help
 #include <time.h>
 #include <assert.h>
 #include <getopt.h>     // For getopt_long()
+#include <pthread.h>
 
 #ifdef __cplusplus
 #  if defined(L3_LOGT_SPDLOG) or defined(L3_LOGT_SPDLOG_BACKTRACE)
@@ -102,6 +103,13 @@ typedef struct client_info {
 
 Client_info ActiveClients[MAX_CLIENTS];
 
+/*
+ * Configuration for each server thread.
+ */
+typedef struct {
+    int     server_id;  // Server's msgq-ID.
+} svr_thread_config;
+
 /**
  * We have a simplistic model to track clients connecting and exiting.
  *
@@ -120,6 +128,16 @@ static unsigned int   NumActiveClientsHWM = 0;
 static unsigned int   NumActiveClients    = 0;
 
 /**
+ * On MacOSX, only the CLOCK_THREAD_CPUTIME_ID clock has a resolution of 1ns.
+ * On Linux, all clocks seem to have 1 ns resolution, so use the CLOCK_REALTIME
+ * clock as the default clock to use. This way, the throughput metric computed
+ * as (nops/sec) is consistent with normal expectation of 'sec' as real time
+ * seconds.
+ */
+int Clock_id = CLOCK_REALTIME;
+
+
+/**
  * Simple argument parsing structure.
  */
 struct option Long_options[] = {
@@ -132,18 +150,33 @@ struct option Long_options[] = {
     , { "clock-thread-cputime-id"   , no_argument         , NULL, 't'}
 
     // Options that need arguments
+    , { "num-server-threads"        , required_argument   , NULL, 'n'}
     , { "perf-outfile"              , required_argument   , NULL, 'o'}
     , { NULL, 0, NULL, 0}           // End of options
 };
 
-const char * Options_str = "o:dhmprt";
+const char * Options_str = "no:dhmprt";
 
 // Useful macros
 #define ARRAY_LEN(arr)  (sizeof(arr) / sizeof(*arr))
 
+#if defined(L3_LOGT_SPDLOG)
+std::shared_ptr<spdlog::logger> Spd_logger; // = spdlog::basic_logger_mt();
+#endif  // L3_LOGT_SPDLOG
+
+
 // Function Prototypes
 
-int parse_arguments(const int argc, char *argv[], int *clock_id, char **outfile);
+// Server-method prototypes
+
+int svr_start_threads(pthread_t *thread_ids, int nthreads, void * svr_config);
+
+void *svr_proc_process_msg(void *cfg);
+int svr_op_ct_init(requestMsg *req);
+int svr_op_incr(requestMsg *req);
+
+int parse_arguments(const int argc, char *argv[], int *clock_id,
+                    char **outfile, int *num_threads);
 void print_usage(const char *program, struct option options[]);
 
 void printSummaryStats(const char *outfile, const char *run_descr,
@@ -175,8 +208,6 @@ grimReaper(int sig)
 int
 main(int argc, char *argv[])
 {
-    ssize_t msgLen;
-    int     serverId;
     struct sigaction sa;
 
 #if __APPLE__
@@ -184,24 +215,19 @@ main(int argc, char *argv[])
     exit(EXIT_SUCCESS);
 #endif
 
-    // On MacOSX, only the CLOCK_THREAD_CPUTIME_ID clock has a resolution of 1ns.
-    // On Linux, all clocks seem to have 1 ns resolution, so, default is to
-    // use the CLOCK_REALTIME, so throughput (nops/sec) is metris's calculation
-    // is consistent with normal expectation.
-    int clock_id = CLOCK_REALTIME;
-
     char *outfile = NULL;
+    int num_threads = 1;
 
     // Arg-parsing is only supported on Linux.
-    int rv = parse_arguments(argc, argv, &clock_id, &outfile);
+    int rv = parse_arguments(argc, argv, &Clock_id, &outfile, &num_threads);
     if (rv) {
         errExit("Argument error.");
     }
 
     /* Create server message queue */
 
-    serverId = msgget(SERVER_KEY,
-                      (IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IWGRP));
+    int serverId = msgget(SERVER_KEY,
+                          (IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR | S_IWGRP));
     if (serverId == -1) {
         errExit("msgget SERVER_KEY");
     }
@@ -217,20 +243,17 @@ main(int argc, char *argv[])
 
     char run_descr[80];
 
-
     // L3 does not directly support spdlog. Manaage it separately.
 #if defined(L3_LOGT_SPDLOG)
     // Create basic file logger (not rotated).
-    // string logfile = "/tmp/basic-log.txt";
     const char *logfile = "/tmp/l3.c-server-test.dat";
-    auto spd_logger = spdlog::basic_logger_mt("file_logger", logfile,
-                                              true);
+    Spd_logger = spdlog::basic_logger_mt("file_logger", logfile, true);
     const char *logging_type = "spdlog";
 
     printf("Start Server, using clock '%s'"
            ": Initiate spdlog-logging to log-file '%s'"
            ", using logtype '%s'.\n",
-           clock_name(clock_id), logfile, logging_type);
+           clock_name(Clock_id), logfile, logging_type);
 
     snprintf(run_descr, sizeof(run_descr), "%s-logging", logging_type);
 
@@ -246,7 +269,7 @@ main(int argc, char *argv[])
     printf("Start Server, using clock '%s'"
            ": Initiate spdlog-logging (log-file '%s' unused)"
            ", using logtype '%s'.\n",
-           clock_name(clock_id), logfile, logging_type);
+           clock_name(Clock_id), logfile, logging_type);
 
     snprintf(run_descr, sizeof(run_descr), "%s-logging", logging_type);
 
@@ -292,158 +315,50 @@ main(int argc, char *argv[])
     printf("Start Server, using clock '%s'"
            ": Initiate L3-%slogging to log-file '%s'"
            ", using %s encoding scheme.\n",
-           clock_name(clock_id), l3_log_mode, logfile, loc_scheme);
+           clock_name(Clock_id), l3_log_mode, logfile, loc_scheme);
 
     snprintf(run_descr, sizeof(run_descr), "L3-%slogging %s",
              l3_log_mode, loc_scheme);
 
 #else // L3_ENABLED
 
-    printf("Start Server, using clock ID=%d '%s': No logging.\n",
-           clock_id, clock_name(clock_id));
+    printf("Start Server, using clock ID=%d '%s': No logging"
+           ", %d server-threads, server-msgq-ID=%d.\n",
+           Clock_id, clock_name(Clock_id), num_threads, serverId);
     snprintf(run_descr, sizeof(run_descr), "Baseline - No logging");
 
 #endif // L3_ENABLED
 
-    /* Read requests, handle each in a separate child process */
-    Client_info *clientp = NULL;
-    requestMsg req;
-    responseMsg resp;
+    // Invoke pthread_create() to create n-threads ...
+    svr_thread_config   svr_config = {
+                            .server_id = serverId
+                        };
+    pthread_t   thread_ids[num_threads];
 
     struct timespec ts0 = {0};
-    struct timespec ts1 = {0};
 
+    if (svr_start_threads(thread_ids, num_threads, (void *) &svr_config)) {
+        errExit("Server thread creation failed.");
+    }
 #if !defined(__APPLE__)
-    if (clock_gettime(clock_id, &ts0)) {    // ***** Timing begins
+    if (clock_gettime(Clock_id, &ts0)) {        // ***** Timing begins
         errExit("clock_gettime-ts0");
     }
 #endif  // ! __APPLE__
 
-    for (;;) {
-
-        msgLen = msgrcv(serverId, &req, REQ_MSG_SIZE, 0, 0);
-        if (msgLen == -1) {
-            if (errno == EINTR) {       /* Interrupted by SIGCHLD handler? */
-                continue;               /* ... then restart msgrcv() */
-            }
-            errMsg("msgrcv");           /* Some other error */
-            break;                      /* ... so terminate loop */
-        }
-
-        switch ((int) req.mtype) {
-
-          case REQ_MT_INIT:
-            resp.mtype = req.mtype;         // Confirm initialization is done
-            resp.clientId = req.clientId;   // For this client
-
-            // Use the next free slot w/o trying to recycle existing free slots.
-            resp.client_idx = NumActiveClientsHWM;
-            resp.counter = req.counter;     // Just init'ed; no incr/decr done
-
-            // Save off client's initial state
-            clientp = &ActiveClients[NumActiveClientsHWM];
-            memset(clientp, 0, sizeof(*clientp));
-
-            clientp->clientId   = req.clientId;
-            clientp->client_idx = NumActiveClientsHWM;
-            clientp->client_ctr = req.counter;
-            clientp->last_mtype = req.mtype;
-
-            NumActiveClients++;
-            NumActiveClientsHWM++;
-            printf("Server: Client ID=%d joined. Clock ID=%d, # active clients=%d (HWM=%d)\n",
-                   req.clientId, clock_id, NumActiveClients, NumActiveClientsHWM);
-            break;
-
-          case REQ_MT_INCR:
-
-            clientp = &ActiveClients[req.client_idx];
-            assert(clientp->clientId == req.clientId);
-
-            resp.mtype = REQ_MT_INCR;               // Construct response message
-            resp.clientId = req.clientId;           // For this client
-            resp.client_idx = req.client_idx;
-
-            clientp->last_mtype = REQ_MT_INCR;      // Prepare to increment
-            resp.counter = ++clientp->client_ctr;   // Do Increment
-            clientp->num_ops++;                     // Track # of operations
-
-            // Record time-consumed. (NOTE: See clarification below.)
-#  if defined(L3_LOGT_SPDLOG)
-            spd_logger->info("Server spdlog: "
-                             "Increment: ClientID={}, Counter{}.",
-                             resp.clientId, resp.counter);
-
-#  elif defined(L3_LOGT_SPDLOG_BACKTRACE)
-
-            spdlog::debug("Server spdlog-Backtrace: "
-                         "Increment: ClientID={}, Counter={}.",
-                         resp.clientId, resp.counter);
-
-#elif L3_ENABLED
-
-#  if L3_FASTLOG_ENABLED
-            l3_log_fast("Server msg: Increment: ClientID=%d, Counter=%" PRIu64
-                        ". (L3-fast-log)",
-                        resp.clientId, resp.counter);
-#  else
-            l3_log("Server msg: Increment: ClientID=%d, Counter=%" PRIu64 ".\n",
-                   resp.clientId, resp.counter);
-#  endif    // L3_FASTLOG_ENABLED
-
-#endif // L3_ENABLED
-
-            break;
-
-          case REQ_MT_SET_THROUGHPUT:
-            // Record client-side computed avg throughput
-            clientp = &ActiveClients[req.client_idx];
-            clientp->throughput = req.counter;
-            req.clientId = 0;           // Client is not interested in a response
-            break;
-
-          case REQ_MT_EXIT:
-
-            clientp = &ActiveClients[req.client_idx];
-            // One client has informed that it has exited
-            NumActiveClients--;
-
-            printf("Server: Client ID=%d exited. num_ops=%" PRIu64 " (%s)"
-                   " # active clients=%d\n",
-                   req.clientId,
-                   clientp->num_ops, value_str(clientp->num_ops),
-                   NumActiveClients);
-
-            // Client has exited, so no need to send ack-response back to it.
-            req.clientId = 0;
-            if (NumActiveClients == 0) {
-                goto end_forever_loop;
-            }
-            break;
-
-#if !defined(__cplusplus)
-          case REQ_MT_QUIT:
-          default:
-            assert(1 == 0);
-            break;
-#endif  // __cplusplus
-
-        }
-
-        // Client may have exited, so no need to send ack-response back to it.
-        if (req.clientId && msgsnd(req.clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
-            printf("Warning: msgsnd() to client ID=%d failed to deliver.\n",
-                   req.clientId);
-            break;
-        }
-
-        /* Parent loops to receive next client request */
+   // Wait for all threads to complete ...
+   for (int tctr = 0; tctr < num_threads; tctr++) {
+      void *thread_rc;
+      int   rc = pthread_join(thread_ids[tctr], &thread_rc);
+      if (rc) {
+        errExit("pthread_join() failed.");
+      }
     }
 
-end_forever_loop:
+    struct timespec ts1 = {0};
 
 #if !defined(__APPLE__)
-    if (clock_gettime(clock_id, &ts1)) {        // **** Timing ends
+    if (clock_gettime(Clock_id, &ts1)) {        // **** Timing ends
         errExit("clock_gettime-ts1");
     }
 #endif  // ! __APPLE__
@@ -474,7 +389,7 @@ end_forever_loop:
            NumActiveClients, NumActiveClientsHWM);
 
     printSummaryStats(outfile, run_descr, ActiveClients, NumActiveClientsHWM,
-                      clock_id, elapsed_ns);
+                      Clock_id, elapsed_ns);
 
     // For visibility into how clocks are performing on user's machine,
     // run clock-calibration after all workload / metrics collection is done.
@@ -497,14 +412,235 @@ end_forever_loop:
 }
 
 /**
+ * *****************************************************************************
+ * Server methods to implement each operation.
+ * *****************************************************************************
+ */
+/**
+ * -----------------------------------------------------------------------------
+ * svr_start_threads() - Start 'n' server-threads, receiving and processing
+ * messages from clients.
+ *
+ * Returns:
+ *  0 => Created required # of threads successfully.
+ *  Non-zero => Some error(s) during thread creation.
+ * -----------------------------------------------------------------------------
+ */
+int
+svr_start_threads(pthread_t *thread_ids, int nthreads, void *svr_config)
+{
+    int rv = 0;
+    for (int tctr = 0; tctr < nthreads; tctr++) {
+        rv = pthread_create(&thread_ids[tctr], NULL, svr_proc_process_msg,
+                            svr_config);
+        if (rv) {
+            break;
+        }
+    }
+    return rv;
+}
+
+/**
+ * -----------------------------------------------------------------------------
+ * svr_proc_process_msg() - for()-ever loop to process messages from clients.
+ * -----------------------------------------------------------------------------
+ */
+void *
+svr_proc_process_msg(void *cfg)
+{
+    // Unpack the thread's config-params to get a hold of server's msgq-ID
+    svr_thread_config *svr_config = (svr_thread_config *) cfg;
+    int serverId = svr_config->server_id;
+
+    ssize_t msgLen;
+    Client_info *clientp = NULL;
+    requestMsg req;
+
+    for (;;) {
+
+        msgLen = msgrcv(serverId, &req, REQ_MSG_SIZE, 0, 0);
+        if (msgLen == -1) {
+            if (errno == EINTR) {       /* Interrupted by SIGCHLD handler? */
+                continue;               /* ... then restart msgrcv() */
+            }
+            errMsg("msgrcv");           /* Some other error */
+            break;                      /* ... so terminate loop */
+        }
+
+        switch ((int) req.mtype) {
+
+          case REQ_MT_INIT:
+            if (svr_op_ct_init(&req)) {
+                errExit("svr_op_ct_init() failed.");
+            }
+            break;
+
+          case REQ_MT_INCR:
+            if (svr_op_incr(&req)) {
+                errExit("svr_op_incr() failed.");
+            }
+            break;
+
+          case REQ_MT_SET_THROUGHPUT:
+            // Record client-side computed avg throughput
+            clientp = &ActiveClients[req.client_idx];
+            clientp->throughput = req.counter;
+            break;
+
+          case REQ_MT_EXIT:
+
+            clientp = &ActiveClients[req.client_idx];
+            // One client has informed that it has exited
+            NumActiveClients--;
+
+            printf("Server: Client ID=%d exited. num_ops=%" PRIu64 " (%s)"
+                   " # active clients=%d\n",
+                   req.clientId,
+                   clientp->num_ops, value_str(clientp->num_ops),
+                   NumActiveClients);
+
+            if (NumActiveClients == 0) {
+                goto end_forever_loop;
+            }
+            break;
+
+#if !defined(__cplusplus)
+          case REQ_MT_QUIT:
+          default:
+            assert(1 == 0);
+            break;
+#endif  // __cplusplus
+
+        }
+
+        /* Parent loops to receive next client request */
+    }
+
+end_forever_loop:
+
+    return 0;
+}
+
+/**
+ * -----------------------------------------------------------------------------
+ * REQ_MT_INIT: Client initialization
+ *
+ * Returns:
+ *  0 => success; Non-zero => some failure.
+ * -----------------------------------------------------------------------------
+ */
+int
+svr_op_ct_init(requestMsg *req)
+{
+    assert(req->mtype == REQ_MT_INIT);
+
+    responseMsg resp;
+    memset(&resp, 0, sizeof(resp));
+
+    resp.mtype = req->mtype;         // Confirm initialization is done
+
+    assert(req->clientId > 0);
+    resp.clientId = req->clientId;   // For this client
+
+    // Use the next free slot w/o trying to recycle existing free slots.
+    resp.client_idx = NumActiveClientsHWM;
+    resp.counter = req->counter;     // Just init'ed; no incr/decr done
+
+    // Save off client's initial state
+    Client_info *clientp = &ActiveClients[NumActiveClientsHWM];
+    memset(clientp, 0, sizeof(*clientp));
+
+    clientp->clientId   = req->clientId;
+    clientp->client_idx = NumActiveClientsHWM;
+    clientp->client_ctr = req->counter;
+    clientp->last_mtype = req->mtype;
+
+    NumActiveClients++;
+    NumActiveClientsHWM++;
+    printf("Server: Client ID=%d joined. # active clients=%d (HWM=%d)\n",
+           req->clientId, NumActiveClients, NumActiveClientsHWM);
+
+    int rv = 0;
+    if (msgsnd(req->clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
+        printf("Warning: msgsnd() to client ID=%d failed to deliver.\n",
+               req->clientId);
+        rv = -1;
+    }
+    return rv;
+}
+
+/**
+ * -----------------------------------------------------------------------------
+ * REQ_MT_INCR: Increment operation: Bump up client_ctr by 1.
+ *
+ * Returns:
+ *  0 => success; Non-zero => some failure.
+ * -----------------------------------------------------------------------------
+ */
+int
+svr_op_incr(requestMsg *req)
+{
+    Client_info *clientp = &ActiveClients[req->client_idx];
+    assert(clientp->clientId == req->clientId);
+
+    responseMsg resp;
+    memset(&resp, 0, sizeof(resp));
+
+    resp.mtype = REQ_MT_INCR;               // Construct response message
+    resp.clientId = req->clientId;           // For this client
+    resp.client_idx = req->client_idx;
+
+    clientp->last_mtype = REQ_MT_INCR;      // Prepare to increment
+    resp.counter = ++clientp->client_ctr;   // Do Increment
+    clientp->num_ops++;                     // Track # of operations
+
+    // Record time-consumed. (NOTE: See clarification below.)
+#  if defined(L3_LOGT_SPDLOG)
+    Spd_logger->info("Server spdlog: "
+                     "Increment: ClientID={}, Counter{}.",
+                     resp.clientId, resp.counter);
+
+#  elif defined(L3_LOGT_SPDLOG_BACKTRACE)
+
+    spdlog::debug("Server spdlog-Backtrace: "
+                 "Increment: ClientID={}, Counter={}.",
+                 resp.clientId, resp.counter);
+
+#elif L3_ENABLED
+
+#  if L3_FASTLOG_ENABLED
+    l3_log_fast("Server msg: Increment: ClientID=%d, Counter=%" PRIu64
+                ". (L3-fast-log)",
+                resp.clientId, resp.counter);
+#  else
+    l3_log("Server msg: Increment: ClientID=%d, Counter=%" PRIu64 ".\n",
+           resp.clientId, resp.counter);
+#  endif    // L3_FASTLOG_ENABLED
+
+#endif // L3_ENABLED
+
+    int rv = 0;
+    if (msgsnd(req->clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
+        printf("Warning: msgsnd() to client ID=%d failed to deliver.\n",
+               req->clientId);
+        rv = -1;
+    }
+    return rv;
+}
+
+
+/**
+ * -----------------------------------------------------------------------------
  * Helper methods
+ * -----------------------------------------------------------------------------
  */
 
 /**
  * Simple argument parsing support.
  */
 int
-parse_arguments(const int argc, char *argv[], int *clock_id, char **outfile)
+parse_arguments(const int argc, char *argv[], int *clock_id,
+                char **outfile, int *num_threads)
 {
     int option_index = 0;
     int opt;
@@ -539,6 +675,10 @@ parse_arguments(const int argc, char *argv[], int *clock_id, char **outfile)
                 break;
 
             // --options that need an argument
+            case 'n':
+               *num_threads = atoi(optarg);
+               break;
+
             case 'o':
                 *outfile = optarg;
                 break;
@@ -606,7 +746,7 @@ svr_clock_calibrate(void)
             errExit("clock_getres-Calibrate");
         }
         unsigned ovhd = svr_clock_overhead(clockid);
-        printf("Average overhead for clock_id=%d (%s): %u ns"
+        printf("Average overhead for Clock_id=%d (%s): %u ns"
                ", Resolution = %" PRIu64 " ns\n",
                clockid, clock_name(clockid), ovhd,
                timespec_to_ns(&ts_clock));
