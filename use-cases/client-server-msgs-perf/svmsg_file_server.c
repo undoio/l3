@@ -89,16 +89,12 @@ Usage: ./svmsg_file_server --help
  * Global data structures to track client-specific information.
  *
  * NOTE: This program can be configured to use different clocks to measure
- * time, using the --clock<arg> argument. The cumu_time_ns tracks the
- * cumulative time elapsed to implement the msg, including the time for
- * any logging that might have been done in a build/experiment.
+ * time, using the --clock<arg> argument.
  */
 typedef struct client_info {
     int             clientId;
     int             client_idx;         // Into ActiveClients[] array, below
     int64_t         client_ctr;         // Current value of client's counter
-    uint64_t        cumu_time_ns;       // Cumulative elapsed-time for operation,
-                                        // including logging overheads.
     uint64_t        num_ops;            // # of msg-op requests received
     uint64_t        throughput;         // Client-side avg throughput nops/sec
     req_resp_type_t last_mtype;         // Last request's->mtype
@@ -412,25 +408,10 @@ main(int argc, char *argv[])
             // One client has informed that it has exited
             NumActiveClients--;
 
-            // NOTE: If server is started using one of the --clock arguments,
-            // the metric's name logged in L3's log-line, above, will be
-            // misleading. It needs to be hard-coded to a literal string at
-            // compile-time. The metric's name given below is the right one
-            // corresponding to the active clock.
-            size_t throughput = 0;
-
             printf("Server: Client ID=%d exited. num_ops=%" PRIu64 " (%s)"
-                   ", cumu_time_ns=%" PRIu64 " (%s ns)"
-                   " (clock_id=%d)"
-                   ", Avg. %s time=%" PRIu64 " ns/msg"
-                   ", Server-throughput=%lu (%s) ops/sec"
-                   ", # active clients=%d\n",
+                   " # active clients=%d\n",
                    req.clientId,
                    clientp->num_ops, value_str(clientp->num_ops),
-                   clientp->cumu_time_ns, value_str(clientp->cumu_time_ns),
-                   clock_id, time_metric_name(clock_id),
-                   (clientp->cumu_time_ns / clientp->num_ops),
-                   throughput, value_str(throughput),
                    NumActiveClients);
 
             // Client has exited, so no need to send ack-response back to it.
