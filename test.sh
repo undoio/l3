@@ -129,11 +129,11 @@ function usage()
    echo " "
    echo " ${Me} run-all-client-server-perf-tests [ server-clock-ID [ num-msgs [ num-clients ] ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-client-server-perf-test [ num-msgs [ server-clock-ID ] ]"
+   echo " ${Me} test-build-and-run-client-server-perf-test [ server-clock-ID [ num-msgs ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-client-server-perf-test-l3_loc_eq_1 [ num-msgs [ server-clock-ID ] ]"
+   echo " ${Me} test-build-and-run-client-server-perf-test-l3_loc_eq_1 [ server-clock-ID [ num-msgs ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-client-server-perf-test-l3_loc_eq_2 [ num-msgs [ server-clock-ID ] ]"
+   echo " ${Me} test-build-and-run-client-server-perf-test-l3_loc_eq_2 [ server-clock-ID [ num-msgs ] ]"
    echo " "
    echo "  Client-Server performance u-benchmarking defaults:"
    echo "    Number of clients                      = ${NumClients}"
@@ -467,16 +467,20 @@ function run-all-client-server-perf-tests()
 # #############################################################################
 # Test build-and-run of client-server performance test benchmark.
 # This test-case runs with no-L3-logging and L3-logging enabled.
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
 function test-build-and-run-client-server-perf-test()
 {
-    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 1 ]; then
-        num_msgs_per_client=$1
+        SvrClockArg=$1
     fi
 
+    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 2 ]; then
-        SvrClockArg=$2
+        num_msgs_per_client=$2
     fi
 
     local l3_log_disabled=0
@@ -549,17 +553,22 @@ function test-build-and-run-client-server-perf-test()
 # #############################################################################
 # Test build-and-run of client-server performance test benchmark, using the
 # fprintf() logging interface under L3..
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
 function test-build-and-run-client-server-perf-test-fprintf()
 {
-    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 1 ]; then
-        num_msgs_per_client=$1
+        SvrClockArg=$1
     fi
 
+    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 2 ]; then
-        SvrClockArg=$2
+        num_msgs_per_client=$2
     fi
+
 
     local l3_log_enabled=1
     local l3_LOC_disabled=0
@@ -576,16 +585,20 @@ function test-build-and-run-client-server-perf-test-fprintf()
 # #############################################################################
 # Test build-and-run of client-server performance test benchmark, using the
 # write() msg logging interface under L3.
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
 function test-build-and-run-client-server-perf-test-write()
 {
-    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 1 ]; then
-        num_msgs_per_client=$1
+        SvrClockArg=$1
     fi
 
+    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 2 ]; then
-        SvrClockArg=$2
+        num_msgs_per_client=$2
     fi
 
     local l3_log_enabled=1
@@ -603,16 +616,20 @@ function test-build-and-run-client-server-perf-test-write()
 # #############################################################################
 # Test build-and-run of client-server performance test benchmark.
 # This test-case runs with L3-logging and L3-LOC (default) scheme enabled.
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
 function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
 {
-    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 1 ]; then
-        num_msgs_per_client=$1
+        SvrClockArg=$1
     fi
 
+    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 2 ]; then
-        SvrClockArg=$2
+        num_msgs_per_client=$2
     fi
 
     local l3_log_enabled=1
@@ -645,16 +662,20 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
 # #############################################################################
 # Test build-and-run of client-server performance test benchmark.
 # This test-case runs with L3-logging and L3-ELF scheme enabled.
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
 function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 {
-    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 1 ]; then
-        num_msgs_per_client=$1
+        SvrClockArg=$1
     fi
 
+    local num_msgs_per_client=${NumMsgsPerClient}
     if [ $# -ge 2 ]; then
-        SvrClockArg=$2
+        num_msgs_per_client=$2
     fi
 
     local l3_log_enabled=1
@@ -686,13 +707,22 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 # #############################################################################
 # Test build-and-run of client-server performance test benchmark,
 # with C++ spdlog logging.
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
 function test-build-and-run-client-server-perf-test-spdlog()
 {
-    local num_msgs_per_client=1000
-    if [ $# -eq 1 ]; then
-        num_msgs_per_client=$1
+    if [ $# -ge 1 ]; then
+        SvrClockArg=$1
     fi
+
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 2 ]; then
+        num_msgs_per_client=$2
+    fi
+
     set +x
 
     # spdlog is used here only for performance benchmarking.
