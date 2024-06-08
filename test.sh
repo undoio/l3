@@ -24,6 +24,8 @@ L3_BINARY="--binary"
 
 UNAME_S=$(uname -s)
 
+Ipcrm="./scripts/ipcrm.sh"
+
 # ###########################################################################
 # Set trap handlers for all errors. Needs -E (-o errtrace): Ensures that ERR
 # traps (see below) get inherited by functions, command substitutions, and
@@ -45,6 +47,9 @@ trap cleanup ERR
 # ##################################################################
 # Number of messages sent by each client to the server
 NumMsgsPerClient=1000
+
+# Number of server-threads started for client-server RPC-perf testing.
+NumServerThreads=1
 
 # Number of clients started for client-server RPC-perf testing.
 NumClients=5
@@ -146,7 +151,7 @@ function usage()
    echo " "
    echo "Run client-server performance tests as follows:"
    echo " "
-   echo " ${Me} run-all-client-server-perf-tests [ server-clock-ID [ num-msgs [ num-clients ] ] ]"
+   echo " ${Me} run-all-client-server-perf-tests [ server-clock-ID [ num-msgs [ num-server-threads [ num-clients ] ] ] ]"
    echo " "
    echo " ${Me} test-build-and-run-csperf [ server-clock-ID [ num-msgs ] ]"
    echo " "
@@ -412,7 +417,8 @@ function build-and-run-sample-c-appln-with-LOC-encoding()
 # Parameters:
 #   $1  - (Opt) Arg to select clock-ID to use
 #   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
-#   $3  - (Opt) # of clients to start-up (default: 5)
+#   $3  - (Opt) # of server-threads to start-up (default: 1)
+#   $4  - (Opt) # of clients to start-up (default: 5)
 #
 # Usage:
 #  $ ./test.sh run-all-client-server-perf-tests --clock-default $((100 * 1000)) > /tmp/perf-test.100K-rows.5ct.out 2>&1
@@ -440,7 +446,11 @@ function run-all-client-server-perf-tests()
     fi
 
     if [ $# -ge 3 ]; then
-        NumClients=$3
+        NumServerThreads=$3
+    fi
+
+    if [ $# -ge 4 ]; then
+        NumClients=$4
     fi
 
     set +x
@@ -816,6 +826,9 @@ function test-build-and-run-csperf-spdlog()
 
     run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_disabled}"
 
+    # Seen an occasional seg-fault on AWS-machines with higher # of server-threads
+    ${Ipcrm}
+
     # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
     if [ "${UNAME_S}" == "Linux" ]; then
         local nentries=100
@@ -858,6 +871,7 @@ function test-build-and-run-csperf-spdlog-backtrace()
                                  "spdlog-backtrace"
 
     run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_disabled}"
+    ${Ipcrm}
 }
 
 # #############################################################################

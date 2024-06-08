@@ -75,6 +75,7 @@ Usage: ./svmsg_file_server --help
 #  if defined(L3_LOGT_SPDLOG) or defined(L3_LOGT_SPDLOG_BACKTRACE)
 
 #   include <iostream>
+#   include <atomic>
 #   include "spdlog/spdlog.h"
 #   include "spdlog/sinks/basic_file_sink.h"
     using namespace std;
@@ -107,7 +108,13 @@ Client_info ActiveClients[MAX_CLIENTS];
  * Configuration for each server thread.
  */
 typedef struct {
-    int     server_id;  // Server's msgq-ID.
+    int         server_id;  // Server's msgq-ID.
+
+    // On Mac/OSX, pthread_self() returns a struct, not an ID. So, to get
+    // code compiling, print the thread's index in the threads[] array.
+    int         thread_idx;
+    uint64_t    num_ops;    // Processed by this thread
+
 } svr_thread_config;
 
 /**
@@ -124,8 +131,13 @@ typedef struct {
  *   system will use next Client_info[] slot, without trying to reuse
  *   the slot(s) freed by clients who exited previously.
  */
-static unsigned int   NumActiveClientsHWM = 0;
-static unsigned int   NumActiveClients    = 0;
+#ifdef __cplusplus
+static std::atomic<int> NumActiveClientsHWM{0};
+static std::atomic<int> NumActiveClients{0};
+#else   // __cplusplus
+static _Atomic int NumActiveClientsHWM = 0;
+static _Atomic int NumActiveClients    = 0;
+#endif  // __cplusplus
 
 /**
  * On MacOSX, only the CLOCK_THREAD_CPUTIME_ID clock has a resolution of 1ns.
@@ -169,7 +181,8 @@ std::shared_ptr<spdlog::logger> Spd_logger; // = spdlog::basic_logger_mt();
 
 // Server-method prototypes
 
-int svr_start_threads(pthread_t *thread_ids, int nthreads, void * svr_config);
+int svr_start_threads(pthread_t *thread_ids, int nthreads, int serverId,
+                      svr_thread_config * svr_config);
 
 void *svr_proc_process_msg(void *cfg);
 int svr_op_ct_init(requestMsg *req);
@@ -181,7 +194,8 @@ void print_usage(const char *program, struct option options[]);
 
 void printSummaryStats(const char *outfile, const char *run_descr,
                        Client_info *clients, unsigned int num_clients,
-                       int clock_id, uint64_t elapsed_ns);
+                       int clock_id, uint64_t elapsed_ns,
+                       svr_thread_config * svr_config, int num_threads);
 
 void svr_clock_calibrate(void);
 unsigned svr_clock_overhead(clockid_t clock_id);
@@ -330,14 +344,12 @@ main(int argc, char *argv[])
 #endif // L3_ENABLED
 
     // Invoke pthread_create() to create n-threads ...
-    svr_thread_config   svr_config = {
-                            .server_id = serverId
-                        };
+    svr_thread_config   svr_config[num_threads];
     pthread_t   thread_ids[num_threads];
 
     struct timespec ts0 = {0};
 
-    if (svr_start_threads(thread_ids, num_threads, (void *) &svr_config)) {
+    if (svr_start_threads(thread_ids, num_threads, serverId, svr_config)) {
         errExit("Server thread creation failed.");
     }
 #if !defined(__APPLE__)
@@ -385,11 +397,19 @@ main(int argc, char *argv[])
 
 #endif  // L3_ENABLED
 
+#ifdef __cplusplus
+    int activeClients = NumActiveClients.load();
+    int activeClientsHWM = NumActiveClientsHWM.load();
+#else
+    int activeClients = NumActiveClients;
+    int activeClientsHWM = NumActiveClientsHWM;
+#endif
     printf("Server: # active clients=%d (HWM=%d). Exiting.\n",
-           NumActiveClients, NumActiveClientsHWM);
+           activeClients, activeClientsHWM);
 
     printSummaryStats(outfile, run_descr, ActiveClients, NumActiveClientsHWM,
-                      Clock_id, elapsed_ns);
+                      Clock_id, elapsed_ns,
+                      svr_config, num_threads);
 
     // For visibility into how clocks are performing on user's machine,
     // run clock-calibration after all workload / metrics collection is done.
@@ -421,20 +441,38 @@ main(int argc, char *argv[])
  * svr_start_threads() - Start 'n' server-threads, receiving and processing
  * messages from clients.
  *
+ * Parameters:
+ *  thread_ids      - Array of 'nthreads' thread-IDs
+ *  nthreads        - Number of threads to start
+ *  serverId        - Server's msgq-ID
+ *  svr_config      - Array of thread's config struct (Used to output metrics)
+ *
  * Returns:
  *  0 => Created required # of threads successfully.
  *  Non-zero => Some error(s) during thread creation.
  * -----------------------------------------------------------------------------
  */
 int
-svr_start_threads(pthread_t *thread_ids, int nthreads, void *svr_config)
+svr_start_threads(pthread_t *thread_ids, int nthreads, int serverId,
+                  svr_thread_config *svr_config)
 {
     int rv = 0;
     for (int tctr = 0; tctr < nthreads; tctr++) {
+        svr_config[tctr].server_id = serverId;
+        svr_config[tctr].thread_idx = tctr;
+        svr_config[tctr].num_ops = 0;
         rv = pthread_create(&thread_ids[tctr], NULL, svr_proc_process_msg,
-                            svr_config);
+                            (void *) &svr_config[tctr]);
         if (rv) {
             break;
+        } else {
+            printf("Started server thread ID = %" PRIu64 "\n",
+#if __APPLE__
+                   (uint64_t) tctr
+#else
+                   thread_ids[tctr]
+#endif  // __APPLE__
+                  );
         }
     }
     return rv;
@@ -456,7 +494,18 @@ svr_proc_process_msg(void *cfg)
     Client_info *clientp = NULL;
     requestMsg req;
 
+#if __APPLE__
+    uint64_t tid = svr_config->thread_idx;
+#else
+    pthread_t tid = pthread_self();
+#endif  // __APPLE__
+
+    uint64_t    num_ops = 0;
     for (;;) {
+
+        if (NumActiveClientsHWM && (NumActiveClients == 0)) {
+            goto end_forever_loop;
+        }
 
         msgLen = msgrcv(serverId, &req, REQ_MSG_SIZE, 0, 0);
         if (msgLen == -1) {
@@ -479,6 +528,7 @@ svr_proc_process_msg(void *cfg)
             if (svr_op_incr(&req)) {
                 errExit("svr_op_incr() failed.");
             }
+            num_ops++;  // Just count the actual messages needing some action.
             break;
 
           case REQ_MT_SET_THROUGHPUT:
@@ -489,17 +539,38 @@ svr_proc_process_msg(void *cfg)
 
           case REQ_MT_EXIT:
 
-            clientp = &ActiveClients[req.client_idx];
-            // One client has informed that it has exited
-            NumActiveClients--;
+            // -ve client-index => it's a server-thread informing us to exit.
+            if (req.client_idx >= 0) {
+                clientp = &ActiveClients[req.client_idx];
+                // One client has informed that it has exited
+                NumActiveClients--;
 
-            printf("Server: Client ID=%d exited. num_ops=%" PRIu64 " (%s)"
-                   " # active clients=%d\n",
-                   req.clientId,
-                   clientp->num_ops, value_str(clientp->num_ops),
-                   NumActiveClients);
+#ifdef __cplusplus
+                int activeClients = NumActiveClients.load();
+#else
+                int activeClients = NumActiveClients;
+#endif
+                printf("Server: Client ID=%d exited. num_ops=%" PRIu64 " (%s)"
+                       " # active clients=%d\n",
+                       req.clientId,
+                       clientp->num_ops, value_str(clientp->num_ops),
+                       activeClients);
+            }
 
-            if (NumActiveClients == 0) {
+            if (NumActiveClients <= 0) {
+                printf("Server: ThreadID=%" PRIu64 " exiting.\n", tid);
+
+                if (NumActiveClients == 0) {
+                    req.mtype = REQ_MT_EXIT;
+
+                    // Inform last remaining server-thread that this is
+                    // a final-exit from a server-thread, and not from a real
+                    // client.
+                    req.client_idx = -1;
+                    if (msgsnd(serverId, &req, REQ_MSG_SIZE, 0) == -1) {
+                        errExit("thread-msgsnd-exit");
+                    }
+                }
                 goto end_forever_loop;
             }
             break;
@@ -518,6 +589,7 @@ svr_proc_process_msg(void *cfg)
 
 end_forever_loop:
 
+    svr_config->num_ops = num_ops;
     return 0;
 }
 
@@ -543,22 +615,26 @@ svr_op_ct_init(requestMsg *req)
     resp.clientId = req->clientId;   // For this client
 
     // Use the next free slot w/o trying to recycle existing free slots.
-    resp.client_idx = NumActiveClientsHWM;
+    resp.client_idx = NumActiveClientsHWM++;
     resp.counter = req->counter;     // Just init'ed; no incr/decr done
 
     // Save off client's initial state
-    Client_info *clientp = &ActiveClients[NumActiveClientsHWM];
+    Client_info *clientp = &ActiveClients[resp.client_idx];
     memset(clientp, 0, sizeof(*clientp));
 
     clientp->clientId   = req->clientId;
-    clientp->client_idx = NumActiveClientsHWM;
+    clientp->client_idx = resp.client_idx;
     clientp->client_ctr = req->counter;
     clientp->last_mtype = req->mtype;
 
     NumActiveClients++;
-    NumActiveClientsHWM++;
+#ifdef __cplusplus
+    int activeClients = NumActiveClients.load();
+#else
+    int activeClients = NumActiveClients;
+#endif
     printf("Server: Client ID=%d joined. # active clients=%d (HWM=%d)\n",
-           req->clientId, NumActiveClients, NumActiveClientsHWM);
+           req->clientId, activeClients, (resp.client_idx + 1));
 
     int rv = 0;
     if (msgsnd(req->clientId, &resp, RESP_MSG_SIZE, 0) == -1) {
@@ -597,7 +673,7 @@ svr_op_incr(requestMsg *req)
     // Record time-consumed. (NOTE: See clarification below.)
 #  if defined(L3_LOGT_SPDLOG)
     Spd_logger->info("Server spdlog: "
-                     "Increment: ClientID={}, Counter{}.",
+                     "Increment: ClientID={}, Counter={}.",
                      resp.clientId, resp.counter);
 
 #  elif defined(L3_LOGT_SPDLOG_BACKTRACE)
@@ -827,11 +903,22 @@ time_metric_name(int clock_id)
 
 /**
  * printSummaryStats() - Aggregate metrics and print summary across all clients.
+ *
+ * Parameters:
+ *  outfile     - Name of logging output file (if logging is done)
+ *  run_descr   - Run description string
+ *  clients     - Array of num_clients Client_info structs (for metrics)
+ *  num_clients - Number of clients
+ *  clock_id    - Server-side Clock-ID used for elapsed-time accounting
+ *  elapsed_ns  - Elapsed time, in ns
+ *  svr_config  - Array of num_threads svr_thread_config structs (for thread-specific metrics)
+ *  num_threads - Number of server-threads invoked for workload
  */
 void
 printSummaryStats(const char *outfile, const char *run_descr,
                   Client_info *clients, unsigned int num_clients,
-                  int clock_id, uint64_t elapsed_ns)
+                  int clock_id, uint64_t elapsed_ns,
+                  svr_thread_config *svr_config, int num_threads)
 {
     size_t  num_ops = 0;
     size_t  sum_throughput = 0;
@@ -844,17 +931,25 @@ printSummaryStats(const char *outfile, const char *run_descr,
                                             * L3_NS_IN_SEC);
     size_t cli_throughput = (sum_throughput / num_clients);
 
+    size_t avg_ops_per_thread = 0;
+    for (int tctr = 0; tctr < num_threads; tctr++) {
+        avg_ops_per_thread += svr_config[tctr].num_ops;
+    }
+    avg_ops_per_thread = (size_t) ((avg_ops_per_thread * 1.0) / num_threads);
+
     printf("For %u clients, %s, num_ops=%lu (%s) ops"
            ", Elapsed time=%" PRIu64 " (%s) ns"
            ", Avg. %s time=%" PRIu64 " ns/msg"
            ", Server throughput=%lu (%s) ops/sec"
            ", Client throughput=%lu (%s) ops/sec"
+           ", Avg. ops per thread=%lu (%s) ops/thread"
            "\n",
            num_clients, run_descr, num_ops, value_str(num_ops),
            elapsed_ns, value_str(elapsed_ns),
            time_metric_name(clock_id), (elapsed_ns / num_ops),
            svr_throughput, value_str(svr_throughput),
-           cli_throughput, value_str(cli_throughput));
+           cli_throughput, value_str(cli_throughput),
+           avg_ops_per_thread, value_str(avg_ops_per_thread));
 
     // Generate one-line summary for post-processing by perf-report.py
     if (outfile) {
@@ -866,13 +961,17 @@ printSummaryStats(const char *outfile, const char *run_descr,
             exit(EXIT_FAILURE);
         }
         fprintf(fh, "%s, NumClients=%u, NumOps=%lu (%s)"
+                    ", NumThreads=%d"
                     ", Server throughput=%lu (%s) ops/sec"
                     ", Client throughput=%lu (%s) ops/sec"
-                    ", elapsed_ns=%" PRIu64 " (%s) ns\n",
+                    ", elapsed_ns=%" PRIu64 " (%s) ns"
+                    ", NumOps/thread=%lu (%s)"
+                    "\n",
                 run_descr, num_clients, num_ops, value_str(num_ops),
-                svr_throughput, value_str(svr_throughput),
+                num_threads, svr_throughput, value_str(svr_throughput),
                 cli_throughput, value_str(cli_throughput),
-                elapsed_ns, value_str(elapsed_ns));
+                elapsed_ns, value_str(elapsed_ns),
+                avg_ops_per_thread, value_str(avg_ops_per_thread));
         fclose(fh);
     }
 }

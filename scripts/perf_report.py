@@ -52,17 +52,18 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
         for line in file:
             if lctr == 0:
 
-                (nclients_field, nops_field, svr_metric, cli_metric) = parse_perf_line_names(line)
-                heading_row = [ 'Run-Type', svr_metric, cli_metric ]
+                # pylint: disable-next=line-too-long
+                (nclients_field, nops_field, nthreads_field, svr_metric, cli_metric, thread_metric) = parse_perf_line_names(line)
+                heading_row = [ 'Run-Type', svr_metric, cli_metric, thread_metric ]
 
-            (run_type, svr_value, svr_str, cli_value, cli_str) = \
+            (run_type, svr_value, svr_str, cli_value, cli_str, thread_str) = \
                 parse_perf_line_values(line)
 
             if run_type.startswith('Baseline'):
                 base_svr_value = svr_value
                 base_cli_value = cli_value
 
-            metrics_by_run[run_type] = [svr_value, cli_value, svr_str, cli_str ]
+            metrics_by_run[run_type] = [svr_value, cli_value, svr_str, cli_str, thread_str ]
 
             lctr += 1
 
@@ -72,7 +73,8 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
         print("Error: Throughputs metrics for baseline run are not known.")
         sys.exit(1)
 
-    print(f"    **** Performance comparison for {nclients_field}, {nops_field} ****")
+    # pylint: disable-next=line-too-long
+    print(f"    **** Performance comparison for {nclients_field}, {nops_field}, {nthreads_field} ****")
     gen_perf_report(heading_row, metrics_by_run, base_svr_value, base_cli_value)
 
 # #############################################################################
@@ -83,15 +85,18 @@ def parse_perf_line_names(line:str) -> tuple:
     Returns: A tuple; see below.
         nclients_field  : str   : 'NumClients=5'
         nops_field      : str   : 'NumOps=5000000 (5 Million)'
+        nthreads_field  : str   : 'NumThreads=2'
         svr_metric      : str   : 'Server throughput'
         cli_metric      : str   : 'Client throughput'
+        nops_per_thread : str   : 'NumOps/thread=25000 (25 K)'
     """
 
     # pylint: disable-next=unused-variable,line-too-long
-    (run_type_unused, nclients_field, nops_field, svr_field, cli_field, time_unused) = line.split(',')
+    (run_type_unused, nclients_field, nops_field, nthreads_field, svr_field, cli_field, time_unused, nops_per_thread) = line.split(',')
 
     nclients_field = nclients_field.lstrip().rstrip()
     nops_field = nops_field.lstrip().rstrip()
+    nthreads_field = nthreads_field.lstrip().rstrip()
 
     svr_field = svr_field.lstrip().rstrip()
 
@@ -101,7 +106,10 @@ def parse_perf_line_names(line:str) -> tuple:
     cli_field = cli_field.lstrip().rstrip()
     (cli_metric, unused) = cli_field.split('=')
 
-    return (nclients_field, nops_field, svr_metric, cli_metric)
+    nops_per_thread = nops_per_thread.lstrip().rstrip()
+    (thread_metric, unused) = nops_per_thread.split('=')
+
+    return (nclients_field, nops_field, nthreads_field, svr_metric, cli_metric, thread_metric)
 
 # #############################################################################
 def parse_perf_line_values(line:str) -> tuple:
@@ -113,18 +121,22 @@ def parse_perf_line_values(line:str) -> tuple:
         svr_str     : str   : '(~91.79 K) ops/sec'
         cli_value   : int   : 20938
         cli_str     : str   : '(~20.93 K) ops/sec'
+        thread_str  : str   : '(25 K) ops/thread'
     """
-    # pylint: disable-next=unused-variable
-    (run_type, ct_unused, nops_field, svr_field, cli_field, time_field_unused) = line.split(',')
+    # pylint: disable-next=unused-variable,line-too-long
+    (run_type, ct_unused, nops_unused, nthreads_unused, svr_field, cli_field, time_field_unused, nops_per_thread) = line.split(',')
     run_type = run_type.lstrip().rstrip()
 
     (svr_value_str, svr_str) = split_field_value_str(svr_field)
     (cli_value_str, cli_str) = split_field_value_str(cli_field)
 
+    # pylint: disable-next=unused-variable
+    (unused, thread_str) = split_field_value_str(nops_per_thread)
+
     svr_value = int(svr_value_str)
     cli_value = int(cli_value_str)
 
-    return (run_type, svr_value, svr_str, cli_value, cli_str)
+    return (run_type, svr_value, svr_str, cli_value, cli_str, thread_str)
 
 
 # #############################################################################
@@ -133,11 +145,11 @@ def split_field_value_str(metric_field:str) -> (int, str):
     Specialized string-'split' method.
     Common case:
       Input:  'Server throughput=53856 (~53.85 K) ops/sec'
-      Returns:    (53856, ~53.85 K ops/sec')
+      Returns:    '~53.85 K ops/sec'
 
     Lapsed case:
       Input:  'Server throughput=989 () ops/sec'
-      Returns:    (53856, 989 ops/sec')
+      Returns:    '989 ops/sec'
     """
 
     metric_field = metric_field.lstrip().rstrip()
@@ -171,16 +183,18 @@ def gen_perf_report(heading:list, metrics:dict, base_svr_value:int, base_cli_val
     """
     srv_head = 'Srv:Drop'
     cli_head = 'Cli:Drop'
-    perf_table = PrettyTable([heading[0], heading[1], srv_head, heading[2], cli_head])
+    perf_table = PrettyTable([heading[0], heading[1], srv_head, heading[2], cli_head, heading[3]])
 
     for run_type in metrics.keys():
-        svr_value = metrics[run_type][0]
-        cli_value = metrics[run_type][1]
-        svr_str   = metrics[run_type][2]
-        cli_str   = metrics[run_type][3]
+        svr_value  = metrics[run_type][0]
+        cli_value  = metrics[run_type][1]
+        svr_str    = metrics[run_type][2]
+        cli_str    = metrics[run_type][3]
+        thread_str = metrics[run_type][4]
         perf_table.add_row([  run_type
                             , svr_str, compute_pct_drop(base_svr_value, svr_value)
-                            , cli_str, compute_pct_drop(base_cli_value, cli_value)])
+                            , cli_str, compute_pct_drop(base_cli_value, cli_value)
+                            , thread_str])
 
     perf_table.align[heading[0]] = "l"
     perf_table.custom_format[srv_head] = lambda f, v: f"{ v:.2f} %"
