@@ -438,17 +438,17 @@ function run-all-client-server-perf-tests()
 
     echo "${Me}: $(TZ="America/Los_Angeles" date) Run all client(s)-server communication test."
     echo " "
-    test-build-and-run-client-server-perf-test "${num_msgs_per_client}"
+    test-build-and-run-client-server-perf-test "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-fprintf "${num_msgs_per_client}"
+    test-build-and-run-client-server-perf-test-fprintf "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-write "${num_msgs_per_client}"
+    test-build-and-run-client-server-perf-test-write "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-l3_loc_eq_1 "${num_msgs_per_client}"
+    test-build-and-run-client-server-perf-test-l3_loc_eq_1 "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-l3_loc_eq_2 "${num_msgs_per_client}"
+    test-build-and-run-client-server-perf-test-l3_loc_eq_2 "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-spdlog "${num_msgs_per_client}"
+    test-build-and-run-client-server-perf-test-spdlog "${SvrClockArg}" "${num_msgs_per_client}"
 
     echo " "
     set -x
