@@ -217,25 +217,27 @@ jobs:
     #  This test will build-and-run client-server perf-test, with L3-Logging OFF
     #  (baseline) and L3-Logging ON.
     #! -------------------------------------------------------------------------
-    - name: test-build-and-run-client-server-perf-test
+    - name: test-build-and-run-client-server-perf-tests
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-baseline
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-l3-log
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-fast-log-no-LOC
 
     #! -------------------------------------------------------------------------
     #  This test will build-and-run client-server perf-test, with L3-Logging
     #  ON + L3-LOC encoding scheme ON.
     #! -------------------------------------------------------------------------
-    - name: test-build-and-run-client-server-perf-test-l3_loc_eq_1
+    - name: test-build-and-run-csperf-l3_loc_eq_1
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test-l3_loc_eq_1
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-l3_loc_eq_1
 
     #! -------------------------------------------------------------------------
     #  This test will build-and-run client-server perf-test, with L3-Logging
     #  ON + L3-LOC-ELF encoding scheme ON.
     #! -------------------------------------------------------------------------
-    - name: test-build-and-run-client-server-perf-test-l3_loc_eq_2
+    - name: test-build-and-run-csperf-l3_loc_eq_2
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-client-server-perf-test-l3_loc_eq_2
+        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-l3_loc_eq_2
 
     #! -------------------------------------------------------------------------
     - name: test-build-and-run-spdlog-sample
@@ -244,7 +246,7 @@ jobs:
     # -------------------------------------------------------------------------
     # Exercise the do-it-all perf-tests method, which is really intended for
     # use by developers, to benchmark with large # of messages. A default
-    # invocation will run with small # clients & messages.
+    # invocation will run with small # clients & messages, and 1 server-thread.
     - name: test-run-all-client-server-perf-tests
       run: ./test.sh run-all-client-server-perf-tests
 

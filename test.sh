@@ -56,6 +56,15 @@ SvrClockArg=
 # that runs all client-server perf benchmarking tests
 SvrPerfOutfileArg=
 
+# Server can be run with the '--num-server-threads <n>' argument, which
+# currently is restricted to 1-thread. In a future check-in, we will be
+# able to specify a list of server-threads to execute, using env-var as:
+#
+#   SERVER_NUM_THREADS="1 2 4 8" ./test.sh run-all-client-server-perf-tests
+#
+# SrvNumThreadsList="${SERVER_NUM_THREADS:-1}"
+SrvNumThreadsList="1"
+
 # ##################################################################
 # Array of test function names. If you add a new test_<function>,
 # add it to this list, here, so that one can see it in --list output.
@@ -99,17 +108,27 @@ TestList=(
            # For dev-usage; not invoked thru CI.
            "run-all-client-server-perf-tests"
 
-           "test-build-and-run-client-server-perf-test"
-           "test-build-and-run-client-server-perf-test-fprintf"
-           "test-build-and-run-client-server-perf-test-write"
-           "test-build-and-run-client-server-perf-test-l3_loc_eq_1"
-           "test-build-and-run-client-server-perf-test-l3_loc_eq_2"
-           "test-build-and-run-client-server-perf-test-spdlog"
+           # Collection of individual client-server performance test-methods
+           # each invoking different logging schemes, for perf u-benchmarking.
+           "test-build-and-run-csperf-baseline"
+           "test-build-and-run-csperf-l3-log"
+           "test-build-and-run-csperf-fast-log-no-LOC"
+
+           "test-build-and-run-csperf-fprintf"
+           "test-build-and-run-csperf-write"
+           "test-build-and-run-csperf-l3_loc_eq_1"
+           "test-build-and-run-csperf-l3_loc_eq_2"
+           "test-build-and-run-csperf-spdlog"
+           "test-build-and-run-csperf-spdlog-backtrace"
 
            "test-pytests"
 
            # spdlog-related test methods
            "test-build-and-run-spdlog-sample"
+
+           # Driver methods, listed here for quick debugging.
+           # Not intended for use by test-execution.
+           "run-client-server-tests_vary_threads"
 
            # Keep these two at the end, so that we can exercise this
            # script in CI with the --from-test interface, to run just
@@ -129,11 +148,11 @@ function usage()
    echo " "
    echo " ${Me} run-all-client-server-perf-tests [ server-clock-ID [ num-msgs [ num-clients ] ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-client-server-perf-test [ server-clock-ID [ num-msgs ] ]"
+   echo " ${Me} test-build-and-run-csperf [ server-clock-ID [ num-msgs ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-client-server-perf-test-l3_loc_eq_1 [ server-clock-ID [ num-msgs ] ]"
+   echo " ${Me} test-build-and-run-csperf-l3_loc_eq_1 [ server-clock-ID [ num-msgs ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-client-server-perf-test-l3_loc_eq_2 [ server-clock-ID [ num-msgs ] ]"
+   echo " ${Me} test-build-and-run-csperf-l3_loc_eq_2 [ server-clock-ID [ num-msgs ] ]"
    echo " "
    echo "  Client-Server performance u-benchmarking defaults:"
    echo "    Number of clients                      = ${NumClients}"
@@ -438,17 +457,23 @@ function run-all-client-server-perf-tests()
 
     echo "${Me}: $(TZ="America/Los_Angeles" date) Run all client(s)-server communication test."
     echo " "
-    test-build-and-run-client-server-perf-test "${SvrClockArg}" "${num_msgs_per_client}"
+    test-build-and-run-csperf-baseline "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-fprintf "${SvrClockArg}" "${num_msgs_per_client}"
+    test-build-and-run-csperf-l3-log "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-write "${SvrClockArg}" "${num_msgs_per_client}"
+    test-build-and-run-csperf-fast-log-no-LOC "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-l3_loc_eq_1 "${SvrClockArg}" "${num_msgs_per_client}"
+    test-build-and-run-csperf-fprintf "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-l3_loc_eq_2 "${SvrClockArg}" "${num_msgs_per_client}"
+    test-build-and-run-csperf-write "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-client-server-perf-test-spdlog "${SvrClockArg}" "${num_msgs_per_client}"
+    test-build-and-run-csperf-l3_loc_eq_1 "${SvrClockArg}" "${num_msgs_per_client}"
+
+    test-build-and-run-csperf-l3_loc_eq_2 "${SvrClockArg}" "${num_msgs_per_client}"
+
+    test-build-and-run-csperf-spdlog "${SvrClockArg}" "${num_msgs_per_client}"
+
+    test-build-and-run-csperf-spdlog-backtrace "${SvrClockArg}" "${num_msgs_per_client}"
 
     echo " "
     set -x
@@ -466,13 +491,13 @@ function run-all-client-server-perf-tests()
 
 # #############################################################################
 # Test build-and-run of client-server performance test benchmark.
-# This test-case runs with no-L3-logging and L3-logging enabled.
+# This test-case runs with no-L3-logging (baseline).
 #
 # Parameters:
 #   $1  - (Opt) Arg to select clock-ID to use
 #   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
-function test-build-and-run-client-server-perf-test()
+function test-build-and-run-csperf-baseline()
 {
     if [ $# -ge 1 ]; then
         SvrClockArg=$1
@@ -484,63 +509,16 @@ function test-build-and-run-client-server-perf-test()
     fi
 
     local l3_log_disabled=0
-    local l3_log_enabled=1
-    local l3_LOC_disabled=0
-
-    echo " "
-    echo "**** ${Me}: Client-server performance testing with L3-logging OFF ${SvrClockArg}:"
-    echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"      \
-                                          "${l3_log_disabled}"
-
-    echo " "
-    echo "**** ${Me}: Client-server performance testing with L3-logging ON ${SvrClockArg}:"
-    echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}" \
-                                          "${l3_log_enabled}"
-
-    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
-    if [ "${UNAME_S}" == "Linux" ]; then
-        local nentries=100
-        echo " "
-        echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
-        echo " "
-
-        set -x
-        # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
-        ./l3_dump.py                                                                \
-                --log-file /tmp/l3.c-server-test.dat                                \
-                --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
-            | tail -${nentries}
-    fi
-
-    echo " "
-    echo "${Me}: Client-server performance testing with L3-fast-logging ON ${SvrClockArg}:"
-    echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
-                                          "${l3_log_enabled}"       \
-                                          "${l3_LOC_disabled}"      \
-                                          "fast"
-
-    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
-    if [ "${UNAME_S}" == "Linux" ]; then
-        local nentries=100
-        echo " "
-        echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
-        echo " "
-
-        set -x
-        # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
-        ./l3_dump.py                                                                \
-                --log-file /tmp/l3.c-server-test.dat                                \
-                --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
-            | tail -${nentries}
-    fi
 
     set +x
     echo " "
-    echo "**** ${Me}: Completed basic client(s)-server communication test."
+    echo "**** ${Me}: Client-server performance testing with L3-logging OFF ${SvrClockArg}:"
     echo " "
+    set -x
+
+    build-client-server-programs "${l3_log_disabled}"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_disabled}"
 
     local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
     local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
@@ -551,6 +529,99 @@ function test-build-and-run-client-server-perf-test()
 }
 
 # #############################################################################
+# Test build-and-run of client-server performance test benchmark.
+# This test-case runs with L3-logging enabled.
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
+# #############################################################################
+function test-build-and-run-csperf-l3-log()
+{
+    if [ $# -ge 1 ]; then
+        SvrClockArg=$1
+    fi
+
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 2 ]; then
+        num_msgs_per_client=$2
+    fi
+
+    local l3_log_enabled=1
+
+    echo " "
+    echo "**** ${Me}: Client-server performance testing with L3-logging ON ${SvrClockArg}:"
+    echo " "
+
+    build-client-server-programs "${l3_log_enabled}"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_enabled}"
+
+    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
+    if [ "${UNAME_S}" == "Linux" ]; then
+        local nentries=100
+        echo " "
+        echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+        echo " "
+
+        set -x
+        # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
+        ./l3_dump.py                                                                \
+                --log-file /tmp/l3.c-server-test.dat                                \
+                --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+            | tail -${nentries}
+    fi
+}
+
+# #############################################################################
+# Test build-and-run of client-server performance test benchmark.
+# This test-case runs with no-L3-logging and L3-logging enabled.
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
+# #############################################################################
+function test-build-and-run-csperf-fast-log-no-LOC()
+{
+    if [ $# -ge 1 ]; then
+        SvrClockArg=$1
+    fi
+
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 2 ]; then
+        num_msgs_per_client=$2
+    fi
+
+    local l3_log_enabled=1
+    local l3_LOC_disabled=0
+
+    echo " "
+    echo "${Me}: Client-server performance testing with L3-fast-logging ON ${SvrClockArg}:"
+    echo " "
+
+    build-client-server-programs "${l3_log_enabled}"       \
+                                 "${l3_LOC_disabled}"      \
+                                 "fast"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_enabled}"
+
+    # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
+    if [ "${UNAME_S}" == "Linux" ]; then
+        local nentries=100
+        echo " "
+        echo "${Me}: Run L3-dump script to unpack log-entries. (Last ${nentries} entries.)"
+        echo " "
+
+        set -x
+        # No LOC-encoding is in-effect, so no need for the --loc-binary argument.
+        ./l3_dump.py                                                                \
+                --log-file /tmp/l3.c-server-test.dat                                \
+                --binary "./build/${Build_mode}/bin/use-cases/svmsg_file_server"    \
+            | tail -${nentries}
+    fi
+}
+
+# #############################################################################
 # Test build-and-run of client-server performance test benchmark, using the
 # fprintf() logging interface under L3..
 #
@@ -558,7 +629,7 @@ function test-build-and-run-client-server-perf-test()
 #   $1  - (Opt) Arg to select clock-ID to use
 #   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
-function test-build-and-run-client-server-perf-test-fprintf()
+function test-build-and-run-csperf-fprintf()
 {
     if [ $# -ge 1 ]; then
         SvrClockArg=$1
@@ -576,10 +647,12 @@ function test-build-and-run-client-server-perf-test-fprintf()
     echo " "
     echo "**** ${Me}: Client-server performance testing with L3-fprintf logging ON:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
-                                           "${l3_log_enabled}"      \
-                                           "${l3_LOC_disabled}"     \
-                                           "fprintf"
+
+    build-client-server-programs "${l3_log_enabled}"        \
+                                 "${l3_LOC_disabled}"       \
+                                 "fprintf"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_enabled}"
 }
 
 # #############################################################################
@@ -590,7 +663,7 @@ function test-build-and-run-client-server-perf-test-fprintf()
 #   $1  - (Opt) Arg to select clock-ID to use
 #   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
-function test-build-and-run-client-server-perf-test-write()
+function test-build-and-run-csperf-write()
 {
     if [ $# -ge 1 ]; then
         SvrClockArg=$1
@@ -607,10 +680,12 @@ function test-build-and-run-client-server-perf-test-write()
     echo " "
     echo "**** ${Me}: Client-server performance testing with L3-write logging ON:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
-                                           "${l3_log_enabled}"      \
-                                           "${l3_LOC_disabled}"     \
-                                           "write"
+
+    build-client-server-programs "${l3_log_enabled}"        \
+                                 "${l3_LOC_disabled}"       \
+                                 "write"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_enabled}"
 }
 
 # #############################################################################
@@ -621,7 +696,7 @@ function test-build-and-run-client-server-perf-test-write()
 #   $1  - (Opt) Arg to select clock-ID to use
 #   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
-function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
+function test-build-and-run-csperf-l3_loc_eq_1()
 {
     if [ $# -ge 1 ]; then
         SvrClockArg=$1
@@ -638,9 +713,10 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging and L3-LOC ON ${SvrClockArg}:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
-                                          "${l3_log_enabled}"       \
-                                          "${l3_LOC_enabled}"
+
+    build-client-server-programs "${l3_log_enabled}" "${l3_LOC_enabled}"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_enabled}"
 
     # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
     if [ "${UNAME_S}" == "Linux" ]; then
@@ -667,7 +743,7 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_1()
 #   $1  - (Opt) Arg to select clock-ID to use
 #   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
-function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
+function test-build-and-run-csperf-l3_loc_eq_2()
 {
     if [ $# -ge 1 ]; then
         SvrClockArg=$1
@@ -684,9 +760,10 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
     echo " "
     echo "${Me}: Client-server performance testing with L3-logging and LOC-ELF ON ${SvrClockArg}:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
-                                          "${l3_log_enabled}"       \
-                                          "${l3_LOC_enabled}"
+
+    build-client-server-programs "${l3_log_enabled}" "${l3_LOC_enabled}"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_enabled}"
 
     # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
     if [ "${UNAME_S}" == "Linux" ]; then
@@ -712,7 +789,7 @@ function test-build-and-run-client-server-perf-test-l3_loc_eq_2()
 #   $1  - (Opt) Arg to select clock-ID to use
 #   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
-function test-build-and-run-client-server-perf-test-spdlog()
+function test-build-and-run-csperf-spdlog()
 {
     if [ $# -ge 1 ]; then
         SvrClockArg=$1
@@ -726,16 +803,18 @@ function test-build-and-run-client-server-perf-test-spdlog()
     set +x
 
     # spdlog is used here only for performance benchmarking.
-    local l3_log_enabled=0
-    local l3_LOC_enabled=0
+    local l3_log_disabled=0
+    local l3_LOC_disabled=0
 
     echo " "
     echo "${Me}: Client-server performance testing with spdlog-logging:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
-                                          "${l3_log_enabled}"       \
-                                          "${l3_LOC_enabled}"       \
-                                          "spdlog"
+
+    build-client-server-programs "${l3_log_disabled}"   \
+                                 "${l3_LOC_disabled}"   \
+                                 "spdlog"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_disabled}"
 
     # Perf-tests are only executed on Linux. So, skip L3-dump for non-Linux p/fs.
     if [ "${UNAME_S}" == "Linux" ]; then
@@ -743,46 +822,68 @@ function test-build-and-run-client-server-perf-test-spdlog()
         echo " "
         tail -${nentries} /tmp/l3.c-server-test.dat
     fi
+}
+
+# #############################################################################
+# Test build-and-run of client-server performance test benchmark,
+# with C++ spdlog backtrace logging.
+#
+# Parameters:
+#   $1  - (Opt) Arg to select clock-ID to use
+#   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
+# #############################################################################
+function test-build-and-run-csperf-spdlog-backtrace()
+{
+    if [ $# -ge 1 ]; then
+        SvrClockArg=$1
+    fi
+
+    local num_msgs_per_client=${NumMsgsPerClient}
+    if [ $# -ge 2 ]; then
+        num_msgs_per_client=$2
+    fi
+
+    set +x
+
+    # spdlog is used here only for performance benchmarking.
+    local l3_log_disabled=0
+    local l3_LOC_disabled=0
 
     echo " "
     echo "${Me}: Client-server performance testing with spdlog-backtrace logging:"
     echo " "
-    build-and-run-client-server-perf-test "${num_msgs_per_client}"  \
-                                          "${l3_log_enabled}"       \
-                                          "${l3_LOC_enabled}"       \
-                                          "spdlog-backtrace"
+
+    build-client-server-programs "${l3_log_disabled}"   \
+                                 "${l3_LOC_disabled}"   \
+                                 "spdlog-backtrace"
+
+    run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_disabled}"
 }
 
 # #############################################################################
-# Minion to test-build-and-run-client-server-perf-test(), to actually perform
-# the build and run the client/server application for performance benchmarking.
+# Test-method to build the client-server programs with required build flags.
 #
 # Parameters:
-#   $1  - (Reqd) # of messages to exchange from client -> server
-#   $2  - (Reqd) Boolean: Is L3 enabled?
-#   $3  - (Opt.) When L3 is enabled, type of L3-LOC encoding enabled
-#   $4  - (Opt.) L3-logging type: 'slow' (default), 'fast'
+#   $1  - (Reqd) Boolean: Is L3 enabled?
+#   $2  - (Opt.) When L3 is enabled, type of L3-LOC encoding enabled
+#   $3  - (Opt.) L3-logging type: 'slow' (default), 'fast'
 # #############################################################################
-function build-and-run-client-server-perf-test()
+function build-client-server-programs()
 {
-    local num_msgs_per_client=$1
-    local l3_enabled=$2
+    local l3_enabled=$1
 
     local l3_loc_enabled=
-    if [ $# -ge 3 ]; then
-        l3_loc_enabled=$3
+    if [ $# -ge 2 ]; then
+        l3_loc_enabled=$2
     fi
 
     local l3_log_type=
-    if [ $# -ge 4 ]; then
-        l3_log_type=$4
+    if [ $# -ge 3 ]; then
+        l3_log_type=$3
     fi
 
-    echo "${Me}: ${num_msgs_per_client}, '${l3_enabled}', '${l3_loc_enabled}', '${l3_log_type}'"
+    echo "${Me}: Build: l3_enabled='${l3_enabled}', l3_loc_enabled='${l3_loc_enabled}', l3_log_type='${l3_log_type}'"
     set +x
-    # Makefile does not implement 'run' step. Do it here manually.
-    local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
-    local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
 
     # Default L3-intrinsic logging execution modes
     if [ "${l3_log_type}" == "" ]; then
@@ -854,6 +955,57 @@ function build-and-run-client-server-perf-test()
                 ;;
         esac
     fi
+}
+
+# #############################################################################
+# Test-method to run the client-server programs with required exec parameters,
+# This method will run multiple executions of the client-server test with
+# different server-thread counts as obtained from the SrvNumThreadsList globals.
+#
+# Parameters:
+#   $1  - (Reqd) # of messages to exchange from client -> server
+#   $2  - (Reqd) Boolean: Is L3 enabled?
+# #############################################################################
+function run-client-server-tests_vary_threads()
+{
+    local num_msgs_per_client=$1
+    local l3_enabled=$2
+
+    set +x
+
+    for threads in ${SrvNumThreadsList}; do
+        echo " "
+        echo "${Me}:${LINENO}: ***** Run run-client-server-test with l3_enabled=${l3_enabled}, num_msgs_per_client=${num_msgs_per_client}, ${threads} threads ..."
+        echo " "
+
+        run-client-server-test "${num_msgs_per_client}" "${l3_enabled}"
+
+    done
+
+    set -x
+}
+
+# #############################################################################
+# Test-method to run the client-server programs with required exec parameters.
+#
+# Parameters:
+#   $1  - (Reqd) # of messages to exchange from client -> server
+#   $2  - (Reqd) Boolean: Is L3 enabled?
+# #############################################################################
+function run-client-server-test()
+{
+    local num_msgs_per_client=$1
+    local l3_enabled=$2
+
+    local num_server_threads=1
+    if [ $# -ge 3 ]; then
+        num_server_threads=$3
+    fi
+
+    set +x
+    # Makefile does not implement 'run' step. Do it here manually.
+    local server_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_server"
+    local client_bin="./build/${Build_mode}/bin/use-cases/svmsg_file_client"
 
     set +x
     if [ "${UNAME_S}" = "Darwin" ]; then
@@ -869,7 +1021,8 @@ function build-and-run-client-server-perf-test()
     # User can execute perf-bm tests with different server-clocks,
     # using the --clock-<...> argument.
     # shellcheck disable=SC2086
-    ${server_bin} ${SvrClockArg} ${SvrPerfOutfileArg} &
+    ${server_bin} ${SvrClockArg} ${SvrPerfOutfileArg}           \
+                  --num-server-threads ${num_server_threads} &
 
     set +x
     sleep 5
@@ -893,6 +1046,7 @@ function build-and-run-client-server-perf-test()
     echo "${Me}: $(TZ="America/Los_Angeles" date) Completed basic client(s)-server communication test."
     echo " "
 
+    # Report the log-file size, if generated, so we know how big it could get.
     if [ "${l3_enabled}" = "1" ]; then
 
         set -x
