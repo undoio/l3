@@ -48,9 +48,6 @@ trap cleanup ERR
 # Number of messages sent by each client to the server
 NumMsgsPerClient=1000
 
-# Number of server-threads started for client-server RPC-perf testing.
-NumServerThreads=1
-
 # Number of clients started for client-server RPC-perf testing.
 NumClients=5
 
@@ -62,13 +59,13 @@ SvrClockArg=
 SvrPerfOutfileArg=
 
 # Server can be run with the '--num-server-threads <n>' argument, which
-# currently is restricted to 1-thread. In a future check-in, we will be
-# able to specify a list of server-threads to execute, using env-var as:
+# currently is restricted to 1-thread. With support for multi-threaded server
+# execution, we can now specify a list of server-threads to execute,
+# using env-var as:
 #
 #   SERVER_NUM_THREADS="1 2 4 8" ./test.sh run-all-client-server-perf-tests
 #
-# SrvNumThreadsList="${SERVER_NUM_THREADS:-1}"
-SrvNumThreadsList="1"
+SrvNumThreadsList="${SERVER_NUM_THREADS:-1}"
 
 # ##################################################################
 # Array of test function names. If you add a new test_<function>,
@@ -151,13 +148,28 @@ function usage()
    echo " "
    echo "Run client-server performance tests as follows:"
    echo " "
-   echo " ${Me} run-all-client-server-perf-tests [ server-clock-ID [ num-msgs [ num-server-threads [ num-clients ] ] ] ]"
+   echo " ./${Me} run-all-client-server-perf-tests [ server-clock-ID [ num-msgs [ num-clients ] ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-csperf [ server-clock-ID [ num-msgs ] ]"
+   echo " ./${Me} test-build-and-run-csperf [ server-clock-ID [ num-msgs ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-csperf-l3_loc_eq_1 [ server-clock-ID [ num-msgs ] ]"
+   echo " ./${Me} test-build-and-run-csperf-l3_loc_eq_1 [ server-clock-ID [ num-msgs ] ]"
    echo " "
-   echo " ${Me} test-build-and-run-csperf-l3_loc_eq_2 [ server-clock-ID [ num-msgs ] ]"
+   echo " ./${Me} test-build-and-run-csperf-l3_loc_eq_2 [ server-clock-ID [ num-msgs ] ]"
+   echo " "
+   echo "Environment Variables:"
+   echo "   SERVER_NUM_THREADS: List of server-threads to exercise; e.g. \"1 2 4\""
+   echo " "
+   echo "Examples:"
+
+   echo " "
+   local nmsgs=10000
+   echo "Run client-server performance tests with default server-clock and ${nmsgs} messages/client:"
+   echo " ./${Me} run-all-client-server-perf-tests --clock-default ${nmsgs}"
+
+   echo " "
+   echo "Run client-server performance tests with different server-thread settings."
+   echo " SERVER_NUM_THREADS=\"1 2 4 8\" ./${Me} run-all-client-server-perf-tests --clock-default ${nmsgs}"
+
    echo " "
    echo "  Client-Server performance u-benchmarking defaults:"
    echo "    Number of clients                      = ${NumClients}"
@@ -446,11 +458,7 @@ function run-all-client-server-perf-tests()
     fi
 
     if [ $# -ge 3 ]; then
-        NumServerThreads=$3
-    fi
-
-    if [ $# -ge 4 ]; then
-        NumClients=$4
+        NumClients=$3
     fi
 
     set +x
@@ -649,7 +657,6 @@ function test-build-and-run-csperf-fprintf()
     if [ $# -ge 2 ]; then
         num_msgs_per_client=$2
     fi
-
 
     local l3_log_enabled=1
     local l3_LOC_disabled=0
@@ -992,7 +999,7 @@ function run-client-server-tests_vary_threads()
         echo "${Me}:${LINENO}: ***** Run run-client-server-test with l3_enabled=${l3_enabled}, num_msgs_per_client=${num_msgs_per_client}, ${threads} threads ..."
         echo " "
 
-        run-client-server-test "${num_msgs_per_client}" "${l3_enabled}"
+        run-client-server-test "${num_msgs_per_client}" "${l3_enabled}" "${threads}"
 
     done
 
