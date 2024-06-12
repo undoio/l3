@@ -67,18 +67,20 @@ def test_parse_perf_line_names():
 def test_parse_perf_line_values():
     """Verify parsing and output from parse_perf_line_values()"""
 
-    (run_type, svr_value, svr_str, cli_value, cli_str, thread_str) = perf_report.parse_perf_line_values(MSG1)
+    (run_type, nthreads_field, svr_value, svr_str, cli_value, cli_str, thread_str) = perf_report.parse_perf_line_values(MSG1)
 
     assert run_type == 'Baseline - No logging'
+    assert nthreads_field == 'NumThreads=1'
     assert svr_value == 91795
     assert svr_str == '~91.79 K ops/sec'
     assert cli_value == 20938
     assert cli_str == '~20.93 K ops/sec'
     assert thread_str == '5 K'
 
-    (run_type, svr_value, svr_str, cli_value, cli_str, thread_str) = perf_report.parse_perf_line_values(MSG2)
+    (run_type, nthreads_field, svr_value, svr_str, cli_value, cli_str, thread_str) = perf_report.parse_perf_line_values(MSG2)
 
     assert run_type == 'Field is unrelated to parsing'
+    assert nthreads_field == 'Num-of-Threads=20'
     assert svr_value == 98602
     assert svr_str == '~98.60 K ops/sec'
     assert cli_value == 20938

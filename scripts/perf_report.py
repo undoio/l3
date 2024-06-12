@@ -10,6 +10,7 @@ Copyright (c) 2024
 import sys
 import argparse
 from collections import OrderedDict
+from collections import namedtuple
 from prettytable import PrettyTable
 
 ###############################################################################
@@ -28,7 +29,7 @@ def do_main(args:list):
     Main method that drives parsing the input file to generate the report.
     Each line is of the format:
      - Multiple comma-separated fields
-     - Each field may is '='-separated, like so; "<metric>=<value> (<text>)"
+     - Each field is '='-separated, like so; "<metric>=<value> (<text>)"
 
 # pylint: disable=line-too-long
 
@@ -43,10 +44,33 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
     perf_file = parsed_args.file
     lctr = 0
 
+    # Key: Server-thread-count 'NumThreads=1'; Value: metrics_by_run{}
+    metrics_by_threads = OrderedDict()
+
+    # Key: Server-thread-count 'NumThreads=1'; Value: namedtuple (svr_value, cli_value)
+    baseline_tuple = namedtuple('baseline_tuple', 'svr_value cli_value')
+    baseline_by_threads = OrderedDict()
+
+    # Key: Run-type 'Baseline - No logging'; Value: [ <metrics> ]
     metrics_by_run = OrderedDict()
     heading_row = []
-    base_svr_value = None   # baseline server-throughput
-    base_cli_value = None   # baseline client-throughput
+
+    # Setup some defaults to avoid pylint errors.
+    nclients_field = 'NumClients=5'
+    nops_field = 'NumOps=5000'
+
+    # We expect a consistent format of one-line summary messages arranged by:
+    #
+    #   - Run-Type-1: < Set of metrics for NumThreads=1 >
+    #   - Run-Type-1: < Set of metrics for NumThreads=2 >
+    #   - Run-Type-1: < Set of metrics for NumThreads=4 >
+    #   - Run-Type-1: < Set of metrics for NumThreads=8 >
+    #
+    #   - Run-Type-2: < Set of metrics for NumThreads=1 >
+    #   - Run-Type-2: < Set of metrics for NumThreads=2 >
+    #   - Run-Type-2: < Set of metrics for NumThreads=4 >
+    #   - Run-Type-2: < Set of metrics for NumThreads=8 >
+    # and so on ...
 
     with open(perf_file, 'rt', encoding="utf-8") as file:
         for line in file:
@@ -56,26 +80,46 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
                 (nclients_field, nops_field, nthreads_field, svr_metric, cli_metric, thread_metric) = parse_perf_line_names(line)
                 heading_row = [ 'Run-Type', svr_metric, cli_metric, thread_metric ]
 
-            (run_type, svr_value, svr_str, cli_value, cli_str, thread_str) = \
+            (run_type, nthreads_field, svr_value, svr_str, cli_value, cli_str, thread_str) = \
                 parse_perf_line_values(line)
 
+            # Create hash-entry for baseline server/client metrics for this thread-count
             if run_type.startswith('Baseline'):
-                base_svr_value = svr_value
-                base_cli_value = cli_value
+                # svr_value - baseline server-throughput
+                # cli_value - baseline client-throughput
+                baseline_by_threads[nthreads_field] = baseline_tuple(svr_value, cli_value)
 
-            metrics_by_run[run_type] = [svr_value, cli_value, svr_str, cli_str, thread_str ]
+            # DEBUG: print(f"{run_type}, {thread_str}")
 
+            # ------------------------------------------------------------------
+            # We want to distribute the metrics for each run-type across the
+            # map of metrics arranged by #-of-server-threads.
+            # - If this thread-count is a new one, add the dictionary-entry
+            #   { run_type: [ <metrics> ] } to the metrics tracked per thread.
+            # - Otherwise, update the metrics previously seen for previous
+            #   run-types for this thread-count with the metrics of the
+            #   new run-type seen.
+            #
+            # This way, we will be rearranging the one-line metrics rows
+            # into a dictionary of dictionaries, arranged by thread-count.
+            # ------------------------------------------------------------------
+            by_nthreads_dict = OrderedDict()
+            if nthreads_field not in metrics_by_threads:
+                metrics_by_threads[nthreads_field] = { run_type: [svr_value, cli_value, svr_str, cli_str, thread_str ] }
+            else:
+                by_nthreads_dict = metrics_by_threads[nthreads_field]
+                by_nthreads_dict.update( {run_type: [svr_value, cli_value, svr_str, cli_str, thread_str ] } )
+                metrics_by_threads[nthreads_field] = by_nthreads_dict
+
+            pr_metrics_by_thread(metrics_by_threads)
             lctr += 1
 
-    # DEBUG: pr_metrics(metrics_by_run)
 
-    if base_svr_value is None or base_cli_value is None:
-        print("Error: Throughputs metrics for baseline run are not known.")
-        sys.exit(1)
+    # DEBUG: pr_metrics(metrics_by_run)
+    # DEBUG: pr_metrics_by_thread(metrics_by_threads)
 
     # pylint: disable-next=line-too-long
-    print(f"    **** Performance comparison for {nclients_field}, {nops_field}, {nthreads_field} ****")
-    gen_perf_report(heading_row, metrics_by_run, base_svr_value, base_cli_value)
+    gen_perf_report_by_threads(heading_row, metrics_by_threads, baseline_by_threads, nclients_field, nops_field)
 
 # #############################################################################
 def parse_perf_line_names(line:str) -> tuple:
@@ -121,11 +165,13 @@ def parse_perf_line_values(line:str) -> tuple:
         svr_str     : str   : '(~91.79 K) ops/sec'
         cli_value   : int   : 20938
         cli_str     : str   : '(~20.93 K) ops/sec'
-        thread_str  : str   : '(25 K) ops/thread'
+        thread_str  : str   : '25 K'
     """
     # pylint: disable-next=unused-variable,line-too-long
-    (run_type, ct_unused, nops_unused, nthreads_unused, svr_field, cli_field, time_field_unused, nops_per_thread) = line.split(',')
+    (run_type, ct_unused, nops_unused, nthreads_field, svr_field, cli_field, time_field_unused, nops_per_thread) = line.split(',')
+
     run_type = run_type.lstrip().rstrip()
+    nthreads_field = nthreads_field.lstrip().rstrip()
 
     (svr_value_str, svr_str) = split_field_value_str(svr_field)
     (cli_value_str, cli_str) = split_field_value_str(cli_field)
@@ -136,7 +182,8 @@ def parse_perf_line_values(line:str) -> tuple:
     svr_value = int(svr_value_str)
     cli_value = int(cli_value_str)
 
-    return (run_type, svr_value, svr_str, cli_value, cli_str, thread_str)
+    print(f"{run_type}, {nthreads_field}")
+    return (run_type, nthreads_field, svr_value, svr_str, cli_value, cli_str, thread_str)
 
 
 # #############################################################################
@@ -174,6 +221,33 @@ def split_field_value_str(metric_field:str) -> (int, str):
     return (svr_value, svr_str)
 
 # #############################################################################
+def gen_perf_report_by_threads(heading:list, metrics_by_threads:dict, baseline_by_threads:dict,
+                               nclients_field: str, nops_field: str):
+    """
+    Given a dictionary of metrics_by_threads, ordered by # of server-threads,
+    generate the comparative performance reports for metrics gathered for diff
+    logging types for this server-thread count.
+
+    Parameters:
+      metrics_by_threads:   Dictionary ordered by server-thread count.
+                            Value is another dictionary, 'metrics'.
+                            { 'run_type' -> [ < metrics > ] }
+    """
+    # Key nthreads_field will be: 'NumThreads=1', 'NumThreads=2' etc.
+    for nthreads_field in metrics_by_threads.keys():
+
+        base_svr_value = baseline_by_threads[nthreads_field].svr_value
+        base_cli_value = baseline_by_threads[nthreads_field].cli_value
+        if base_svr_value is None or base_cli_value is None:
+            print("Error: Throughputs metrics for baseline run are not known.")
+            sys.exit(1)
+
+        # pylint: disable-next=line-too-long
+        print(f"    **** Performance comparison for {nclients_field}, {nops_field}, {nthreads_field} ****")
+        gen_perf_report(heading, metrics_by_threads[nthreads_field], base_svr_value, base_cli_value)
+        print("\n")
+
+# #############################################################################
 def gen_perf_report(heading:list, metrics:dict, base_svr_value:int, base_cli_value:int):
     """
     Given a dictionary of metrics, ordered by run-type 'key', generate the
@@ -185,6 +259,7 @@ def gen_perf_report(heading:list, metrics:dict, base_svr_value:int, base_cli_val
     cli_head = 'Cli:Drop'
     perf_table = PrettyTable([heading[0], heading[1], srv_head, heading[2], cli_head, heading[3]])
 
+    # Key run_type will be: 'Baseline - No logging' etc.
     for run_type in metrics.keys():
         svr_value  = metrics[run_type][0]
         cli_value  = metrics[run_type][1]
@@ -243,12 +318,24 @@ def perf_parse_args(args:list):
     return parsed_args
 
 # #############################################################################
-def pr_metrics(tdict:dict):
+def pr_metrics_by_thread(tdict:dict):
+    """
+    Print an ordered dictionary, where value is another ordered dictionary.
+    metrics_by_threads{'NumThreads=1'} =
+        metrics_by_run{'Baseline - No logging'} = [ <values> ]
+    """
+    for key in tdict.keys():
+        print(f"{key=}, value = [")
+        pr_metrics(tdict[key], "  ")
+        print("]")
+
+# #############################################################################
+def pr_metrics(tdict:dict, indent:str = ""):
     """
     Print an ordered dictionary, where value is a tuple.
     """
     for key in tdict.keys():
-        print(f"{key=}, value = {tdict[key]}")
+        print(f"{indent}{key=}, value = {tdict[key]}")
 
 ###############################################################################
 # Start of the script: Execute only if run as a script
