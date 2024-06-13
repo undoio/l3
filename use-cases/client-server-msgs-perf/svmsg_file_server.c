@@ -264,7 +264,7 @@ main(int argc, char *argv[])
     Spd_logger = spdlog::basic_logger_mt("file_logger", logfile, true);
     const char *logging_type = "spdlog";
 
-    printf("Start Server, using clock '%s'"
+    printf("\n**** Start Server, using clock '%s'"
            ": Initiate spdlog-logging to log-file '%s'"
            ", using logtype '%s'.\n",
            clock_name(Clock_id), logfile, logging_type);
@@ -280,7 +280,7 @@ main(int argc, char *argv[])
 
     const char *logging_type = "spdlog-backtrace";
 
-    printf("Start Server, using clock '%s'"
+    printf("\n**** Start Server, using clock '%s'"
            ": Initiate spdlog-logging (log-file '%s' unused)"
            ", using logtype '%s'.\n",
            clock_name(Clock_id), logfile, logging_type);
@@ -326,7 +326,7 @@ main(int argc, char *argv[])
     const char *loc_scheme = "(no LOC)";
 #endif  // L3_LOC_ELF_ENCODING
 
-    printf("Start Server, using clock '%s'"
+    printf("\n**** Start Server, using clock '%s'"
            ": Initiate L3-%slogging to log-file '%s'"
            ", using %s encoding scheme.\n",
            clock_name(Clock_id), l3_log_mode, logfile, loc_scheme);
@@ -336,7 +336,7 @@ main(int argc, char *argv[])
 
 #else // L3_ENABLED
 
-    printf("Start Server, using clock ID=%d '%s': No logging"
+    printf("\n**** Start Server, using clock ID=%d '%s': No logging"
            ", %d server-threads, server-msgq-ID=%d.\n",
            Clock_id, clock_name(Clock_id), num_threads, serverId);
     snprintf(run_descr, sizeof(run_descr), "Baseline - No logging");
@@ -413,17 +413,22 @@ main(int argc, char *argv[])
 
     // For visibility into how clocks are performing on user's machine,
     // run clock-calibration after all workload / metrics collection is done.
+    // One-time calibration (done when # server-threads==1) is sufficient.
 
 #if defined(__cplusplus)
 
 #if !defined(L3_ENABLED) and !defined(L3_LOGT_SPDLOG) and !defined(L3_LOGT_SPDLOG_BACKTRACE)
-    svr_clock_calibrate();
+    if (num_threads == 1) {
+        svr_clock_calibrate();
+    }
 #endif
 
 #else   // __cplusplus
 
 #if !defined(L3_ENABLED)
-    svr_clock_calibrate();
+    if (num_threads == 1) {
+        svr_clock_calibrate();
+    }
 #endif  // L3_ENABLED
 
 #endif  // __cplusplus
@@ -911,7 +916,8 @@ time_metric_name(int clock_id)
  *  num_clients - Number of clients
  *  clock_id    - Server-side Clock-ID used for elapsed-time accounting
  *  elapsed_ns  - Elapsed time, in ns
- *  svr_config  - Array of num_threads svr_thread_config structs (for thread-specific metrics)
+ *  svr_config  - Array of num_threads svr_thread_config structs
+ *                (for server-thread specific metrics)
  *  num_threads - Number of server-threads invoked for workload
  */
 void
@@ -927,9 +933,10 @@ printSummaryStats(const char *outfile, const char *run_descr,
         num_ops += clients[cctr].num_ops;
         sum_throughput += clients[cctr].throughput;
     }
+    size_t cli_throughput = (sum_throughput / num_clients);
+
     size_t svr_throughput = (uint64_t) ((num_ops * 1.0 / elapsed_ns)
                                             * L3_NS_IN_SEC);
-    size_t cli_throughput = (sum_throughput / num_clients);
 
     size_t avg_ops_per_thread = 0;
     for (int tctr = 0; tctr < num_threads; tctr++) {
@@ -937,14 +944,15 @@ printSummaryStats(const char *outfile, const char *run_descr,
     }
     avg_ops_per_thread = (size_t) ((avg_ops_per_thread * 1.0) / num_threads);
 
-    printf("For %u clients, %s, num_ops=%lu (%s) ops"
+    printf("\nSummary:"
+           " For %u clients, %s, num_threads=%d, num_ops=%lu (%s) ops"
            ", Elapsed time=%" PRIu64 " (%s) ns"
            ", Avg. %s time=%" PRIu64 " ns/msg"
            ", Server throughput=%lu (%s) ops/sec"
            ", Client throughput=%lu (%s) ops/sec"
            ", Avg. ops per thread=%lu (%s) ops/thread"
-           "\n",
-           num_clients, run_descr, num_ops, value_str(num_ops),
+           "\n\n",
+           num_clients, run_descr, num_threads, num_ops, value_str(num_ops),
            elapsed_ns, value_str(elapsed_ns),
            time_metric_name(clock_id), (elapsed_ns / num_ops),
            svr_throughput, value_str(svr_throughput),
