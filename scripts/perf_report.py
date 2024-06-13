@@ -59,6 +59,7 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
     nclients_field = 'NumClients=5'
     nops_field = 'NumOps=5000'
 
+    # ------------------------------------------------------------------------
     # We expect a consistent format of one-line summary messages arranged by:
     #
     #   - Run-Type-1: < Set of metrics for NumThreads=1 >
@@ -71,7 +72,7 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
     #   - Run-Type-2: < Set of metrics for NumThreads=4 >
     #   - Run-Type-2: < Set of metrics for NumThreads=8 >
     # and so on ...
-
+    # ------------------------------------------------------------------------
     with open(perf_file, 'rt', encoding="utf-8") as file:
         for line in file:
             if lctr == 0:
@@ -94,14 +95,16 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
             # ------------------------------------------------------------------
             # We want to distribute the metrics for each run-type across the
             # map of metrics arranged by #-of-server-threads.
+            #
             # - If this thread-count is a new one, add the dictionary-entry
             #   { run_type: [ <metrics> ] } to the metrics tracked per thread.
-            # - Otherwise, update the metrics previously seen for previous
-            #   run-types for this thread-count with the metrics of the
-            #   new run-type seen.
+            # - Otherwise, add the metrics for this run-type, to the map of
+            #   metrics seen before for other run-types, for this server
+            #   thread-count.
             #
-            # This way, we will be rearranging the one-line metrics rows
-            # into a dictionary of dictionaries, arranged by thread-count.
+            # This way, we will be rearranging the one-line metrics rows,
+            # read from the summary file, into a dictionary of dictionaries,
+            # arranged by thread-count.
             # ------------------------------------------------------------------
             by_nthreads_dict = OrderedDict()
             if nthreads_field not in metrics_by_threads:
@@ -111,11 +114,9 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
                 by_nthreads_dict.update( {run_type: [svr_value, cli_value, svr_str, cli_str, thread_str ] } )
                 metrics_by_threads[nthreads_field] = by_nthreads_dict
 
-            pr_metrics_by_thread(metrics_by_threads)
+            # DEBUG: pr_metrics_by_thread(metrics_by_threads)
             lctr += 1
 
-
-    # DEBUG: pr_metrics(metrics_by_run)
     # DEBUG: pr_metrics_by_thread(metrics_by_threads)
 
     # pylint: disable-next=line-too-long
@@ -184,7 +185,6 @@ def parse_perf_line_values(line:str) -> tuple:
 
     print(f"{run_type}, {nthreads_field}")
     return (run_type, nthreads_field, svr_value, svr_str, cli_value, cli_str, thread_str)
-
 
 # #############################################################################
 def split_field_value_str(metric_field:str) -> (int, str):
