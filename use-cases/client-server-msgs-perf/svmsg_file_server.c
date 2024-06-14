@@ -112,8 +112,8 @@ typedef struct {
 
     // On Mac/OSX, pthread_self() returns a struct, not an ID. So, to get
     // code compiling, print the thread's index in the threads[] array.
-    int         thread_idx;
-    uint64_t    num_ops;    // Processed by this thread
+    int         svr_thread_idx;
+    uint64_t    svr_num_ops;    // Processed by this thread
 
 } svr_thread_config;
 
@@ -464,8 +464,8 @@ svr_start_threads(pthread_t *thread_ids, int nthreads, int serverId,
     int rv = 0;
     for (int tctr = 0; tctr < nthreads; tctr++) {
         svr_config[tctr].server_id = serverId;
-        svr_config[tctr].thread_idx = tctr;
-        svr_config[tctr].num_ops = 0;
+        svr_config[tctr].svr_thread_idx = tctr;
+        svr_config[tctr].svr_num_ops = 0;
         rv = pthread_create(&thread_ids[tctr], NULL, svr_proc_process_msg,
                             (void *) &svr_config[tctr]);
         if (rv) {
@@ -500,12 +500,12 @@ svr_proc_process_msg(void *cfg)
     requestMsg req;
 
 #if __APPLE__
-    uint64_t tid = svr_config->thread_idx;
+    uint64_t tid = svr_config->svr_thread_idx;
 #else
     pthread_t tid = pthread_self();
 #endif  // __APPLE__
 
-    uint64_t    num_ops = 0;
+    uint64_t    svr_num_ops = 0;
     for (;;) {
 
         if (NumActiveClientsHWM && (NumActiveClients == 0)) {
@@ -533,7 +533,7 @@ svr_proc_process_msg(void *cfg)
             if (svr_op_incr(&req)) {
                 errExit("svr_op_incr() failed.");
             }
-            num_ops++;  // Just count the actual messages needing some action.
+            svr_num_ops++;  // Just count the actual messages needing some action.
             break;
 
           case REQ_MT_SET_THROUGHPUT:
@@ -594,7 +594,7 @@ svr_proc_process_msg(void *cfg)
 
 end_forever_loop:
 
-    svr_config->num_ops = num_ops;
+    svr_config->svr_num_ops = svr_num_ops;
     return 0;
 }
 
@@ -929,20 +929,36 @@ printSummaryStats(const char *outfile, const char *run_descr,
     size_t  num_ops = 0;
     size_t  sum_throughput = 0;
 
+    int nclients_div = 0;
     for (unsigned int cctr = 0 ; cctr < num_clients; cctr++) {
         num_ops += clients[cctr].num_ops;
-        sum_throughput += clients[cctr].throughput;
+        // Defensive check: In case something went wrong ...
+        if (clients[cctr].throughput == 0) {
+            printf("\nWarning!! Throughput metric for client ID=%d is 0\n",
+                   cctr);
+        } else {
+            sum_throughput += clients[cctr].throughput;
+            nclients_div++;
+        }
     }
-    size_t cli_throughput = (sum_throughput / num_clients);
+    size_t cli_throughput = (sum_throughput / nclients_div);
 
     size_t svr_throughput = (uint64_t) ((num_ops * 1.0 / elapsed_ns)
                                             * L3_NS_IN_SEC);
 
     size_t avg_ops_per_thread = 0;
+    int num_threads_div = 0;
     for (int tctr = 0; tctr < num_threads; tctr++) {
-        avg_ops_per_thread += svr_config[tctr].num_ops;
+        // Defensive check: In case something went wrong ...
+        if (svr_config[tctr].svr_num_ops == 0) {
+            printf("\nWarning!! #-ops processsed metric for server thread=%d is 0\n",
+                   tctr);
+        } else {
+            avg_ops_per_thread += svr_config[tctr].svr_num_ops;
+            num_threads_div++;
+        }
     }
-    avg_ops_per_thread = (size_t) ((avg_ops_per_thread * 1.0) / num_threads);
+    avg_ops_per_thread = (size_t) ((avg_ops_per_thread * 1.0) / num_threads_div);
 
     printf("\nSummary:"
            " For %u clients, %s, num_threads=%d, num_ops=%lu (%s) ops"
