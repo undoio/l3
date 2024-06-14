@@ -357,7 +357,7 @@ l3_init_write(const char *path)
         return -1;
     }
 
-    l3_log_fd = open(path, (O_RDWR | O_CREAT | O_APPEND), 0666);
+    l3_log_fd = open(path, (O_RDWR | O_CREAT | O_TRUNC), 0666);
     if (l3_log_fd == -1) {
         fprintf(stderr, "%s: Error opening log-file at '%p'. Error=%d\n",
                 __func__, path, errno);
