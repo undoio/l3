@@ -183,6 +183,8 @@ getBaseAddress() {
 }
 #endif  // __APPLE__
 
+L3_THREAD_LOCAL pid_t l3_my_tid;
+
 /**
  * ****************************************************************************
  * l3_log_init() - Initialize L3-logging sub-system, selecting the type of
@@ -276,6 +278,8 @@ l3_init(const char *path)
         }
     }
 
+    l3_my_tid = L3_GET_TID();
+
     l3_log = (L3_LOG *) mmap(NULL, sizeof(*l3_log), PROT_READ|PROT_WRITE,
                              MAP_SHARED, fd, 0);
     if (l3_log == MAP_FAILED) {
@@ -368,18 +372,6 @@ l3_init_write(const char *path)
 }
 
 // ****************************************************************************
-static pid_t
-l3_mytid(void)
-{
-    static L3_THREAD_LOCAL pid_t tid;
-    if (!tid) {
-        tid = L3_GET_TID();
-    }
-
-    return tid;
-}
-
-// ****************************************************************************
 
 /**
  * l3_log_mmap() - 'C' interface to "slow" L3-logging.
@@ -399,7 +391,7 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
 #endif
 {
     int idx = __sync_fetch_and_add(&l3_log->idx, 1) % L3_MAX_SLOTS;
-    l3_log->slots[idx].tid = l3_mytid();
+    l3_log->slots[idx].tid = l3_my_tid;
 
 #ifdef L3_LOC_ENABLED
     l3_log->slots[idx].loc = (loc_t) loc;
