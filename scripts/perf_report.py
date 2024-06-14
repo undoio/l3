@@ -9,9 +9,41 @@ Copyright (c) 2024
 """
 import sys
 import argparse
+import statistics
 from collections import OrderedDict
 from collections import namedtuple
 from prettytable import PrettyTable
+
+# ##########################################################
+# Layout of a summary row from the output file:
+# ##########################################################
+# pylint: disable-next=line-too-long
+# Summary: For 32 clients, Baseline - No logging, num_threads=1, num_ops=32000000 (32 Million) ops, Elapsed time=105613818950 (~105.61 Billion) ns, Avg. Elapsed real time=3300 ns/msg, Server throughput=302990 (~302.99 K) ops/sec, Client throughput=10035 (~10.03 K) ops/sec, Avg. ops per thread=32000000 (32 Million) ops/thread
+
+# Define indexes for each field in above row-format
+FLD_NUM_CLIENTS_IDX         = 0
+FLD_RUN_TYPE_IDX            = 1
+FLD_NUM_THREADS_IDX         = 2
+FLD_NUM_OPS_IDX             = 3
+FLD_ELAPSED_TIME_IDX        = 4
+FLD_AVG_ELAPSED_TIME_IDX    = 5
+FLD_SERVER_THROUGHPUT_IDX   = 6
+FLD_CLIENT_THROUGHPUT_IDX   = 7
+FLD_AVG_OPS_PER_THREAD_IDX  = 8
+
+# -----------------------------------------------------------------------------
+# Define a named tuple class for metrics extracted out from a summary line.
+# pylint: disable-next=line-too-long
+MetricsTuple = namedtuple('MetricsTuple', 'svr_value cli_value svr_units_val svr_units_str cli_units_val cli_units_str thread_str')
+
+# Define a named tuple class for aggregated metrics for a given metric value.
+# niters is the # of raw-data-rows that went into computing the aggregates.
+AggMetrics = namedtuple('AggMetrics', 'niters, min_val, avg_val, med_val, max_val')
+
+# Define a named tuple class for the set-of-aggregated metrics from a set of
+# summary line-metrics that are squashed into a set of AggMetrics named tuples.
+# pylint: disable-next=line-too-long
+AggMetricsTuple = namedtuple('AggMetrics', 'svr_value_agg cli_value_agg svr_units_val_agg svr_units_str cli_units_val_agg cli_units_str thread_str')
 
 ###############################################################################
 # main() driver
@@ -41,6 +73,11 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
     Parse each comma-separated fields and extract values.
     """
     parsed_args = perf_parse_args(args)
+    perf_summ_file = parsed_args.summ_file
+    if perf_summ_file is not None:
+        gen_perf_report_from_summary_file(perf_summ_file)
+        sys.exit(0)
+
     perf_file = parsed_args.file
     lctr = 0
 
@@ -52,7 +89,6 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
     baseline_by_threads = OrderedDict()
 
     # Key: Run-type 'Baseline - No logging'; Value: [ <metrics> ]
-    metrics_by_run = OrderedDict()
     heading_row = []
 
     # Setup some defaults to avoid pylint errors.
@@ -108,9 +144,11 @@ L3-logging (no LOC), NumClients=5, NumOps=5000000 (5 Million), Server throughput
             # ------------------------------------------------------------------
             by_nthreads_dict = OrderedDict()
             if nthreads_field not in metrics_by_threads:
+                # pylint: disable-next=line-too-long
                 metrics_by_threads[nthreads_field] = { run_type: [svr_value, cli_value, svr_str, cli_str, thread_str ] }
             else:
                 by_nthreads_dict = metrics_by_threads[nthreads_field]
+                # pylint: disable-next=line-too-long
                 by_nthreads_dict.update( {run_type: [svr_value, cli_value, svr_str, cli_str, thread_str ] } )
                 metrics_by_threads[nthreads_field] = by_nthreads_dict
 
@@ -278,6 +316,412 @@ def gen_perf_report(heading:list, metrics:dict, base_svr_value:int, base_cli_val
     print(perf_table)
 
 # #############################################################################
+# pylint: disable=line-too-long
+def gen_perf_report_from_summary_file(perf_summ_file:str):
+    """
+    Driver method to parse `Summary:` lines from perf_summ_file to extract out
+    the metrics gathered at run-time. Generates a summary performance
+    comparison report.
+
+    The input file is expected to have multiple lines of this format:
+
+Summary: For 32 clients, Baseline - No logging, num_threads=1, num_ops=32000000 (32 Million) ops, Elapsed time=105613818950 (~105.61 Billion) ns, Avg. Elapsed real time=3300 ns/msg, Server throughput=302990 (~302.99 K) ops/sec, Client throughput=10035 (~10.03 K) ops/sec, Avg. ops per thread=32000000 (32 Million) ops/thread
+
+Summary: For 32 clients, Baseline - No logging, num_threads=2, num_ops=32000000 (32 Million) ops, Elapsed time=69448583392 (~69.44 Billion) ns, Avg. Elapsed real time=2170 ns/msg, Server throughput=460772 (~460.77 K) ops/sec, Client throughput=15524 (~15.52 K) ops/sec, Avg. ops per thread=16000000 (16 Million) ops/thread
+
+    The layout of this file is as follows:
+    For a given # of clients: e.g., 'For 32 clients':
+
+     - One summary-line:
+        - for each logging-type
+        - for one server-thread-count
+        - for 1 or more iterations of server execution
+
+     - For one run-parameter: (logging-type, num-server-threads), we could have
+       1 or more lines, for each iteration of the test. (Iteration lines are not
+       tagged.)
+
+     - After n-iterations, we could move to the next num-server-threads count.
+
+     - If the experiment was run with just one thread-count; i.e., env-var
+       L3_PERF_SERVER_NUM_THREADS=4, we will have just one set of these rows
+       for a single thread-count.
+
+    We have to rearrange the metrics rows so that the performance comparison
+    report for each logging-type as compared to baseline performance is
+    generated for different server-thread counts.
+
+    For runs with multiple iterations, this method computes the median metric
+    value and re-casts the metrics to drive-off of that. We massage the computed
+    median metric(s) to invoke existing report-generation code.
+
+    """
+    # pylint: enable=line-too-long
+
+    # Create an in-memory list of lines, which we'll scan multiple times.
+    flines = read_summary_lines(perf_summ_file)
+
+    if len(flines) == 0:
+        return
+
+    (num_clients_msg, num_ops_msg) = extract_nclients_ops_fields(flines[0])
+
+    (svr_metric_name, cli_metric_name, thread_metric_name) = extract_metric_names(flines[0])
+    heading_row = [ 'Run-Type', svr_metric_name, cli_metric_name, thread_metric_name ]
+
+    # Returns 'Baseline' run-type as 0'th row.
+    list_of_nthreads = gen_nthreads_list(flines)
+    # DEBUG: print(list_of_nthreads)
+
+    list_of_runtypes = gen_runtypes_list(flines)
+    # DEBUG: print(list_of_runtypes)
+
+    base_svr_value = 0
+    base_cli_value = 0
+
+    # Run through diff server-thread parameters, and generate report
+    # We make multiple passes extracing metrics for each combination
+    # of #-of-server-threads and run-types.
+    for threads in list_of_nthreads:
+
+        metrics_by_run_type = OrderedDict()
+
+        for run_type in list_of_runtypes:
+
+            list_of_metrics = extract_metrics_for(flines, threads, run_type)
+
+            # No. of iterations done for each client/server combo run-type
+            num_iters = len(list_of_metrics)
+
+            agg_metrics = compute_aggregates(list_of_metrics)
+
+            run_type_metrics_list = extract_med_from_agg_metrics(agg_metrics)
+            # DEBUG: print(run_type_metrics_list)
+
+            if run_type.startswith('Baseline'):
+                base_svr_value = run_type_metrics_list[0]
+                base_cli_value = run_type_metrics_list[1]
+
+            metrics_by_run_type[run_type] = run_type_metrics_list
+
+        # sign = 'positive' if x > 0 else 'non-positive'
+        one_iters_msg = "(1 iteration)" if num_iters == 1 else ""
+
+        # pylint: disable-next=line-too-long
+        print(f"\n    **** Performance comparison for {num_clients_msg}, {num_ops_msg}, {threads} {one_iters_msg} ****")
+        if num_iters > 1:
+            print(f"        **** (Using median value of metric across {num_iters} iterations) ****")
+        gen_perf_report(heading_row, metrics_by_run_type, base_svr_value, base_cli_value)
+
+
+# #############################################################################
+def read_summary_lines(perf_summ_file:str) -> list:
+    """
+    Read the summary lines, filtering out comment lines.
+
+    Returns: A list of lines.
+    """
+    flines = []
+    with open(perf_summ_file, 'rt', encoding="utf-8") as file:
+        flines = [line for line in file.readlines() if not line.startswith('#')]
+    return flines
+
+# #############################################################################
+def extract_nclients_ops_fields(line:str) -> tuple:
+    """
+    Parse an input line to extract out the number of clients and number of
+    msgs (ops) fields and return a tuple to the caller
+    Returns: Tuple: ('For 32 clients', 'num_ops=32000000 (32 Million) msgs')
+    """
+    nclients_msg = extract_nth_field(line, FLD_NUM_CLIENTS_IDX)
+    nops_msg = extract_nth_field(line, FLD_NUM_OPS_IDX)
+
+    # Further massage fields to get output data as described above.
+    nclients_msg = nclients_msg.split(':')[1]
+    nclients_msg = nclients_msg.lstrip().rstrip()
+
+    nops_msg = nops_msg.split('=')[1]
+    nops_msg = nops_msg.split(')')[0] + ') msgs'
+    nops_msg = nops_msg.lstrip().rstrip()
+    return (nclients_msg, nops_msg)
+
+# #############################################################################
+def extract_metric_names(line:str) -> tuple:
+    """
+    Parse the input line and extract the names of server / client metric.
+    Synthesize the server-thread metric's name.
+    Returns: (svr_metric_name, cli_metric_name, thread_metric_name)
+    """
+    svr_throughput_str = extract_nth_field(line, FLD_SERVER_THROUGHPUT_IDX)
+    svr_throughput_str = svr_throughput_str.split('=')[0]
+
+    cli_throughput_str = extract_nth_field(line, FLD_CLIENT_THROUGHPUT_IDX)
+    cli_throughput_str = cli_throughput_str.split('=')[0]
+
+    thread_throughput_str = 'NumOps/thread'
+
+    return (svr_throughput_str, cli_throughput_str, thread_throughput_str)
+
+
+# #############################################################################
+def extract_nth_field(line:str, field_num:int) -> tuple:
+    """
+    Extract out the n'th field from a comma-separated set of fields from line.
+
+    Returns:
+        - The field, if found, with leading / trailing spaces trimmed off.
+        - None otherwise
+    """
+    fields = line.split(",")
+    if field_num < 0 or len(fields) < field_num:
+        return None
+
+    field_str = fields[field_num]
+    field_str = field_str.lstrip().rstrip()
+    return field_str
+
+# #############################################################################
+def gen_nthreads_list(flines:list) -> list:
+    """
+    Process the list of input lines and identify the list of server-threads for
+    which the tests were run.
+    Returns: List of 'num_threads=<n>' items.
+    """
+    # Generate list of threads using list comprehension.
+    seen_threads = set()
+    list_of_nthreads = [ nthreads_term
+                         for line in flines
+                         if (nthreads_term := extract_nth_field(line, FLD_NUM_THREADS_IDX))
+                            not in seen_threads and not seen_threads.add(nthreads_term)
+                       ]
+
+    return list_of_nthreads
+
+# #############################################################################
+def gen_runtypes_list(flines:list) -> list:
+    """
+    Process the list of input lines and identify the list of logging run-types
+    for which the tests were run.
+    Returns: List of run-types, keeping the Baseline list at [0]'th slot.
+    """
+    # Generate list of run-types using list comprehension.
+    seen_run_types = set()
+    list_of_run_types = [ run_type
+                         for line in flines
+                         if (run_type := extract_nth_field(line, FLD_RUN_TYPE_IDX))
+                            not in seen_run_types and not seen_run_types.add(run_type)
+                        ]
+
+    # Re-arrange so that baseline row is the 1st item in the list
+    if list_of_run_types[0].startswith('Baseline') is False:
+        baseline_off = -1
+        rctr = 0
+        for runtype in list_of_run_types:
+            if runtype.startswith('Baseline'):
+                baseline_off = rctr
+                break
+
+            rctr += 1
+
+        # Flip rows, if baseline record is found
+        if baseline_off != -1:
+            baseline_row = list_of_run_types[baseline_off]
+            list_of_run_types[baseline_off] = list_of_run_types[0]
+            list_of_run_types[0] = baseline_row
+
+    return list_of_run_types
+
+
+# #############################################################################
+def extract_metrics_for(flines:list, nthreads:str, run_type:str) -> list:
+    """
+    Given a list of summary lines, #-of-threads parameter and run-type,
+    extract out the relevants metrics for matching summary-lines.
+
+    Returns: List of MetricsTuple() named tuples for metrics.
+    """
+    metrics = []
+    for line in flines:
+        if line_matches(line, nthreads, run_type) is False:
+            continue
+
+        (svr_value, cli_value, svr_units_val, svr_units_str, cli_units_val, cli_units_str, thread_str) = extract_metrics(line)
+        metrics.append(MetricsTuple(svr_value, cli_value, svr_units_val, svr_units_str, cli_units_val, cli_units_str, thread_str))
+
+    # print(f"\nList of metrics tuple(s) for {nthreads}, {run_type}")
+    # print_list_of_metrics_tuples(metrics)
+    return metrics
+
+# #############################################################################
+def compute_aggregates(list_of_metrics:list) -> AggMetricsTuple:
+    """
+    Given a list of MetricsTuple() tuples, compute the required aggregates for
+    each interesting metric.
+
+    Returns: Tuple of type AggMetrics()
+    """
+    # DEBUG: print("\nList of metrics tuple(s)")
+    # DEBUG: print_list_of_metrics_tuples(list_of_metrics)
+
+    num_list = [ mtuple.svr_value for mtuple in list_of_metrics ]
+    # DEBUG: print(sorted(num_list))
+
+    svr_value_agg = aggregate_num_list(num_list)
+    # DEBUG: print(f"{svr_value_agg}\n")
+
+    num_list = [ mtuple.cli_value for mtuple in list_of_metrics ]
+    # DEBUG: print(sorted(num_list))
+
+    cli_value_agg = aggregate_num_list(num_list)
+    # DEBUG: print(f"{cli_value_agg}\n")
+
+    num_list = [ mtuple.svr_units_val for mtuple in list_of_metrics ]
+    # DEBUG: print(sorted(num_list))
+
+    svr_units_val_agg = aggregate_num_list(num_list)
+    # DEBUG: print(f"{svr_units_val_agg}\n")
+
+    num_list = [ mtuple.cli_units_val for mtuple in list_of_metrics ]
+    # DEBUG: print(sorted(num_list))
+
+    cli_units_val_agg = aggregate_num_list(num_list)
+    # DEBUG: print(f"{cli_units_val_agg}\n")
+
+    # All server/client units-value have the same units. Grab the 1st one.
+    for mtuple in list_of_metrics:
+        svr_units_str = mtuple.svr_units_str
+        cli_units_str = mtuple.cli_units_str
+
+    # We expect that the distribution of #-ops processed / thread to be uniform.
+    # So, do a loose check that we got a unique value. And warn the user if
+    # that's not the case.
+    ops_per_thread_set = set()
+    ops_per_thread_list = [ mtuple.thread_str
+                            for mtuple in list_of_metrics
+                            if mtuple.thread_str not in ops_per_thread_set
+                            and not ops_per_thread_set.add(mtuple.thread_str)
+                          ]
+
+    nunique_ops_per_thread = len(ops_per_thread_list)
+    if nunique_ops_per_thread > 1:
+        print("Warning! Found {nunique_ops_per_thread} ops/thread metric.")
+
+    thread_str = ops_per_thread_list[0]
+    # DEBUG: print(thread_str)
+
+    return AggMetricsTuple(svr_value_agg, cli_value_agg, svr_units_val_agg, svr_units_str, cli_units_val_agg, cli_units_str, thread_str)
+
+# #############################################################################
+def aggregate_num_list(list_of_nums:list) -> AggMetrics:
+    """
+    Given a list of numbers (ints/floats), compute their aggregates.
+    Returns: AggMetrics() tuple
+    """
+    nitems = len(list_of_nums)
+    if nitems == 0:
+        return None
+
+    min_num = sys.maxsize
+    max_num = 0
+    avg_num = 0
+    med_num = 0
+    sum_num = 0
+    for num_val in list_of_nums:
+        min_num = min(min_num, num_val)
+        max_num = max(max_num, num_val)
+        sum_num += num_val
+
+    med_num = statistics.median(list_of_nums)
+    avg_num = round(((sum_num * 1.0) / nitems), 2)
+
+    return AggMetrics(nitems, min_num, avg_num, med_num, max_num)
+
+# #############################################################################
+def extract_metrics(line:str) -> tuple:
+    """
+    Given a summary line, extract key-metrics fields that will be needed to
+    compute aggregates and also for reporting.
+
+    Example: For a line like this:
+
+# pylint: disable-next=line-too-long
+# Summary: For 32 clients, Baseline - No logging, num_threads=1, num_ops=32000000 (32 Million) ops, Elapsed time=105613818950 (~105.61 Billion) ns, Avg. Elapsed real time=3300 ns/msg, Server throughput=302990 (~302.99 K) ops/sec, Client throughput=10035 (~10.03 K) ops/sec, Avg. ops per thread=32000000 (32 Million) ops/thread
+
+    Returns: Tuple:
+        - svr_value     : int   : 302990
+        - cli_value     : int   : 10035
+        - svr_units_val : float : 302.99
+        - svr_units_str : str   : 'K ops/sec'
+        - cli_units_val : float : 10.03
+        - cli_units_str : str   : 'K ops/sec'
+        - thread_str    : str   : '32 Million ops'
+    """
+    svr_throughput_str = extract_nth_field(line, FLD_SERVER_THROUGHPUT_IDX)
+    svr_throughput_str = svr_throughput_str.split('=')[1]
+
+    (svr_value, svr_units_str) = svr_throughput_str.split('(')
+    svr_value = int(svr_value.lstrip().rstrip())
+    svr_units_str = strip_parens_etc(svr_units_str)
+    (svr_units_val, svr_units_str) = svr_units_str.split(sep=' ', maxsplit=1)
+    svr_units_val = float(svr_units_val)
+
+    cli_throughput_str = extract_nth_field(line, FLD_CLIENT_THROUGHPUT_IDX)
+    cli_throughput_str = cli_throughput_str.split('=')[1]
+
+    (cli_value, cli_units_str) = cli_throughput_str.split('(')
+    cli_value = int(cli_value.lstrip().rstrip())
+    cli_units_str = strip_parens_etc(cli_units_str)
+    (cli_units_val, cli_units_str) = cli_units_str.split(sep=' ', maxsplit=1)
+    cli_units_val = float(cli_units_val)
+
+    avg_ops_per_thread_str = extract_nth_field(line, FLD_AVG_OPS_PER_THREAD_IDX)
+    thread_str = avg_ops_per_thread_str.split('=')[1]
+
+    # pylint: disable-next=unused-variable
+    (thread_val_unused, thread_str) = thread_str.split(sep=' ', maxsplit=1)
+    thread_str = strip_parens_etc(thread_str)
+    thread_str = thread_str.split('/')[0]
+
+    return (svr_value, cli_value, svr_units_val, svr_units_str, cli_units_val, cli_units_str, thread_str)
+
+# #############################################################################
+def extract_med_from_agg_metrics(agg_metrics:AggMetricsTuple) -> list:
+    """
+    Given a named-tuple, AggMetricsTuple, of aggregated metrics, extract the
+    key metrics fields that are needed for report generation. We use the
+    median value of the metric to generate performance gain/drop %age.
+
+    Returns: List of metric values in a form as needed by downstream code.
+    """
+    svr_value = agg_metrics.svr_value_agg.med_val
+    cli_value = agg_metrics.cli_value_agg.med_val
+    svr_str   = str(agg_metrics.svr_units_val_agg.med_val) + ' ' + agg_metrics.svr_units_str
+    cli_str   = str(agg_metrics.cli_units_val_agg.med_val) + ' ' + agg_metrics.cli_units_str
+    thread_str = agg_metrics.thread_str
+
+    return (svr_value, cli_value, svr_str, cli_str, thread_str)
+
+# #############################################################################
+def strip_parens_etc(field_str:str) -> str:
+    """
+    Given an input like: '(~10.03 K) ops/sec', strips away stuff and
+    Returns: '10.03 K ops/sec'
+    """
+    field_str = field_str.replace('(', '')
+    field_str = field_str.replace(')', '')
+    field_str = field_str.replace('~', '')
+    return field_str
+
+# #############################################################################
+def line_matches(line:str, nthreads:str, run_type:str) -> bool:
+    """
+    See if input line matches the desired #-of-threads and run-type.
+    """
+    nthreads_field = extract_nth_field(line, FLD_NUM_THREADS_IDX)
+    run_type_field = extract_nth_field(line, FLD_RUN_TYPE_IDX)
+    return (nthreads == nthreads_field) and (run_type == run_type_field)
+
+# #############################################################################
 def compute_pct_drop(baseval:int, metric:int) -> float:
     """
     Compute the %age drop of new metric v/s baseline value 'baseval'.
@@ -308,12 +752,30 @@ def perf_parse_args(args:list):
     # Define required arguments supported by this script
     parser.add_argument('--file', dest='file'
                         , metavar='<perf-outfile-name>'
-                        , required=True
+                        , required=False
+                        , default=None
                         , help='Perf test-run output file name')
+
+    parser.add_argument('--summary-file', dest='summ_file'
+                        , metavar='<stdout-grep-Summary-outfile-name>'
+                        , required=False
+                        , default=None
+                        , help='Perf output file name with "Summary:" lines')
 
     parsed_args = parser.parse_args(args)
     if parsed_args is False:
         parser.print_help()
+
+    # Either one of the file-specifiers should be provided
+    if parsed_args.file is None and parsed_args.summ_file is None:
+        # pylint: disable-next=line-too-long
+        print(f"{sys.argv[0]} Error: Either one of --file or --summary-file arguments must be provided.")
+        sys.exit(1)
+
+    if parsed_args.file is not None and parsed_args.summ_file is not None:
+        # pylint: disable-next=line-too-long
+        print(f"{sys.argv[0]} Error: Only one of --file or --summary-file arguments must be provided.")
+        sys.exit(1)
 
     return parsed_args
 
@@ -336,6 +798,19 @@ def pr_metrics(tdict:dict, indent:str = ""):
     """
     for key in tdict.keys():
         print(f"{indent}{key=}, value = {tdict[key]}")
+
+# #############################################################################
+def print_list_of_metrics_tuples(metrics:list, indent:str = "  "):
+    """ Print contents of a list of MetricsTuple()s"""
+    print("[")
+    for mtuple in metrics:
+        # This will print using Python's native print method.
+        print(f"{indent}{mtuple}")
+
+        # Print by unpacking each field
+        # pylint: disable-next=line-too-long
+        # print(f"{indent}svr_value={mtuple.svr_value}, cli_value={mtuple.cli_value}, svr_units_val={mtuple.svr_units_val}, cli_units_val={mtuple.cli_units_val}, units_str={mtuple.cli_units_str}, thread_str={mtuple.thread_str}")
+    print("]")
 
 ###############################################################################
 # Start of the script: Execute only if run as a script

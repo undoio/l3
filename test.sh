@@ -63,9 +63,12 @@ SvrPerfOutfileArg=
 # execution, we can now specify a list of server-threads to execute,
 # using env-var as:
 #
-#   SERVER_NUM_THREADS="1 2 4 8" ./test.sh run-all-client-server-perf-tests
+#   L3_PERF_SERVER_NUM_THREADS="1 2 4 8" ./test.sh run-all-client-server-perf-tests
 #
-SrvNumThreadsList="${SERVER_NUM_THREADS:-1}"
+SrvNumThreadsList="${L3_PERF_SERVER_NUM_THREADS:-1}"
+
+# Number of iterations to perform each test.
+PerfTestNumIters="${L3_PERF_TEST_NUM_ITERS:-1}"
 
 # ##################################################################
 # Array of test function names. If you add a new test_<function>,
@@ -157,7 +160,8 @@ function usage()
    echo " ./${Me} test-build-and-run-csperf-l3_loc_eq_2 [ server-clock-ID [ num-msgs ] ]"
    echo " "
    echo "Environment Variables:"
-   echo "   SERVER_NUM_THREADS: List of server-threads to exercise; e.g. \"1 2 4\""
+   echo "   L3_PERF_SERVER_NUM_THREADS: List of server-threads to exercise; e.g. \"1 2 4\""
+   echo "   L3_PERF_TEST_NUM_ITERS: Number of iterations to perform test."
    echo " "
    echo "Examples:"
 
@@ -168,10 +172,12 @@ function usage()
 
    echo " "
    echo "Run client-server performance tests with different server-thread settings."
-   echo " SERVER_NUM_THREADS=\"1 2 4 8\" ./${Me} run-all-client-server-perf-tests --clock-default ${nmsgs}"
+   echo " L3_PERF_SERVER_NUM_THREADS=\"1 2 4 8\" ./${Me} run-all-client-server-perf-tests --clock-default ${nmsgs}"
 
    echo " "
    echo "  Client-Server performance u-benchmarking defaults:"
+   echo "    L3_PERF_SERVER_NUM_THREADS             = 1"
+   echo "    L3_PERF_TEST_NUM_ITERS                 = 1"
    echo "    Number of clients                      = ${NumClients}"
    echo "    Number of messages sent by each client = ${NumMsgsPerClient}"
    echo "    Default clock-ID used (client)         = CLOCK_REALTIME"
@@ -994,14 +1000,29 @@ function run-client-server-tests_vary_threads()
 
     set +x
 
+    echo " "
+    echo "${Me}: $(TZ="America/Los_Angeles" date) Started run-client-server-tests_vary_threads() ... "
+    echo " "
+
     for threads in ${SrvNumThreadsList}; do
         echo " "
         echo "${Me}:${LINENO}: ***** Run run-client-server-test with l3_enabled=${l3_enabled}, num_msgs_per_client=${num_msgs_per_client}, ${threads} threads ..."
-        echo " "
 
-        run-client-server-test "${num_msgs_per_client}" "${l3_enabled}" "${threads}"
+        local ictr=1
+        # shellcheck disable=SC2086
+        while [ ${ictr} -le ${PerfTestNumIters} ]; do
+
+            echo " "
+            echo "${Me}:${LINENO}: Iteration: ${ictr} Run run-client-server-test ..."
+            run-client-server-test "${num_msgs_per_client}" "${l3_enabled}" "${threads}"
+            ictr=$((ictr + 1))
+        done
 
     done
+
+    echo " "
+    echo "${Me}: $(TZ="America/Los_Angeles" date) Completed run-client-server-tests_vary_threads() ... "
+    echo " "
 
     set -x
 }
