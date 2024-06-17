@@ -60,9 +60,9 @@ help::
 	@echo ' make clean && CC=gcc LD=g++ L3_LOC_ENABLED=2              make client-server-perf-test  # L3+LOC-ELF logging'
 	@echo ' '
 	@echo 'To build L3-sample programs with LOC-enabled and run unit-tests:'
-	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests   && L3_LOC_ENABLED=1 make run-c-tests'
-	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cpp-tests && L3_LOC_ENABLED=1 make run-cpp-tests'
-	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cc-tests  && L3_LOC_ENABLED=1 make run-cc-tests'
+	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=1 make all-c-tests   && make run-c-tests'
+	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cpp-tests && make run-cpp-tests'
+	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=1 make all-cc-tests  && make run-cc-tests'
 	@echo ' '
 	@echo 'To build-and-run L3-sample programs with LOC-ELF enabled, directly use the 'run' targets as:'
 	@echo ' make clean && CC=gcc LD=g++         L3_LOC_ENABLED=2 make run-c-tests'
@@ -77,7 +77,7 @@ help::
 	@echo ' '
 	@echo 'Environment variables: '
 	@echo '  BUILD_MODE={release,debug}'
-	@echo '  BUILD_VERBOSE={0,1}'
+	@echo '  BUILD_VERBOSE={0,1,2}'
 	@echo '  L3_ENABLED={0,1}'
 	@echo '  L3_LOC_ENABLED={0,1,2}'
 	@echo '  Defaults: CC=gcc CXX=g++ LD=g++'
@@ -98,17 +98,17 @@ endif
 ifeq "$(BUILD_VERBOSE)" "1"
    COMMAND=
    PROLIX=@echo
-   BRIEF=@ >/dev/null echo
    # Always print message describe step executed, even in verbose mode.
    # BRIEF_FORMATTED=@ >/dev/null echo
    BRIEF_FORMATTED=@printf
-   BRIEF_PARTIAL=@echo -n >/dev/null
+else ifeq "$(BUILD_VERBOSE)" "2"
+   COMMAND=
+   PROLIX=@echo
+   BRIEF_FORMATTED=@printf
 else ifeq "$(BUILD_VERBOSE)" "0"
    COMMAND=@
    PROLIX=@ >/dev/null echo
-   BRIEF=@echo
    BRIEF_FORMATTED=@printf
-   BRIEF_PARTIAL=@echo -n
 else
    $(error Unknown BUILD_VERBOSE mode "$(BUILD_VERBOSE)".  Valid values are "0" or "1". Default is "0")
 endif
@@ -323,7 +323,7 @@ $(SINGLE_FILE_C_PROGRAM_BIN): $(SINGLE_FILE_C_PROGRAM_OBJS)
 
 TEST_C_CODE_BINS := $(SINGLE_FILE_C_PROGRAM_BIN)
 
-ifeq "$(BUILD_VERBOSE)" "1"
+ifeq "$(BUILD_VERBOSE)" "2"
     $(info )
     $(info ---- Debug ----)
     $(info $$SINGLE_FILE_C_PROGRAM_SRCS = [ ${SINGLE_FILE_C_PROGRAM_SRCS} ])
@@ -365,7 +365,7 @@ $(SINGLE_FILE_CPP_PROGRAM_BIN): $(SINGLE_FILE_CPP_PROGRAM_OBJS)
 
 TEST_CPP_CODE_BINS := $(SINGLE_FILE_CPP_PROGRAM_BIN)
 
-ifeq "$(BUILD_VERBOSE)" "1"
+ifeq "$(BUILD_VERBOSE)" "2"
     $(info )
     $(info ---- Debug ----)
     $(info $$SINGLE_FILE_CPP_PROGRAM_SRCS = [ ${SINGLE_FILE_CPP_PROGRAM_SRCS} ])
@@ -507,7 +507,7 @@ WRITE_PERF_UNIT_TEST_BIN    := $(BINDIR)/$(UNIT_DIR)/l3-write-perf-test
 
 UNIT_TESTBIN_SRCS := $(filter %-test.c, $(UNIT_TESTSRC))
 UNIT_TESTBINS     := $(UNIT_TESTBIN_SRCS:$(TESTS_DIR)/%-test.c=$(BINDIR)/%-test)
-ifeq "$(BUILD_VERBOSE)" "1"
+ifeq "$(BUILD_VERBOSE)" "2"
     $(info )
     $(info ---- Debug ----)
     $(info $$UNIT_DIR = [ ${UNIT_DIR} ])
@@ -740,7 +740,7 @@ CLIENT_SERVER_PERF_TEST_BIN_SRCS := $(filter $(CLIENT_SERVER_PERF_TESTS_DIR)/svm
 #
 CLIENT_SERVER_PERF_TEST_BINS    := $(CLIENT_SERVER_PERF_TEST_BIN_SRCS:$(CLIENT_SERVER_PERF_TESTS_DIR)/%.c=$(BINDIR)/$(USE_CASES)/%)
 
-ifeq "$(BUILD_VERBOSE)" "1"
+ifeq "$(BUILD_VERBOSE)" "2"
     $(info )
     $(info ---- Debug ----)
     $(info $$L3_ENABLED = [ ${L3_ENABLED} ])
