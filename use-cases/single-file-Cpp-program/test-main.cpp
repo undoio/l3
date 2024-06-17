@@ -64,7 +64,8 @@ main(const int argc, const char * argv[])
         if (e) {
             abort();
         }
-        cout << "L3-logging unit-tests log file: " << logfile << "\n";
+        cout << "L3-logging 5 entries to unit-tests log file: "
+             << logfile << "\n";
         l3_log("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
 
         void *bp = (void *) 0xdeadbabe;

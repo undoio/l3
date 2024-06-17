@@ -33,8 +33,9 @@ void test_l3_fast_log(void);
 int
 main(const int argc, const char **argv)
 {
-    test_l3_fast_log();
+    // Keep this order as we unpack in this order in `make run-unit-tests`
     test_l3_slow_log();
+    test_l3_fast_log();
 
     return 0;
 }
@@ -53,7 +54,7 @@ void test_l3_slow_log(void)
     l3_log("Potential memory overwrite (addr=%p, size=%d)", bp, 1024);
     l3_log("Invalid buffer handle (addr=0x%x), lockrec=0x%p", 0xbeefabcd, NULL);
 
-    printf("Generated slow log-entries to log-file: %s\n", log);
+    printf("Generated 4 slow log-entries to log-file: %s\n", log);
 }
 
 void test_l3_fast_log(void)
@@ -71,5 +72,5 @@ void test_l3_fast_log(void)
     void *bp = (void *) 0xbeefabcd;
     l3_log_fast("Fast-log-msg: Invalid buffer handle (addr=0x%p), unused=%u", bp, 0);
 
-    printf("Generated fast log-entries to log-file: %s\n", log);
+    printf("Generated 5 fast log-entries to log-file: %s\n", log);
 }

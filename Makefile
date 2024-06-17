@@ -931,20 +931,22 @@ run-cc-tests: all-cc-tests
 run-unit-tests: all-unit-tests
 	@echo
 	@echo '---- Run L3 unit-tests: ----'
+	@echo
+	./$(SIZE_UNIT_TEST_BIN)
+	@echo
 	./$(L3_C_UNIT_TEST_BIN)
 	@echo
 	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_SLOW_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
 	@echo
 	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_FAST_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
 	@echo
-	./$(SIZE_UNIT_TEST_BIN)
-	@echo
 	./$(FPRINTF_PERF_UNIT_TEST_BIN)
-	# L3-write performance test seems to work better on subsequent runs.
 	@echo
-	./$(WRITE_PERF_UNIT_TEST_BIN)
+	# L3-write performance test seems to work better on subsequent runs. Log 2 Mil msgs
 	@echo
-	./$(WRITE_PERF_UNIT_TEST_BIN)
+	./$(WRITE_PERF_UNIT_TEST_BIN) 2
+	@echo
+	./$(WRITE_PERF_UNIT_TEST_BIN) 2
 
 run-loc-tests: all-loc-tests
 	@echo
