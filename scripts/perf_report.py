@@ -221,7 +221,7 @@ def parse_perf_line_values(line:str) -> tuple:
     svr_value = int(svr_value_str)
     cli_value = int(cli_value_str)
 
-    print(f"{run_type}, {nthreads_field}")
+    # DEBUG: print(f"{run_type}, {nthreads_field}")
     return (run_type, nthreads_field, svr_value, svr_str, cli_value, cli_str, thread_str)
 
 # #############################################################################
