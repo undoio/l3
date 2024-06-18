@@ -93,6 +93,13 @@ const char *l3_logtype_name(l3_log_t logtype);
                 printf((msg), (arg1), (arg2));                          \
             } else
 
+  #elif L3_SRCLOC_ENABLED
+
+    #define l3_log(msg, arg1, arg2)                                     \
+            l3_log_mmap((msg),                                          \
+                        (uint64_t) (arg1), (uint64_t) (arg2),           \
+                        std::source_location::current())
+
    #else   // L3_LOC_ENABLED
 
     #if defined(L3_LOGT_FPRINTF)
@@ -126,6 +133,13 @@ const char *l3_logtype_name(l3_log_t logtype);
             l3_log_mmap((msg),                                          \
                         (uint64_t) (arg1), (uint64_t) (arg2),           \
                         __LOC__)
+
+  #elif L3_SRCLOC_ENABLED
+
+    #define l3_log(msg, arg1, arg2)                                     \
+            l3_log_mmap((msg),                                          \
+                        (uint64_t) (arg1), (uint64_t) (arg2),           \
+                        std::source_location::current())
 
   #else   // L3_LOC_ENABLED
 
@@ -168,6 +182,9 @@ extern "C" {
 #ifdef L3_LOC_ENABLED
 void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
                  const loc_t loc);
+#elif L3_SRCLOC_ENABLED
+void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+                 std::source_location loc);
 #else
 void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
                  const uint32_t loc);

@@ -16,6 +16,10 @@
 #include <iostream>
 #include <string.h>
 
+#if L3_SRCLOC_ENABLED
+#include <source_location>
+#endif  // L3_SRCLOC_ENABLED
+
 #include "l3.h"
 
 using namespace std;
@@ -74,10 +78,13 @@ main(const int argc, const char * argv[])
         bp = (void *) 0xbeefabcd;
         l3_log("Invalid buffer handle (addr=%p, refcount=%d)", bp, 0);
 
+        // Fast-logging hasn't been updated to stash away source_location{}-ID
+#ifndef L3_SRCLOC_ENABLED
         bp = (int *) 0xdeadbeef;
         l3_log_fast("Fast-logging msg1=%d, addr=%p", 10, bp);
 
         l3_log_fast("Fast-logging msg2=%d, addr=%p", 20, (char *) 0xbeefbabe);
+#endif  // L3_SRCLOC_ENABLED
     }
 
     return 0;

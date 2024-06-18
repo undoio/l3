@@ -22,6 +22,10 @@
 #include <sys/syscall.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+#include <source_location>
+#endif  // __cplusplus
+
 #if __APPLE__
 #include <mach-o/getsect.h>
 #include <pthread.h>
@@ -42,6 +46,9 @@
 // Define version of static assertion checking that works for both gcc and g++
 #ifdef __cplusplus
 #define L3_STATIC_ASSERT    static_assert
+
+using namespace std;
+
 #else
 #define L3_STATIC_ASSERT    _Static_assert
 #endif
@@ -62,6 +69,10 @@ typedef struct l3_entry
     pid_t       tid;
 #ifdef L3_LOC_ENABLED
     loc_t       loc;
+
+#elif L3_SRCLOC_ENABLED
+    uint32_t    pad;
+    std::source_location    loc;
 #else
     uint32_t    loc;
 #endif  // L3_LOC_ENABLED
@@ -104,6 +115,7 @@ enum loc_type_t
       L3_LOG_LOC_NONE                   =  ((uint8_t) 0)
     , L3_LOG_LOC_ENCODING               // ((uint8_t) 1)
     , L3_LOG_LOC_ELF_ENCODING           // ((uint8_t) 2)
+    , L3_LOG_SRCLOC_ENCODING            // ((uint8_t) 3)
 };
 
 /**
@@ -118,6 +130,9 @@ typedef struct l3_log
     uint8_t         platform;
     uint8_t         loc_type;
     uint64_t        pad1;
+#if L3_SRCLOC_ENABLED
+    uint64_t        pad_for_srcloc;
+#endif  // L3_SRCLOC_ENABLED
     L3_ENTRY        slots[L3_MAX_SLOTS];
 } L3_LOG;
 
@@ -153,6 +168,7 @@ int     l3_log_fd = -1;     // L3_LOG_WRITE: Opened by open()
  * L3_LOG{} and L3_ENTRY{}'s size is somewhat of a convenience. They just
  * happen to be of the same size, as of now, hence, this reuse.)
  */
+
 L3_STATIC_ASSERT(offsetof(L3_LOG,slots) == sizeof(L3_ENTRY),
                 "Expected layout of L3_LOG{} is != 32 bytes.");
 
@@ -317,6 +333,8 @@ l3_init(const char *path)
     l3_log->loc_type = L3_LOG_LOC_ELF_ENCODING;
 #elif L3_LOC_ENABLED
     l3_log->loc_type = L3_LOG_LOC_ENCODING;
+#elif L3_SRCLOC_ENABLED
+    l3_log->loc_type = L3_LOG_SRCLOC_ENCODING;
 #endif  // L3_LOC_ELF_ENABLED
 
     l3_log->log_size = L3_MAX_SLOTS;
@@ -382,13 +400,24 @@ l3_init_write(const char *path)
  * DEBUG version of the caller-macro using printf(), for argument v/s print-
  * format specifiers in 'msg'.
  */
-void
 #ifdef L3_LOC_ENABLED
+
+void
 l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
             loc_t loc)
+
+#elif L3_SRCLOC_ENABLED
+
+void
+l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+           std::source_location loc)
+
 #else
+
+void
 l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
             uint32_t loc)
+
 #endif
 {
 
@@ -403,10 +432,16 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
 
 #ifdef L3_LOC_ENABLED
     l3_log->slots[idx].loc = (loc_t) loc;
+#elif L3_SRCLOC_ENABLED
+    l3_log->slots[idx].loc = loc;
 #else   // L3_LOC_ENABLED
 
 #ifdef DEBUG
+
+#ifndef L3_SRCLOC_ENABLED
     assert(l3_log->slots[idx].loc == 0);
+#endif  // L3_SRCLOC_ENABLED
+
 #endif  // DEBUG
 
 #endif  // L3_LOC_ENABLED
@@ -431,7 +466,7 @@ l3_log_write(const char *msgfmt, const uint64_t arg1, const uint64_t arg2)
     int msglen = snprintf(msgbuf, sizeof(msgbuf), msgfmt, arg1, arg2);
 
     // So, write-to-the-log only the actual data that is in the buffer.
-    int datalen = L3_MIN(msglen, sizeof(msgbuf));
+    int datalen = L3_MIN((size_t) msglen, sizeof(msgbuf));
 
     if (write(l3_log_fd, msgbuf, datalen) != datalen) {
         fprintf(stderr, "%s(): write() failed, datalen=%d. errno=%d\n",

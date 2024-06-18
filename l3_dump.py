@@ -18,8 +18,10 @@ import argparse
 # ##############################################################################
 # Constants that tie the unpacking logic to L3's core structure's layout
 # ##############################################################################
-L3_LOG_HEADER_SZ = 32  # bytes; offsetof(L3_LOG, slots)
-L3_ENTRY_SZ = 32       # bytes; sizeof(L3_ENTRY)
+L3_LOG_HEADER_SZ    = 32    # bytes; offsetof(L3_LOG, slots)
+L3_PAD_FOR_SRCLOC   = 8     # bytes; adding for padding; See l3.c
+L3_ENTRY_SZ         = 32    # bytes; sizeof(L3_ENTRY)
+L3_SRCLOC_ENTRY_SZ  = 40    # bytes; is larger due to source_location{}
 
 # #############################################################################
 PROGRAM_BIN = 'unknown'
@@ -36,6 +38,7 @@ LOC_DECODER = "LOC_DECODER"
 L3_LOC_UNSET            = 0
 L3_LOC_DEFAULT          = 1
 L3_LOC_ELF_ENCODING     = 2
+L3_SRCLOC_ENCODING      = 3
 
 # #############################################################################
 # Establish path / names to tools used here based on the OS-platform version
@@ -69,6 +72,7 @@ L3_LOG_PLATFORM_MACOSX          = 2
 L3_LOG_LOC_NONE                 = 0
 L3_LOG_LOC_ENCODING             = 1
 L3_LOG_LOC_ELF_ENCODING         = 2
+L3_LOG_SRCLOC_ENCODING          = 3
 
 # #############################################################################
 def which_binary(os_uname_s:str, bin_name:str):
@@ -247,6 +251,9 @@ def l3_unpack_loghdr(file_hdl) -> (int, int, int):
         uint8_t         platform;
         uint8_t         loc_type;
         uint64_t        pad1;
+#if L3_SRCLOC_ENABLED
+    uint64_t            pad_for_srcloc;
+#endif  // L3_SRCLOC_ENABLED
         L3_ENTRY        slots[L3_MAX_SLOTS];
     } L3_LOG;
 
@@ -267,6 +274,8 @@ def l3_unpack_loghdr(file_hdl) -> (int, int, int):
         decode_loc_id = L3_LOC_DEFAULT
     elif loc_type == L3_LOG_LOC_ELF_ENCODING:
         decode_loc_id = L3_LOC_ELF_ENCODING
+    elif loc_type == L3_LOG_SRCLOC_ENCODING:
+        decode_loc_id = L3_SRCLOC_ENCODING
     else:
         decode_loc_id = L3_LOC_UNSET
 
@@ -472,6 +481,7 @@ def do_main(args:list, return_logentry_lists:bool = False):
         # of the fbase-address stashed by the l3_init() call.
         (fibase, _, decode_loc_id) = l3_unpack_loghdr(file)
 
+        # print(f"{decode_loc_id=}")
         loc_decoder_bin = select_loc_decoder_bin(decode_loc_id,
                                                  program_bin,
                                                  loc_decoder_bin)
@@ -497,16 +507,29 @@ def do_main(args:list, return_logentry_lists:bool = False):
         # pylint: disable=invalid-name
         nentries = 0
         loc_prev = 0
+        if decode_loc_id == L3_SRCLOC_ENCODING:
+            l3_entry_sz = L3_SRCLOC_ENTRY_SZ
+            # Read-past pad bytes, so file is positioned at start of slots[]
+            row = file.read(L3_PAD_FOR_SRCLOC)
+        else:
+            l3_entry_sz = L3_ENTRY_SZ
+
+        # print(f"{l3_entry_sz=}")
+
         # Keep reading chunks of log-entries from file ...
         while True:
-            row = file.read(L3_ENTRY_SZ)
+            row = file.read(l3_entry_sz)
             len_row = len(row)
 
             # Deal with eof
-            if not row or len_row == 0 or len_row < L3_ENTRY_SZ:
+            if not row or len_row == 0 or len_row < l3_entry_sz:
                 break
 
-            tid, loc, msgptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
+            if decode_loc_id == L3_SRCLOC_ENCODING:
+                tid, unused_4b, loc, msgptr, arg1, arg2 = struct.unpack('<iiQQQQ', row)
+                # DEBUG: print(f"{tid=}, {unused_4b=}, {loc=}, {msgptr=}, {arg1=}, {arg2=}")
+            else:
+                tid, loc, msgptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
 
             # If no entry was logged, ptr to message's string is expected to be NULL
             if msgptr == 0:
@@ -570,6 +593,9 @@ def do_main(args:list, return_logentry_lists:bool = False):
                     print(f"{tid=} {UNPACK_LOC} '{msg_text}'")
                 else:
                     print(f"{tid=} {loc=} '{msg_text}'")
+
+            elif decode_loc_id == L3_SRCLOC_ENCODING:
+                print(f"{tid=} {loc=} '{msg_text}'")
 
             # Build output-lists, if requested
             if return_logentry_lists is True:

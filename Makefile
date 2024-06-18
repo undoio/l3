@@ -69,6 +69,9 @@ help::
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=2 make run-cpp-tests'
 	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=2 make run-cc-tests'
 	@echo ' '
+	@echo 'To build L3 C++-sample programs with C++-20 source_location{}-enabled and run unit-tests:'
+	@echo ' make clean && CC=g++ CXX=g++ LD=g++ L3_LOC_ENABLED=3 make all-cpp-tests && make run-cpp-tests'
+	@echo ' '
 	@echo 'To build spdlog:'
 	@echo ' make clean && CC=g++ LD=g++ make spdlog-cpp-program'
 	@echo ' '
@@ -79,7 +82,7 @@ help::
 	@echo '  BUILD_MODE={release,debug}'
 	@echo '  BUILD_VERBOSE={0,1,2}'
 	@echo '  L3_ENABLED={0,1}'
-	@echo '  L3_LOC_ENABLED={0,1,2}'
+	@echo '  L3_LOC_ENABLED={0,1,2,3}'
 	@echo '  Defaults: CC=gcc CXX=g++ LD=g++'
 
 #
@@ -187,8 +190,9 @@ L3_ENABLED ?= $(L3_DEFAULT)
 # Python-generator script. Enhanced technique is based on LOC-ELF
 # encoding.
 # -----------------------------------------------------------------------------
-L3_LOC_DEFAULT          := 1
-L3_LOC_ELF_ENCODING     := 2
+L3_LOC_DEFAULT                  := 1
+L3_LOC_ELF_ENCODING             := 2
+L3_LOC_CPP_SRC_LOC_ENCODING     := 3
 
 ifndef L3_LOC_ENABLED
     L3_LOC_ENABLED := $(L3_LOC_UNSET)
@@ -353,6 +357,11 @@ ifeq ($(L3_LOC_ENABLED), $(L3_LOC_DEFAULT))
 
 else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
     SINGLE_FILE_CPP_PROGRAM_SRCS   += $(LOC_ELF_SRC)
+
+else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_CPP_SRC_LOC_ENCODING))
+
+    L3_SRCLOC_CPPFLAGS = --std=c++20
+
 endif
 
 # Map the list of sources to resulting list-of-objects
@@ -818,6 +827,13 @@ else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_ELF_ENCODING))
 
     LDFLAGS += -DL3_LOC_ENABLED
 
+else ifeq ($(L3_LOC_ENABLED), $(L3_LOC_CPP_SRC_LOC_ENCODING))
+
+    # Core L3 files flag off of L3_SRCLOC_ENABLED to conditionally compile with
+    # C++20's source_location{} feature.
+    CFLAGS += -DL3_SRCLOC_ENABLED
+    # Compile all .c sources using c++ compiler as c++ sources.
+    CC_X_FLAG := $(CXX_X_FLAG)
 endif
 
 CFLAGS += -D_GNU_SOURCE -ggdb3 -Wall -Wfatal-errors -Werror
@@ -850,8 +866,8 @@ $(BINDIR)/%/.:
 #
 # For all-test-code, we need to use -I test-code/<subdir>
 # Dependencies for the main executables
-COMPILE.c       = $(CC)  -x $(CC_X_FLAG)  $(SPD_CPPFLAGS) $(CFLAGS) $(DFLAGS_UNIT) $(INCLUDE) -c
-COMPILE.cpp     = $(CXX) -x $(CXX_X_FLAG) $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
+COMPILE.c       = $(CC)  -x $(CC_X_FLAG)  $(SPD_CPPFLAGS) $(L3_SRCLOC_CPPFLAGS) $(CFLAGS) $(DFLAGS_UNIT) $(INCLUDE) -c
+COMPILE.cpp     = $(CXX) -x $(CXX_X_FLAG) $(L3_SRCLOC_CPPFLAGS) $(CPPFLAGS) $(CFLAGS) $(INCLUDE) -c
 COMPILE.cc      = $(CXX) -x c++ $(CFLAGS) $(INCLUDE) -c
 COMPILE.loc.c   = $(LOC_C_CC) $(CFLAGS) $(INCLUDE) -c
 
