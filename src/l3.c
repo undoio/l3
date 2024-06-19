@@ -184,7 +184,7 @@ getBaseAddress() {
 }
 #endif  // __APPLE__
 
-L3_THREAD_LOCAL pid_t l3_my_tid;
+L3_THREAD_LOCAL pid_t l3_my_tid = 0;
 
 /**
  * ****************************************************************************
@@ -278,8 +278,6 @@ l3_init(const char *path)
             return -1;
         }
     }
-
-    l3_my_tid = L3_GET_TID();
 
     l3_log = (L3_LOG *) mmap(NULL, sizeof(*l3_log), PROT_READ|PROT_WRITE,
                              MAP_SHARED, fd, 0);
@@ -398,6 +396,7 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
     int idx = __libc_single_threaded ? l3_log->idx++
                                      : __sync_fetch_and_add(&l3_log->idx, 1);
 #endif  // __APPLE__
+    if (!l3_my_tid) l3_my_tid = L3_GET_TID();
     idx %= L3_MAX_SLOTS;
     l3_log->slots[idx].tid = l3_my_tid;
 
