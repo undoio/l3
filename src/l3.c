@@ -396,7 +396,9 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
     int idx = __libc_single_threaded ? l3_log->idx++
                                      : __sync_fetch_and_add(&l3_log->idx, 1);
 #endif  // __APPLE__
-    if (!l3_my_tid) l3_my_tid = L3_GET_TID();
+    if (!l3_my_tid) {
+        l3_my_tid = L3_GET_TID();
+    }
     idx %= L3_MAX_SLOTS;
     l3_log->slots[idx].tid = l3_my_tid;
 
