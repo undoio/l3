@@ -459,13 +459,15 @@ else ifeq ($(UNAME_S),Darwin)
         SPD_INCLUDE_ROOT := /opt/homebrew
         SPD_LIBS_PATH    := -L /opt/homebrew/lib
     else
-        SPD_INCLUDE_ROOT := /usr/local/opt
+        SPD_INCLUDE_ROOT := /usr/local/include
+        SPD_LIBS_PATH    := -L /usr/local/lib
     endif
 endif
 
 SPD_INCLUDE := $(SPD_INCLUDE_ROOT)/include
 spdlog-cpp-program: INCLUDE += -I $(SPD_INCLUDE)
 spdlog-cpp-program: LIBS += $(SPD_LIBS_PATH) -l spdlog -l fmt
+spdlog-cpp-program: CPPFLAGS = --std=c++11
 spdlog-cpp-program: $(SPDLOG_EXAMPLE_PROGRAM_BIN)
 
 # ##############################################################################
