@@ -75,6 +75,9 @@ help::
 	@echo 'To build C++20 source-location sample program:'
 	@echo ' make clean && CXX=g++ LD=g++ L3_ENABLED=0 make source-location-cpp20-program'
 	@echo ' '
+	@echo 'To build-and-run L3/spdlog performance micro-benchmarks'
+	@echo ' make clean && CXX=g++ LD=g++ make all-mt-ubench && make run-mt-ubench'
+	@echo ' '
 	@echo 'Environment variables: '
 	@echo '  BUILD_MODE={release,debug}'
 	@echo '  BUILD_VERBOSE={0,1,2}'
@@ -147,7 +150,10 @@ L3_DUMP_ARG_BINARY      := --binary
 # Unit-tests symbols
 TESTS_DIR       := tests
 UNIT_DIR        := unit
+PERF_DIR        := perf
 UNITTESTS_DIR   := $(TESTS_DIR)/$(UNIT_DIR)
+
+PERF_UBM_TESTS_DIR  := $(TESTS_DIR)/$(PERF_DIR)
 
 # Symbols needed to integrate with LineOfCode (LOC) package
 LOC_ROOT        := LineOfCode
@@ -459,7 +465,7 @@ else ifeq ($(UNAME_S),Darwin)
         SPD_INCLUDE_ROOT := /opt/homebrew
         SPD_LIBS_PATH    := -L /opt/homebrew/lib
     else
-        SPD_INCLUDE_ROOT := /usr/local/include
+        SPD_INCLUDE_ROOT := /usr/local
         SPD_LIBS_PATH    := -L /usr/local/lib
     endif
 endif
@@ -502,6 +508,24 @@ SIZE_UNIT_TEST_BIN  := $(BINDIR)/$(UNIT_DIR)/size_str-test
 # L3-logging interfaces' performance unit-tests
 FPRINTF_PERF_UNIT_TEST_BIN  := $(BINDIR)/$(UNIT_DIR)/l3-fprintf-perf-test
 WRITE_PERF_UNIT_TEST_BIN    := $(BINDIR)/$(UNIT_DIR)/l3-write-perf-test
+
+# ##############################################################################
+# Rules to build and run stand-alone L3 and spdlog multi-threaded u-benchmarks
+# ##############################################################################
+PERF_UBM_PROG_L3 := $(BINDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_l3
+
+$(PERF_UBM_PROG_L3): $(OBJDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_l3.o \
+                     $(L3_OBJS)
+
+PERF_UBM_PROG_SPDLOG := $(BINDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_spdlog
+$(PERF_UBM_PROG_SPDLOG): $(OBJDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_spdlog.o
+
+$(PERF_UBM_PROG_SPDLOG): INCLUDE += -I $(SPD_INCLUDE)
+$(PERF_UBM_PROG_SPDLOG): LIBS += $(SPD_LIBS_PATH) -l spdlog -l fmt
+
+all-mt-ubench: LIBS += -l pthread
+all-mt-ubench: CPPFLAGS = --std=c++11
+all-mt-ubench: $(PERF_UBM_PROG_L3) $(PERF_UBM_PROG_SPDLOG)
 
 # ##############################################################################
 # Generate symbols and dependencies to build unit-test sources
@@ -952,3 +976,12 @@ run-loc-tests: all-loc-tests
 	@echo
 	@echo '---- Run LOC unit-test: ----'
 	./$(LOC_MACRO_TEST_BIN)
+
+# Run micro-performance standalone benchmarks for L3 v/s spdlog
+run-mt-ubench: all-mt-ubench
+	@echo
+	@echo '---- Run L3 micro performance benchmark test: ----'
+	time ./$(PERF_UBM_PROG_L3)
+	@echo
+	@echo '---- Run spdlog micro performance benchmark test: ----'
+	time ./$(PERF_UBM_PROG_SPDLOG)

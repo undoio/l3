@@ -134,6 +134,9 @@ TestList=(
            # C++20 source_location{}-related test methods
            "test-build-and-run-source-location-cpp20-sample"
 
+           # L3 v/s spdlog [etc] micro performance benchmarking
+           "test-build-and-run-multi-threaded-perf-ubm"
+
            # Driver methods, listed here for quick debugging.
            # Not intended for use by test-execution.
            "run-client-server-tests_vary_threads"
@@ -1147,6 +1150,14 @@ function test-build-and-run-source-location-cpp20-sample()
 
     set -x
     ${test_prog}
+}
+
+# #############################################################################
+# Build-and-run the L3 v/s spdlog [etc] micro performance benchmarking
+# #############################################################################
+function test-build-and-run-multi-threaded-perf-ubm()
+{
+    make clean && CXX=g++ LD=g++ make all-mt-ubench && make run-mt-ubench
 }
 
 # #############################################################################

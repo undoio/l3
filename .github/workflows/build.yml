@@ -240,12 +240,18 @@ jobs:
         BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-l3_loc_eq_2
 
     #! -------------------------------------------------------------------------
+    # RUN_ON_CI=1 to trigger right selection of spdlog library path on CI-jobs
+    # that run on Mac/OSX machines.
     - name: test-build-and-run-spdlog-sample
       run: RUN_ON_CI=1 ./test.sh test-build-and-run-spdlog-sample
 
     #! -------------------------------------------------------------------------
     - name: test-build-and-run-source-location-cpp20-sample
       run: ./test.sh test-build-and-run-source-location-cpp20-sample
+
+    #! -------------------------------------------------------------------------
+    - name: test-build-and-run-multi-threaded-perf-ubm
+      run: RUN_ON_CI=1 ./test.sh test-build-and-run-multi-threaded-perf-ubm
 
     # -------------------------------------------------------------------------
     # Exercise the do-it-all perf-tests method, which is really intended for
