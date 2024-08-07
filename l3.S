@@ -4,6 +4,15 @@
 
 l3__log_fast:
     mov %fs:l3_my_tid@tpoff,%eax // Fetch the TLS-stashed TID into %eax
+    cmp $0, %eax            // Is the TID already stashed?
+    jnz .tid_stashed        // yes: skip the call to gettid
+    mov $186, %eax          // syscall number for gettid
+    push %rcx
+    syscall
+    pop %rcx
+    mov %eax, %fs:l3_my_tid@tpoff // store the TID in TLS.
+.tid_stashed:
+    mov %rax, %r10          // get the TID into %r10
     mov l3_log(%rip), %r8   // fetch ptr to the global l3_log into register r8
     mov $1, %r9             // prepare to increment the index
     cmpb $0, __libc_single_threaded(%rip) // Are we single-threaded?
