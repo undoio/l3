@@ -24,8 +24,8 @@ CC          := gcc
 TARGET      := c-sample
 
 L3_ROOTDIR  := ../..
-L3_SRCDIR   := $(L3_ROOTDIR)/src
-L3_INCDIR   := $(L3_ROOTDIR)/include
+L3_SRCDIR   := $(L3_ROOTDIR)
+L3_INCDIR   := $(L3_ROOTDIR)
 L3_SRC      := $(L3_SRCDIR)/l3.c
 
 # Currently, fast-logging assembly is only supported on x86 64-bit Linux.

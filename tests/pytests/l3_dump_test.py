@@ -39,7 +39,7 @@ else:
 # Full dir-path where this tests/  dir lives
 L3PytestsDir    = os.path.realpath(os.path.dirname(__file__))
 L3RootDir       = os.path.realpath(L3PytestsDir + '/../..')
-L3USE_CASES_DIR = L3RootDir + '/use-cases/'
+L3USE_CASES_DIR = L3RootDir + '/tests/use-cases/'
 
 sys.path.append(L3RootDir)
 
@@ -76,8 +76,8 @@ def test_unit_test_basic_dump():
     Build the unit-tests and invoke the L3-dump utility. Do basic verification
     that the make interfaces to build and run unit-tests work cleanly.
     """
-    make_rv = exec_make(['make', 'clean'])
-    make_rv = exec_make(['make', 'run-unit-tests'],
+    make_rv = exec_make(['clean'])
+    make_rv = exec_make(['run-unit-tests'],
                         { "BUILD_VERBOSE": "1", "CC": "g++", "CXX": "g++", "LD": "g++" })
     assert make_rv is True
 
@@ -95,13 +95,13 @@ def test_unit_test_dump_log_entries():
     """
 
     # Just build the unit-tests here via make
-    make_rv = exec_make(['make', 'clean'])
-    make_rv = exec_make(['make', 'all-unit-tests'],
+    make_rv = exec_make(['clean'])
+    make_rv = exec_make(['all-unit-tests'],
                         { "BUILD_VERBOSE": "1", "CC": "g++", "CXX": "g++", "LD": "g++" })
     assert make_rv is True
 
     # Execute the unit-test binary built above.
-    binary = L3RootDir + '/build/' + BUILD_MODE + '/bin/unit/l3_dump.py-test'
+    binary = L3RootDir + '/tests/build/' + BUILD_MODE + '/bin/unit/l3_dump.py-test'
     exec_rv = exec_binary(binary)
     assert exec_rv is True
 
@@ -184,14 +184,14 @@ def test_c_test_dump_log_entries():
     Invoke the L3-dump utility. Do basic verification that L3 correctly
     unpacks the data logged by L3-logging apis.
     """
-    make_rv = exec_make(['make', 'clean'])
-    make_rv = exec_make(['make', 'all-c-tests'],
+    make_rv = exec_make(['clean'])
+    make_rv = exec_make(['all-c-tests'],
                         { "BUILD_VERBOSE": "1", "CC": "g++", "CXX": "g++", "LD": "g++" })
     assert make_rv is True
 
     # Execute the C-sample program test binary built above.
     usecase_prog_dir = 'single-file-C-program'
-    binary = L3RootDir + '/build/' + BUILD_MODE + '/bin/use-cases/' \
+    binary = L3RootDir + '/tests/build/' + BUILD_MODE + '/bin/use-cases/' \
            + usecase_prog_dir
 
     print(f"Exec {binary=} --unit-tests ...")
@@ -210,8 +210,8 @@ def test_cpp_test_dump_log_entries():
     Invoke the L3-dump utility. Do basic verification that L3 correctly
     unpacks the data logged by L3-logging apis.
     """
-    make_rv = exec_make(['make', 'clean'])
-    make_rv = exec_make(['make', 'all-cpp-tests'],
+    make_rv = exec_make(['clean'])
+    make_rv = exec_make(['all-cpp-tests'],
                         { "BUILD_VERBOSE": "1",
                           "CC": "g++", "CXX": "g++", "LD": "g++",
                         } )
@@ -219,7 +219,7 @@ def test_cpp_test_dump_log_entries():
 
     # Execute the Cpp-sample program test binary built above.
     usecase_prog_dir = 'single-file-Cpp-program'
-    binary = L3RootDir + '/build/' + BUILD_MODE + '/bin/use-cases/' \
+    binary = L3RootDir + '/tests/build/' + BUILD_MODE + '/bin/use-cases/' \
            + usecase_prog_dir
 
     print(f"Exec {binary=} --unit-tests ...")
@@ -238,8 +238,8 @@ def test_cc_test_dump_log_entries():
     Invoke the L3-dump utility. Do basic verification that L3 correctly
     unpacks the data logged by L3-logging apis.
     """
-    make_rv = exec_make(['make', 'clean'])
-    make_rv = exec_make(['make', 'all-cc-tests'],
+    make_rv = exec_make(['clean'])
+    make_rv = exec_make(['all-cc-tests'],
                         { "BUILD_VERBOSE": "1",
                           "CC": "g++", "CXX": "g++", "LD": "g++",
                         } )
@@ -247,7 +247,7 @@ def test_cc_test_dump_log_entries():
 
     # Execute the CC-sample program test binary built above.
     usecase_prog_dir = 'single-file-CC-program'
-    binary = L3RootDir + '/build/' + BUILD_MODE + '/bin/use-cases/' \
+    binary = L3RootDir + '/tests/build/' + BUILD_MODE + '/bin/use-cases/' \
            + usecase_prog_dir
 
     print(f"Exec {binary=} --unit-tests ...")
@@ -266,9 +266,9 @@ def test_c_test_dump_log_entries_loc_eq_1():
     with L3_LOC_ENABLED=1. Invoke the L3-dump utility. Do basic verification
     that L3 correctly unpacks the data logged by L3-logging apis.
     """
-    make_rv = exec_make(['make', 'clean'])
+    make_rv = exec_make(['clean'])
 
-    make_rv = exec_make(['make', 'all-c-tests'],
+    make_rv = exec_make(['all-c-tests'],
                         { "BUILD_VERBOSE": "1",
                           "CC": "gcc", "CXX": "g++", "LD": "g++",
                           "L3_LOC_ENABLED": L3_LOC_DEFAULT} )
@@ -276,7 +276,7 @@ def test_c_test_dump_log_entries_loc_eq_1():
 
     # Execute the C-sample program test binary built above.
     usecase_prog_dir = 'single-file-C-program'
-    binary = L3RootDir + '/build/' + BUILD_MODE + '/bin/use-cases/' \
+    binary = L3RootDir + '/tests/build/' + BUILD_MODE + '/bin/use-cases/' \
            + usecase_prog_dir
 
     print(f"Exec {binary=} --unit-tests ...")
@@ -295,9 +295,9 @@ def test_cpp_test_dump_log_entries_loc_eq_1():
     with L3_LOC_ENABLED=1. Invoke the L3-dump utility. Do basic verification
     that L3 correctly unpacks the data logged by L3-logging apis.
     """
-    make_rv = exec_make(['make', 'clean'])
+    make_rv = exec_make(['clean'])
 
-    make_rv = exec_make(['make', 'all-cpp-tests'],
+    make_rv = exec_make(['all-cpp-tests'],
                         { "BUILD_VERBOSE": "1",
                           "CC": "g++", "CXX": "g++", "LD": "g++",
                           "L3_LOC_ENABLED": L3_LOC_DEFAULT} )
@@ -305,7 +305,7 @@ def test_cpp_test_dump_log_entries_loc_eq_1():
 
     # Execute the Cpp-sample program test binary built above.
     usecase_prog_dir = 'single-file-Cpp-program'
-    binary = L3RootDir + '/build/' + BUILD_MODE + '/bin/use-cases/' \
+    binary = L3RootDir + '/tests/build/' + BUILD_MODE + '/bin/use-cases/' \
            + usecase_prog_dir
 
     print(f"Exec {binary=} --unit-tests ...")
@@ -324,9 +324,9 @@ def test_cc_test_dump_log_entries_loc_eq_1():
     with L3_LOC_ENABLED=1. Invoke the L3-dump utility. Do basic verification
     that L3 correctly unpacks the data logged by L3-logging apis.
     """
-    make_rv = exec_make(['make', 'clean'])
+    make_rv = exec_make(['clean'])
 
-    make_rv = exec_make(['make', 'all-cc-tests'],
+    make_rv = exec_make(['all-cc-tests'],
                         { "BUILD_VERBOSE": "1",
                           "CC": "g++", "CXX": "g++", "LD": "g++",
                           "L3_LOC_ENABLED": L3_LOC_DEFAULT} )
@@ -334,7 +334,7 @@ def test_cc_test_dump_log_entries_loc_eq_1():
 
     # Execute the CC-sample program test binary built above.
     usecase_prog_dir = 'single-file-CC-program'
-    binary = L3RootDir + '/build/' + BUILD_MODE + '/bin/use-cases/' \
+    binary = L3RootDir + '/tests/build/' + BUILD_MODE + '/bin/use-cases/' \
            + usecase_prog_dir
 
     print(f"Exec {binary=} --unit-tests ...")
@@ -434,7 +434,7 @@ def verify_l3_dump_unpack(l3_dump_dat:str,
     Arguments:
       l3_dump_dat   : L3-generated data file; '/tmp/l3.c-small-test.dat'
       usecase_binary: Program binary built from src_filename;
-                      E.g., '../build/release/.
+                      E.g., '../tests/build/release/.
       usecase_prog_dir : Use-case dir-name; 'single-file-C-program'
       src_filename  : Source file-name; 'test-main.c'
 
@@ -507,6 +507,7 @@ def verify_file_exists(dirname:str, filename:str) -> bool:
 # #############################################################################
 def exec_make(cmdargs:list, extra_env:dict = None) -> bool:
     """Execute `make` command with specified arguments."""
+    cmdargs = ['make', '-C', 'tests'] + cmdargs
     if extra_env is None:
         extra_env = {}
     try:

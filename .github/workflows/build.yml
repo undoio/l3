@@ -89,118 +89,118 @@ jobs:
     #! -------------------------------------------------------------------------
     - name: test-test-sh-usages
       run: |
-        ./test.sh --help
-        ./test.sh --list
+        ./tests/test.sh --help
+        ./tests/test.sh --list
 
     #! -------------------------------------------------------------------------
     - name: test-code-formatting
       run: |
-        ./test.sh test-pylint-check
+        ./tests/test.sh test-pylint-check
 
         # Skip shellcheck on MacOSX. It's throwing up some weird errors!
         if [ "$RUNNER_OS" == "Linux" ]; then
-            shellcheck ./test.sh
+            shellcheck ./tests/test.sh
         fi
 
     #! -------------------------------------------------------------------------
     - name: test-pytests
       run: |
-        ./test.sh test-pytests
+        ./tests/test.sh test-pytests
 
     #! -------------------------------------------------------------------------
     - name: test-make-help
-      run: ./test.sh test-make-help
+      run: ./tests/test.sh test-make-help
 
     #! -------------------------------------------------------------------------
     - name: test-build-and-run-unit-tests
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-unit-tests
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-unit-tests
 
     - name: test-build-C-samples
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-C-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-C-samples
 
     - name: test-run-C-samples
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-C-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-run-C-samples
 
     - name: test-build-Cpp-samples
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-Cpp-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-Cpp-samples
 
     - name: test-run-Cpp-samples
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-Cpp-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-run-Cpp-samples
 
     - name: test-build-Cc-samples
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-Cc-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-Cc-samples
 
     - name: test-run-Cc-samples
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-Cc-samples
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-run-Cc-samples
 
     # -------------------------------------------------------------------------
     - name: test-build-and-run-C-samples-with-LOC
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-C-samples-with-LOC
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-C-samples-with-LOC
 
     - name: test-run-C-samples-with-LOC-wo-L3_LOC_ENABLED
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-C-samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-run-C-samples-with-LOC-wo-L3_LOC_ENABLED
 
     # NOTE: This test should occur immediately after previous one.
     - name: test-l3_dump_py-missing-loc_decoder
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-l3_dump_py-missing-loc_decoder
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-l3_dump_py-missing-loc_decoder
 
     # -------------------------------------------------------------------------
     - name: test-build-and-run-Cpp-samples-with-LOC
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cpp-samples-with-LOC
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-Cpp-samples-with-LOC
 
     - name: test-run-Cpp-samples-with-LOC-wo-L3_LOC_ENABLED
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-Cpp-samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-run-Cpp-samples-with-LOC-wo-L3_LOC_ENABLED
 
     # -------------------------------------------------------------------------
     - name: test-build-and-run-Cc-samples-with-LOC
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cc-samples-with-LOC
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-Cc-samples-with-LOC
 
     - name: test-run-Cc-samples-with-LOC-wo-L3_LOC_ENABLED
-      run: BUILD_MODE=${{ matrix.build_type }} ./test.sh test-run-Cc-samples-with-LOC-wo-L3_LOC_ENABLED
+      run: BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-run-Cc-samples-with-LOC-wo-L3_LOC_ENABLED
 
     # -------------------------------------------------------------------------
     - name: test-build-and-run-LOC-unit-test
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-LOC-unit-test
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-LOC-unit-test
 
     # -------------------------------------------------------------------------
     # For easier debugging: run following LOC-ELF build-and-test jobs with
     # verbose Make outputs: BUILD_VERBOSE=1
     - name: test-build-and-run-C-samples-with-LOC-ELF
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-C-samples-with-LOC-ELF
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-C-samples-with-LOC-ELF
 
     # -------------------------------------------------------------------------
     - name: test-build-and-run-Cpp-samples-with-LOC-ELF
       run: |
         # Do 'clean' here rather than 'clean-l3', so we do full rebuilds
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cpp-samples-with-LOC-ELF
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-Cpp-samples-with-LOC-ELF
 
     # -------------------------------------------------------------------------
     - name: test-build-and-run-Cc-samples-with-LOC-ELF
       run: |
         # Do 'clean' here rather than 'clean-l3', so we do full rebuilds
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-Cc-samples-with-LOC-ELF
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-Cc-samples-with-LOC-ELF
 
     # -------------------------------------------------------------------------
     # These tests exercise Makefile rules to build-and-run very simple sample
     # programs.
     - name: test-build-and-run-sample-c-appln
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-sample-c-appln
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-sample-c-appln
 
     # -------------------------------------------------------------------------
     - name: test-build-and-run-sample-c-appln-with-LOC
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-sample-c-appln-with-LOC
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-sample-c-appln-with-LOC
 
     # -------------------------------------------------------------------------
     - name: test-build-and-run-sample-c-appln-with-LOC-ELF
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-sample-c-appln-with-LOC-ELF
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-sample-c-appln-with-LOC-ELF
 
     #! -------------------------------------------------------------------------
     #  This test will build-and-run -ALL- client-server perf-test, with 1-client
@@ -211,7 +211,7 @@ jobs:
     #! -------------------------------------------------------------------------
     # - name: test-run-all-client-server-perf-tests
     #   run: |
-    #     BUILD_MODE=${{ matrix.build_type }} ./test.sh run-all-client-server-perf-tests $((1000 * 1000)) 1
+    #     BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh run-all-client-server-perf-tests $((1000 * 1000)) 1
 
     #! -------------------------------------------------------------------------
     #  This test will build-and-run client-server perf-test, with L3-Logging OFF
@@ -219,9 +219,9 @@ jobs:
     #! -------------------------------------------------------------------------
     - name: test-build-and-run-client-server-perf-tests
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-baseline
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-l3-log
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-fast-log-no-LOC
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-baseline
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-l3-log
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-fast-log-no-LOC
 
     #! -------------------------------------------------------------------------
     #  This test will build-and-run client-server perf-test, with L3-Logging
@@ -229,7 +229,7 @@ jobs:
     #! -------------------------------------------------------------------------
     - name: test-build-and-run-csperf-l3_loc_eq_1
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-l3_loc_eq_1
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-l3_loc_eq_1
 
     #! -------------------------------------------------------------------------
     #  This test will build-and-run client-server perf-test, with L3-Logging
@@ -237,28 +237,28 @@ jobs:
     #! -------------------------------------------------------------------------
     - name: test-build-and-run-csperf-l3_loc_eq_2
       run: |
-        BUILD_MODE=${{ matrix.build_type }} ./test.sh test-build-and-run-csperf-l3_loc_eq_2
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-l3_loc_eq_2
 
     #! -------------------------------------------------------------------------
     # RUN_ON_CI=1 to trigger right selection of spdlog library path on CI-jobs
     # that run on Mac/OSX machines.
     - name: test-build-and-run-spdlog-sample
-      run: RUN_ON_CI=1 ./test.sh test-build-and-run-spdlog-sample
+      run: RUN_ON_CI=1 ./tests/test.sh test-build-and-run-spdlog-sample
 
     #! -------------------------------------------------------------------------
     - name: test-build-and-run-source-location-cpp20-sample
-      run: ./test.sh test-build-and-run-source-location-cpp20-sample
+      run: ./tests/test.sh test-build-and-run-source-location-cpp20-sample
 
     #! -------------------------------------------------------------------------
     - name: test-build-and-run-multi-threaded-perf-ubm
-      run: RUN_ON_CI=1 ./test.sh test-build-and-run-multi-threaded-perf-ubm
+      run: RUN_ON_CI=1 ./tests/test.sh test-build-and-run-multi-threaded-perf-ubm
 
     # -------------------------------------------------------------------------
     # Exercise the do-it-all perf-tests method, which is really intended for
     # use by developers, to benchmark with large # of messages. A default
     # invocation will run with small # clients & messages, and 1 server-thread.
     - name: test-run-all-client-server-perf-tests
-      run: ./test.sh run-all-client-server-perf-tests
+      run: ./tests/test.sh run-all-client-server-perf-tests
 
     # -------------------------------------------------------------------------
     # Exercise the --from-test interface to verify that it still works to
@@ -266,4 +266,4 @@ jobs:
     # these two low-impact tests.)
     # -------------------------------------------------------------------------
     - name: test-from-test-interface
-      run: ./test.sh --from-test test-pylint-check
+      run: ./tests/test.sh --from-test test-pylint-check
