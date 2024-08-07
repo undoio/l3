@@ -148,7 +148,7 @@ L3_DUMP_ARG_LOG_FILE    := --log-file
 L3_DUMP_ARG_BINARY      := --binary
 
 # Unit-tests symbols
-TESTS_DIR       := tests
+TESTS_DIR       := .
 UNIT_DIR        := unit
 PERF_DIR        := perf
 UNITTESTS_DIR   := $(TESTS_DIR)/$(UNIT_DIR)
@@ -156,7 +156,7 @@ UNITTESTS_DIR   := $(TESTS_DIR)/$(UNIT_DIR)
 PERF_UBM_TESTS_DIR  := $(TESTS_DIR)/$(PERF_DIR)
 
 # Symbols needed to integrate with LineOfCode (LOC) package
-LOC_ROOT        := LineOfCode
+LOC_ROOT        := ../LineOfCode
 
 # Without need for any generation, LOC-mode used in the LOC package
 # is based on LOC-ELF encoding scheme. That scheme requires two
