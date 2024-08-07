@@ -134,8 +134,8 @@ CXX_X_FLAG  := c++
 # ###################################################################
 #
 L3PACKAGE   := l3
-SRCDIR      := src
-INCDIR      := include
+SRCDIR      := ..
+INCDIR      := $(SRCDIR)
 L3_SRCDIR   := $(SRCDIR)
 L3_INCDIR   := $(INCDIR)
 USE_CASES   := use-cases
@@ -143,7 +143,7 @@ L3_UTILS    := utils
 L3_UTILSDIR := $(USE_CASES)/$(L3_UTILS)
 
 # Name of L3 dump utility that unpacks L3 log-entries
-L3_DUMP                 := l3_dump.py
+L3_DUMP                 := $(L3_SRCDIR)/l3_dump.py
 L3_DUMP_ARG_LOG_FILE    := --log-file
 L3_DUMP_ARG_BINARY      := --binary
 
@@ -245,7 +245,7 @@ L3_SRC      := $(L3_SRCDIR)/l3.c
 # Currently, fast-logging assembly is only supported on x86 64-bit Linux.
 ifeq ($(UNAME_S),Linux)
     ifeq ($(UNAME_P), x86_64)
-        L3_ASSEMBLY := l3.S
+        L3_ASSEMBLY := $(L3_SRCDIR)/l3.S
     endif
 endif
 
@@ -698,6 +698,8 @@ CLIENT_SERVER_NON_MAIN_SRCS     := $(filter-out $(CLIENT_SERVER_PERF_TESTS_DIR)/
 # If L3-logging is enabled in test-program, need to include core library file
 ifeq ($(L3_ENABLED), $(L3_DEFAULT))
     CLIENT_SERVER_NON_MAIN_SRCS += $(L3_SRC)
+
+CFLAGS += -I..
 
 # Under L3-logging, invoke the L3-fast logging API, which needs the .S file
 ifeq ($(L3_FASTLOG_ENABLED), 1)
