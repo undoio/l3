@@ -84,7 +84,7 @@ Usage: ./svmsg_file_server --help
 #endif  // __cplusplus
 
 #include "svmsg_file.h"
-#include "l3.h"
+#include "tests/l3_test.h"
 #include "size_str.h"
 
 /**
@@ -291,7 +291,7 @@ main(int argc, char *argv[])
     // Initialize L3-Logging
     const char *l3_log_mode = "<unknown>";
     const char *logfile = "/tmp/l3.c-server-test.dat";
-    l3_log_t    logtype = L3_LOG_DEFAULT;
+    l3_test_log_t    logtype = L3_LOG_DEFAULT;
 
 #if L3_LOGT_FPRINTF
     logtype = L3_LOG_FPRINTF;
@@ -299,9 +299,9 @@ main(int argc, char *argv[])
     logtype = L3_LOG_WRITE;
 #endif
 
-    int e = l3_log_init(logtype, logfile);
+    int e = l3_test_log_init(logtype, logfile);
     if (e) {
-        errExit("l3_log_init");
+        errExit("l3_test_log_init");
     }
 
 #if L3_FASTLOG_ENABLED
@@ -393,7 +393,7 @@ main(int argc, char *argv[])
 
 #elif L3_ENABLED
 
-    l3_log_deinit(logtype);
+    l3_test_log_deinit(logtype);
 
 #endif  // L3_ENABLED
 

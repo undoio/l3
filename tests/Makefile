@@ -240,7 +240,7 @@ BINDIR = $(BUILD_PATH)/bin
 # SOURCE DIRECTORIES AND FILES
 # ###################################################################
 
-L3_SRC      := $(L3_SRCDIR)/l3.c
+L3_SRC      := $(L3_SRCDIR)/l3.c $(TESTS_DIR)/l3_test.c
 
 # Currently, fast-logging assembly is only supported on x86 64-bit Linux.
 ifeq ($(UNAME_S),Linux)

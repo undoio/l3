@@ -46,7 +46,7 @@
 #include "svmsg_file.h"
 
 // L3-LOC related headers
-#include "l3.h"
+#include "tests/l3_test.h"
 #include "size_str.h"
 
 // Useful constants
