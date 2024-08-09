@@ -16,6 +16,18 @@ static const char * L3_logtype_name[] = {
                         , "L3_LOG_WRITE_MSG"
                 };
 
+/**
+ * l3_test_logtype_name() - Map log-type ID to its name.
+ */
+static const char *
+l3_test_logtype_name(l3_test_log_t logtype)
+{
+    return (((logtype < 0) || (logtype >= L3_LOGTYPE_MAX))
+             ? L3_logtype_name[L3_LOG_UNDEF]
+             : L3_logtype_name[logtype]);
+}
+
+
 L3_STATIC_ASSERT((L3_ARRAY_LEN(L3_logtype_name) == L3_LOGTYPE_MAX),
                   "Incorrect size of array L3_logtype_name[]");
 
@@ -171,16 +183,3 @@ l3_log_fprintf(const char *msg, const uint64_t arg1, const uint64_t arg2)
 {
     fprintf(l3_test_log_fh, msg, arg1, arg2);
 }
-
-
-/**
- * l3_test_logtype_name() - Map log-type ID to its name.
- */
-const char *
-l3_test_logtype_name(l3_test_log_t logtype)
-{
-    return (((logtype < 0) || (logtype >= L3_LOGTYPE_MAX))
-             ? L3_logtype_name[L3_LOG_UNDEF]
-             : L3_logtype_name[logtype]);
-}
-
