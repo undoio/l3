@@ -37,7 +37,6 @@ typedef enum {
 int l3_test_log_init(const l3_test_log_t logtype, const char *path);
 
 int l3_test_log_deinit(const l3_test_log_t logtype);
-const char *l3_test_logtype_name(l3_test_log_t logtype);
 
 #if defined(DEBUG)
     #if defined(L3_LOGT_FPRINTF)
