@@ -39,13 +39,6 @@
 #include "loc.h"
 #endif  // L3_LOC_ENABLED
 
-// Define version of static assertion checking that works for both gcc and g++
-#ifdef __cplusplus
-#define L3_STATIC_ASSERT    static_assert
-#else
-#define L3_STATIC_ASSERT    _Static_assert
-#endif
-
 #if __APPLE__
 #define L3_THREAD_LOCAL __thread
 #define L3_GET_TID()    pthread_mach_thread_np(pthread_self())
@@ -121,31 +114,9 @@ typedef struct l3_log
     L3_ENTRY        slots[L3_MAX_SLOTS];
 } L3_LOG;
 
-#define L3_ARRAY_LEN(arr)   (sizeof(arr) / sizeof(*arr))
-
-#define L3_MIN(a, b)        ((a) > (b) ? (b) : (a))
-
-/**
- * Support for different 'logging' types under L3's APIs.
- */
-static const char * L3_logtype_name[] = {
-                          "L3_LOG_unknown"
-                        , "L3_LOG_MMAP"
-                        , "L3_LOG_FPRINTF"
-                        , "L3_LOG_WRITE"
-                        , "L3_LOG_WRITE_MSG"
-                };
-
-L3_STATIC_ASSERT((L3_ARRAY_LEN(L3_logtype_name) == L3_LOGTYPE_MAX),
-                  "Incorrect size of array L3_logtype_name[]");
-
 
 L3_LOG *l3_log = NULL;      // L3_LOG_MMAP: Also referenced in l3.S for
                             // fast-logging.
-
-FILE *  l3_log_fh = NULL;   // L3_LOG_FPRINTF: Opened by fopen()
-
-int     l3_log_fd = -1;     // L3_LOG_WRITE: Opened by open()
 
 /**
  * The L3-dump script expects a specific layout and its parsing routines
@@ -155,14 +126,6 @@ int     l3_log_fd = -1;     // L3_LOG_WRITE: Opened by open()
  */
 L3_STATIC_ASSERT(offsetof(L3_LOG,slots) == sizeof(L3_ENTRY),
                 "Expected layout of L3_LOG{} is != 32 bytes.");
-
-/**
- * ****************************************************************************
- * Function Prototypes
- * ****************************************************************************
- */
-int l3_init_fprintf(const char *path);
-int l3_init_write(const char *path);
 
 
 #if __APPLE__
@@ -185,76 +148,6 @@ getBaseAddress() {
 #endif  // __APPLE__
 
 L3_THREAD_LOCAL pid_t l3_my_tid = 0;
-
-/**
- * ****************************************************************************
- * l3_log_init() - Initialize L3-logging sub-system, selecting the type of
- * logging to be performed.
- * ****************************************************************************
- */
-int
-l3_log_init(const l3_log_t logtype, const char *path)
-{
-    int rv = 0;
-    switch (logtype) {
-      case L3_LOG_MMAP:         // L3_LOG_DEFAULT:
-        rv = l3_init(path);
-        break;
-
-      case L3_LOG_FPRINTF:
-        rv = l3_init_fprintf(path);
-        break;
-
-      case L3_LOG_WRITE:
-      case L3_LOG_WRITE_MSG:
-        rv = l3_init_write(path);
-        break;
-
-      default:
-        printf("Unsupported L3-logging type=%d\n", logtype);
-        return -1;
-    }
-    return rv;
-}
-
-/**
- * ****************************************************************************
- * l3_log_deinit() - De-initialize L3-logging sub-system, selecting the type
- * of logging that was being performed. Finalize the file and close its handle.
- * ****************************************************************************
- */
-int
-l3_log_deinit(const l3_log_t logtype)
-{
-    int rv = 0;
-    switch (logtype) {
-      case L3_LOG_MMAP:         // L3_LOG_DEFAULT:
-        rv = munmap(l3_log, sizeof(*l3_log));
-        break;
-
-      case L3_LOG_FPRINTF:
-        fflush(l3_log_fh);
-        rv = fclose(l3_log_fh);
-        break;
-
-      case L3_LOG_WRITE:
-#if !defined(__APPLE__)
-        syncfs(l3_log_fd);
-#endif  // !__APPLE__
-        rv = close(l3_log_fd);
-        break;
-
-      default:
-        printf("Unsupported L3-logging type=%d\n", logtype);
-        return -1;
-    }
-    if (rv) {
-        fprintf(stderr, "Error closing L3 log-file for logging type '%s'"
-                        ", errno=%d\n",
-                l3_logtype_name(logtype), errno);
-    }
-    return rv;
-}
 
 /**
  * ****************************************************************************
@@ -325,51 +218,6 @@ l3_init(const char *path)
     return 0;
 }
 
-/**
- * ****************************************************************************
- * Initialize L3's logging sub-system to use fprintf() to named `path`.
- */
-int
-l3_init_fprintf(const char *path)
-{
-    if (!path) {
-        fprintf(stderr, "%s: Invalid arg 'path'=%p\n", __func__, path);
-        return -1;
-    }
-
-    l3_log_fh = fopen(path, "w+");
-    if (!l3_log_fh) {
-        fprintf(stderr, "%s: Error opening log-file at '%p'. errno=%d\n",
-                __func__, path, errno);
-        perror("fopen failed");
-        return -1;
-    }
-    printf("Initialized fprintf() logging to '%s'\n", path);
-    return 0;
-}
-
-/**
- * ****************************************************************************
- * Initialize L3's logging sub-system to use write() to named `path`.
- */
-int
-l3_init_write(const char *path)
-{
-    if (!path) {
-        fprintf(stderr, "%s: Invalid arg 'path'=%p\n", __func__, path);
-        return -1;
-    }
-
-    l3_log_fd = open(path, (O_RDWR | O_CREAT | O_TRUNC), 0666);
-    if (l3_log_fd == -1) {
-        fprintf(stderr, "%s: Error opening log-file at '%p'. Error=%d\n",
-                __func__, path, errno);
-        return -1;
-    }
-    printf("Initialized write() logging to '%s'\n", path);
-    return 0;
-}
-
 // ****************************************************************************
 
 /**
@@ -417,40 +265,10 @@ l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
     l3_log->slots[idx].arg2 = arg2;
 }
 
-/**
- * l3_log_write() - 'C' interface to log L3 log-entries using write()
- * The user's msg is sprintf()'ed using 'msgfmt' format specifiers, requiring
- * 2 arguments.
- */
-void
-l3_log_write(const char *msgfmt, const uint64_t arg1, const uint64_t arg2)
+int
+l3_deinit(void)
 {
-    char msgbuf[255];
-
-    // snprintf() returns #-bytes that _would_ have been written if the msgbuf
-    // was large enough.
-    int msglen = snprintf(msgbuf, sizeof(msgbuf), msgfmt, arg1, arg2);
-
-    // So, write-to-the-log only the actual data that is in the buffer.
-    int datalen = L3_MIN(msglen, sizeof(msgbuf));
-
-    if (write(l3_log_fd, msgbuf, datalen) != datalen) {
-        fprintf(stderr, "%s(): write() failed, datalen=%d. errno=%d\n",
-                __func__, datalen, errno);
-        return;
-    }
-    return;
-}
-
-/**
- * l3_logtype_name() - Map log-type ID to its name.
- */
-const char *
-l3_logtype_name(l3_log_t logtype)
-{
-    return (((logtype < 0) || (logtype >= L3_LOGTYPE_MAX))
-             ? L3_logtype_name[L3_LOG_UNDEF]
-             : L3_logtype_name[logtype]);
+    return munmap(l3_log, sizeof(*l3_log));
 }
 
 /**

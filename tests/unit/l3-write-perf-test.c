@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "l3.h"
+#include "tests/l3_test.h"
 #include "l3-perf-test.h"
 
 static void test_write_logging_perf(int nMil);
@@ -54,7 +54,7 @@ test_write_logging_perf(int nMil)
 {
     // Logging perf benchmarking methods below share this log-file.
     const char *logfile = "/tmp/l3-write-logging-test.dat";
-    int e = l3_log_init(L3_LOG_WRITE, logfile);
+    int e = l3_test_log_init(L3_LOG_WRITE, logfile);
     if (e) {
         abort();
     }
