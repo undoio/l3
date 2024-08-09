@@ -570,13 +570,13 @@ $(foreach unit,$(UNIT_TESTBINS),$(eval $(call unit_test_self_dependency,$(unit))
 else
 
 $(BINDIR)/$(UNIT_DIR)/l3_dump.py-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3_dump.py-test.o \
-                                        $(OBJDIR)/$(SRCDIR)/l3.o
+									   $(L3_OBJS)
 
 $(BINDIR)/$(UNIT_DIR)/l3-fprintf-perf-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3-fprintf-perf-test.o \
-                                            $(OBJDIR)/$(SRCDIR)/l3.o
+											$(L3_OBJS)
 
 $(BINDIR)/$(UNIT_DIR)/l3-write-perf-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3-write-perf-test.o \
-                                          $(OBJDIR)/$(SRCDIR)/l3.o
+										  $(L3_OBJS)
 
 endif
 
@@ -604,7 +604,7 @@ clean:
 
 # Delete l3.o object as it needs to be recompiled for inclusion w/C++ sources
 clean-l3:
-	rm -rf $(OBJDIR)/$(SRCDIR)/l3.o
+	rm -rf $(OBJDIR)/$(SRCDIR)/l3.o $(OBJDIR)/l3_test.o
 
 # ##############################################################################
 # Make build targets begin here. Make definitions below these targets synthesize
