@@ -126,3 +126,5 @@ The technique is simple, and effective. And fast.
 See [Documentation](Docs/README.md) for preliminary documentation.
 
 See [Build](Docs/build.md) for instructions on building L3 from source.
+
+See [Test](Docs/test.md) for instructions on how to run L3 tests.

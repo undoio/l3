@@ -134,8 +134,8 @@ CXX_X_FLAG  := c++
 # ###################################################################
 #
 L3PACKAGE   := l3
-SRCDIR      := src
-INCDIR      := include
+SRCDIR      := ..
+INCDIR      := $(SRCDIR)
 L3_SRCDIR   := $(SRCDIR)
 L3_INCDIR   := $(INCDIR)
 USE_CASES   := use-cases
@@ -143,12 +143,12 @@ L3_UTILS    := utils
 L3_UTILSDIR := $(USE_CASES)/$(L3_UTILS)
 
 # Name of L3 dump utility that unpacks L3 log-entries
-L3_DUMP                 := l3_dump.py
+L3_DUMP                 := $(L3_SRCDIR)/l3_dump.py
 L3_DUMP_ARG_LOG_FILE    := --log-file
 L3_DUMP_ARG_BINARY      := --binary
 
 # Unit-tests symbols
-TESTS_DIR       := tests
+TESTS_DIR       := .
 UNIT_DIR        := unit
 PERF_DIR        := perf
 UNITTESTS_DIR   := $(TESTS_DIR)/$(UNIT_DIR)
@@ -156,7 +156,7 @@ UNITTESTS_DIR   := $(TESTS_DIR)/$(UNIT_DIR)
 PERF_UBM_TESTS_DIR  := $(TESTS_DIR)/$(PERF_DIR)
 
 # Symbols needed to integrate with LineOfCode (LOC) package
-LOC_ROOT        := LineOfCode
+LOC_ROOT        := ../LineOfCode
 
 # Without need for any generation, LOC-mode used in the LOC package
 # is based on LOC-ELF encoding scheme. That scheme requires two
@@ -240,12 +240,12 @@ BINDIR = $(BUILD_PATH)/bin
 # SOURCE DIRECTORIES AND FILES
 # ###################################################################
 
-L3_SRC      := $(L3_SRCDIR)/l3.c
+L3_SRC      := $(L3_SRCDIR)/l3.c $(TESTS_DIR)/l3_test.c
 
 # Currently, fast-logging assembly is only supported on x86 64-bit Linux.
 ifeq ($(UNAME_S),Linux)
     ifeq ($(UNAME_P), x86_64)
-        L3_ASSEMBLY := l3.S
+        L3_ASSEMBLY := $(L3_SRCDIR)/l3.S
     endif
 endif
 
@@ -570,13 +570,13 @@ $(foreach unit,$(UNIT_TESTBINS),$(eval $(call unit_test_self_dependency,$(unit))
 else
 
 $(BINDIR)/$(UNIT_DIR)/l3_dump.py-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3_dump.py-test.o \
-                                        $(OBJDIR)/$(SRCDIR)/l3.o
+									   $(L3_OBJS)
 
 $(BINDIR)/$(UNIT_DIR)/l3-fprintf-perf-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3-fprintf-perf-test.o \
-                                            $(OBJDIR)/$(SRCDIR)/l3.o
+											$(L3_OBJS)
 
 $(BINDIR)/$(UNIT_DIR)/l3-write-perf-test: $(OBJDIR)/$(UNITTESTS_DIR)/l3-write-perf-test.o \
-                                          $(OBJDIR)/$(SRCDIR)/l3.o
+										  $(L3_OBJS)
 
 endif
 
@@ -604,7 +604,7 @@ clean:
 
 # Delete l3.o object as it needs to be recompiled for inclusion w/C++ sources
 clean-l3:
-	rm -rf $(OBJDIR)/$(SRCDIR)/l3.o
+	rm -rf $(OBJDIR)/$(SRCDIR)/l3.o $(OBJDIR)/l3_test.o
 
 # ##############################################################################
 # Make build targets begin here. Make definitions below these targets synthesize
@@ -698,6 +698,8 @@ CLIENT_SERVER_NON_MAIN_SRCS     := $(filter-out $(CLIENT_SERVER_PERF_TESTS_DIR)/
 # If L3-logging is enabled in test-program, need to include core library file
 ifeq ($(L3_ENABLED), $(L3_DEFAULT))
     CLIENT_SERVER_NON_MAIN_SRCS += $(L3_SRC)
+
+CFLAGS += -I..
 
 # Under L3-logging, invoke the L3-fast logging API, which needs the .S file
 ifeq ($(L3_FASTLOG_ENABLED), 1)
