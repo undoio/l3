@@ -28,7 +28,7 @@ L3_SRCDIR   := $(L3_ROOTDIR)
 L3_INCDIR   := $(L3_ROOTDIR)
 L3_SRC      := $(L3_SRCDIR)/l3.c
 
-# Currently, fast-logging assembly is only supported on x86 64-bit Linux.
+# Currently, assembly-coded extra-fast-logging is only supported on x86 64-bit Linux.
 ifeq ($(UNAME_S),Linux)
     ifeq ($(UNAME_P), x86_64)
         L3_ASSEMBLY := $(L3_ROOTDIR)/l3.S

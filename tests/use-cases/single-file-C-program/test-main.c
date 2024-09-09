@@ -25,8 +25,7 @@
 #define L3_MILLION      ((uint32_t) (1000 * 1000))
 #define L3_NS_IN_SEC    ((uint32_t) (1000 * 1000 * 1000))
 
-void test_perf_slow_logging(int nMil);
-void test_perf_fast_logging(int nMil);
+void test_perf_logging(int nMil);
 
 // Convert timespec value to nanoseconds units.
 static uint64_t inline
@@ -56,12 +55,11 @@ main(const int argc, const char * argv[])
 
         int nMil = 300;
         printf("\nExercise in-memory logging performance benchmarking: "
-               "%d Mil simple/fast log msgs."
+               "%d Mil log msgs."
                " L3-log file: %s\n",
                 nMil, logfile);
 
-        test_perf_fast_logging(nMil);
-        test_perf_slow_logging(nMil);
+        test_perf_logging(nMil);
     }
 
     if (   (argc == 1)
@@ -73,23 +71,20 @@ main(const int argc, const char * argv[])
             abort();
         }
         printf("L3-logging unit-tests log file: %s\n", logfile);
-        l3_log("Simple-log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
+        l3_log("Log-msg-Args(arg1=%d, arg2=%d)", 1, 2);
 
         char *bp = (char *) 0xdeadbabe;
         l3_log("Potential memory overwrite (addr=%p, size=%d)", bp, 1024);
 
         bp = (char *) 0xbeefabcd;
         l3_log("Invalid buffer handle (addr=%p), refcount=%d", bp, 0);
-
-        l3_log_fast("Fast-logging msg1=%d, addr=%p", 10, (void *) 0xdeadbeef);
-        l3_log_fast("Fast-logging msg2=%d, addr=%p", 20, (char *) 0xbeefbabe);
     }
 
     return 0;
 }
 
 void
-test_perf_slow_logging(int nMil)
+test_perf_logging(int nMil)
 {
     struct timespec ts0;
     struct timespec ts1;
@@ -99,7 +94,7 @@ test_perf_slow_logging(int nMil)
 
     uint32_t n = 0;
     for (n = 0; n < (nMil * L3_MILLION); n++) {
-        l3_log("Perf-300-Mil Simple l3-log msgs, ctr=%d, value=%d", n, 0);
+        l3_log("Perf-300-Mil l3-log msgs, ctr=%d, value=%d", n, 0);
     }
 
     if (clock_gettime(CLOCK_REALTIME, &ts1)) {
@@ -108,29 +103,6 @@ test_perf_slow_logging(int nMil)
     uint64_t nsec0 = timespec_to_ns(&ts0);
     uint64_t nsec1 = timespec_to_ns(&ts1);
 
-    printf("%d Mil simple log msgs: %" PRIu64 "ns/msg (avg)\n",
-            nMil, (nsec1 - nsec0) / n);
-}
-
-void
-test_perf_fast_logging(int nMil)
-{
-    struct timespec ts0;
-    struct timespec ts1;
-    if (clock_gettime(CLOCK_REALTIME, &ts0)) {
-        abort();
-    }
-    uint32_t n = 0;
-    for (n = 0; n < (nMil * L3_MILLION); n++) {
-        l3_log_fast("Perf-300-Mil Fast l3-log msgs, ctr=%d, value=%d", n, 0);
-    }
-
-    if (clock_gettime(CLOCK_REALTIME, &ts1)) {
-        abort();
-    }
-    uint64_t nsec0 = timespec_to_ns(&ts0);
-    uint64_t nsec1 = timespec_to_ns(&ts1);
-
-    printf("%d Mil fast log msgs  : %" PRIu64 "ns/msg (avg)\n",
+    printf("%d Mil log msgs: %" PRIu64 "ns/msg (avg)\n",
             nMil, (nsec1 - nsec0) / n);
 }

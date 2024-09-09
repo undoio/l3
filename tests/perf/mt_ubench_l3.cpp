@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
             assert(e == 0 || e == PTHREAD_BARRIER_SERIAL_THREAD);
 #endif
             for (int j = 0; j < L3_PERF_UBM_NMSGS; j++) {
-                l3_log_fast("Hello, world! %d %d", 0, j);
+                l3_log("Hello, world! %d %d", 0, j);
             }
             return nullptr;
         }, nullptr);

@@ -266,15 +266,11 @@ TMPDIR              := /tmp
 TEST_DATA_SUFFIX    := test.dat
 
 L3_C_DATA           := $(TMPDIR)/$(L3PACKAGE).c-$(TEST_DATA_SUFFIX)
-L3_C_SMALL_DATA     := $(TMPDIR)/$(L3PACKAGE).c-small-$(TEST_DATA_SUFFIX)
 L3_CPP_DATA         := $(TMPDIR)/$(L3PACKAGE).cpp-$(TEST_DATA_SUFFIX)
-L3_CPP_SMALL_DATA   := $(TMPDIR)/$(L3PACKAGE).cpp-small-$(TEST_DATA_SUFFIX)
 L3_CC_DATA          := $(TMPDIR)/$(L3PACKAGE).cc-$(TEST_DATA_SUFFIX)
-L3_CC_SMALL_DATA    := $(TMPDIR)/$(L3PACKAGE).cc-small-$(TEST_DATA_SUFFIX)
 
-# Name the data file created by unit-test program: l3.c-small-unit-test.dat
-L3_C_UNIT_SLOW_LOG_TEST_DATA := $(TMPDIR)/$(L3PACKAGE).c-small-unit-$(TEST_DATA_SUFFIX)
-L3_C_UNIT_FAST_LOG_TEST_DATA := $(TMPDIR)/$(L3PACKAGE).c-fast-unit-$(TEST_DATA_SUFFIX)
+# Name the data file created by unit-test program: l3.c-unit-test.dat
+L3_C_UNIT_LOG_TEST_DATA := $(TMPDIR)/$(L3PACKAGE).c-unit-$(TEST_DATA_SUFFIX)
 
 # ###################################################################
 # ---- Symbols to build test-code sample programs
@@ -701,11 +697,10 @@ ifeq ($(L3_ENABLED), $(L3_DEFAULT))
 
 CFLAGS += -I..
 
-# Under L3-logging, invoke the L3-fast logging API, which needs the .S file
+# Under L3-logging, invoke the fast hand-written assembly implementation which needs the .S file
 ifeq ($(L3_FASTLOG_ENABLED), 1)
 
     CLIENT_SERVER_NON_MAIN_SRCS += $(L3_ASSEMBLY)
-    CFLAGS += -DL3_FASTLOG_ENABLED
 
 else ifeq ($(L3_LOGT_FPRINTF), 1)
 
@@ -935,8 +930,6 @@ run-c-tests: all-c-tests
 	./$(C_UNIT_TEST_BIN)
 	@echo
 	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_DATA) $(L3_DUMP_ARG_BINARY) ./$(C_UNIT_TEST_BIN)
-	@echo
-	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_SMALL_DATA) $(L3_DUMP_ARG_BINARY) ./$(C_UNIT_TEST_BIN)
 
 run-cpp-tests: all-cpp-tests
 	@echo
@@ -944,8 +937,6 @@ run-cpp-tests: all-cpp-tests
 	./$(CPP_UNIT_TEST_BIN)
 	@echo
 	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_CPP_DATA) $(L3_DUMP_ARG_BINARY) ./$(CPP_UNIT_TEST_BIN)
-	@echo
-	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_CPP_SMALL_DATA) $(L3_DUMP_ARG_BINARY) ./$(CPP_UNIT_TEST_BIN)
 
 run-cc-tests: all-cc-tests
 	@echo
@@ -953,17 +944,13 @@ run-cc-tests: all-cc-tests
 	./$(CC_UNIT_TEST_BIN)
 	@echo
 	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_CC_DATA) $(L3_DUMP_ARG_BINARY) ./$(CC_UNIT_TEST_BIN)
-	@echo
-	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_CC_SMALL_DATA) $(L3_DUMP_ARG_BINARY) ./$(CC_UNIT_TEST_BIN)
 
 run-unit-tests: all-unit-tests
 	@echo
 	@echo '---- Run L3 unit-tests: ----'
 	./$(L3_C_UNIT_TEST_BIN)
 	@echo
-	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_SLOW_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
-	@echo
-	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_FAST_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
+	python3 $(L3_DUMP) $(L3_DUMP_ARG_LOG_FILE) $(L3_C_UNIT_LOG_TEST_DATA) $(L3_DUMP_ARG_BINARY) ./$(L3_C_UNIT_TEST_BIN)
 	@echo
 	./$(SIZE_UNIT_TEST_BIN)
 	@echo

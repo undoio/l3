@@ -304,15 +304,13 @@ main(int argc, char *argv[])
         errExit("l3_test_log_init");
     }
 
-#if L3_FASTLOG_ENABLED
-    l3_log_mode = "fast ";
-#elif L3_LOGT_FPRINTF
+#if L3_LOGT_FPRINTF
     l3_log_mode = "fprintf() ";
 #elif L3_LOGT_WRITE
     l3_log_mode = "write() ";
 #else
     l3_log_mode = "";
-#endif  // L3_FASTLOG_ENABLED
+#endif  // L3_LOGT_FPRINTF
 
 // In build -D L3_LOC_ELF_ENABLED and -D L3_LOC_ENABLED are both ON.
 // So, check in this order.
@@ -689,14 +687,8 @@ svr_op_incr(requestMsg *req)
 
 #elif L3_ENABLED
 
-#  if L3_FASTLOG_ENABLED
-    l3_log_fast("Server msg: Increment: ClientID=%d, Counter=%" PRIu64
-                ". (L3-fast-log)",
-                resp.clientId, resp.counter);
-#  else
     l3_log("Server msg: Increment: ClientID=%d, Counter=%" PRIu64 ".\n",
            resp.clientId, resp.counter);
-#  endif    // L3_FASTLOG_ENABLED
 
 #endif // L3_ENABLED
 

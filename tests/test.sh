@@ -118,7 +118,7 @@ TestList=(
            # each invoking different logging schemes, for perf u-benchmarking.
            "test-build-and-run-csperf-baseline"
            "test-build-and-run-csperf-l3-log"
-           "test-build-and-run-csperf-fast-log-no-LOC"
+           "test-build-and-run-csperf-l3-log-no-LOC"
 
            "test-build-and-run-csperf-fprintf"
            "test-build-and-run-csperf-write"
@@ -492,7 +492,7 @@ function run-all-client-server-perf-tests()
 
     test-build-and-run-csperf-l3-log "${SvrClockArg}" "${num_msgs_per_client}"
 
-    test-build-and-run-csperf-fast-log-no-LOC "${SvrClockArg}" "${num_msgs_per_client}"
+    test-build-and-run-csperf-l3-log-no-LOC "${SvrClockArg}" "${num_msgs_per_client}"
 
     test-build-and-run-csperf-fprintf "${SvrClockArg}" "${num_msgs_per_client}"
 
@@ -612,7 +612,7 @@ function test-build-and-run-csperf-l3-log()
 #   $1  - (Opt) Arg to select clock-ID to use
 #   $2  - (Opt) # of messages to exchange from client -> server (default: 1000)
 # #############################################################################
-function test-build-and-run-csperf-fast-log-no-LOC()
+function test-build-and-run-csperf-l3-log-no-LOC()
 {
     if [ $# -ge 1 ]; then
         SvrClockArg=$1
@@ -627,12 +627,11 @@ function test-build-and-run-csperf-fast-log-no-LOC()
     local l3_LOC_disabled=0
 
     echo " "
-    echo "${Me}: Client-server performance testing with L3-fast-logging ON ${SvrClockArg}:"
+    echo "${Me}: Client-server performance testing with L3-logging ON ${SvrClockArg}:"
     echo " "
 
     build-client-server-programs "${l3_log_enabled}"       \
-                                 "${l3_LOC_disabled}"      \
-                                 "fast"
+                                 "${l3_LOC_disabled}"
 
     run-client-server-tests_vary_threads "${num_msgs_per_client}" "${l3_log_enabled}"
 
@@ -900,7 +899,6 @@ function test-build-and-run-csperf-spdlog-backtrace()
 # Parameters:
 #   $1  - (Reqd) Boolean: Is L3 enabled?
 #   $2  - (Opt.) When L3 is enabled, type of L3-LOC encoding enabled
-#   $3  - (Opt.) L3-logging type: 'slow' (default), 'fast'
 # #############################################################################
 function build-client-server-programs()
 {
@@ -916,7 +914,7 @@ function build-client-server-programs()
         l3_log_type=$3
     fi
 
-    echo "${Me}: Build: l3_enabled='${l3_enabled}', l3_loc_enabled='${l3_loc_enabled}', l3_log_type='${l3_log_type}'"
+    echo "${Me}: Build: l3_enabled='${l3_enabled}', l3_loc_enabled='${l3_loc_enabled}'"
     set +x
 
     # Default L3-intrinsic logging execution modes
@@ -932,16 +930,6 @@ function build-client-server-programs()
 
         # Execute the specified logging scheme under L3-logging APIs
         case "${l3_log_type}" in
-
-            "fast")
-                set -x
-                make -C tests clean                          \
-                && CC=gcc LD=g++                    \
-                    L3_ENABLED=${l3_enabled}        \
-                    L3_FASTLOG_ENABLED=1            \
-                    BUILD_VERBOSE=1                 \
-                    make -C tests client-server-perf-test
-                ;;
 
             "fprintf")
                 set -x

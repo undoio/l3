@@ -106,7 +106,7 @@ def test_basic_parse_rodata_string_offsets_skip_junk_lines():
   Unrelated junk-lines should be skipped
   Blank line below should be skipped
 
-  [    73]  300-Mil Fast l3-log msgs
+  [    73]  300-Mil l3-log msgs
   Trailer line should be skipped
                     """
 
@@ -114,7 +114,7 @@ def test_basic_parse_rodata_string_offsets_skip_junk_lines():
 
     assert nlines == 2
 
-    exp_hash = { 115: '300-Mil Fast l3-log msgs', 381: 'test string' }
+    exp_hash = { 115: '300-Mil l3-log msgs', 381: 'test string' }
 
     pr_debug_info(test_ro_data, string_offs, exp_hash)
 
@@ -168,34 +168,31 @@ def test_parse_rodata_string_offsets():
     """
     test_ro_data = """String dump of section '.rodata':
   [     8]  /tmp/l3.c-test.dat
-  [    21]  Exercise in-memory logging performance benchmarking: %d Mil simple/fast log msgs\n
-  [    73]  300-Mil Fast l3-log msgs
-  [    90]  %d Mil fast log msgs  : %luns/msg (avg)\n
-  [    b9]  300-Mil Simple l3-log msgs
-  [    d8]  %d Mil simple log msgs: %luns/msg (avg)\n
-  [   101]  /tmp/l3.c-small-test.dat
-  [   11a]  Simple-log-msg-Args(1,2)
+  [    21]  Exercise in-memory logging performance benchmarking: %d Mil log msgs\n
+  [    b9]  300-Mil l3-log msgs
+  [    d8]  %d Mil log msgs: %luns/msg (avg)\n
+  [   101]  /tmp/l3.c-test.dat
+  [   11a]  Log-msg-Args(1,2)
   [   138]  Potential memory overwrite (addr, size)
   [   160]  Invalid buffer handle (addr)
   [   17d]  test string"""
 
     (string_offs, nlines) = l3_dump.parse_string_offsets(test_ro_data)
 
-    assert nlines == 11
+    assert nlines == 9
 
     exp_hash = {    8: '/tmp/l3.c-test.dat'
                  , 33: 'Exercise in-memory logging performance benchmarking:'
-                        + ' %d Mil simple/fast log msgs'
-                , 115: '300-Mil Fast l3-log msgs'
-                , 144: '%d Mil fast log msgs  : %luns/msg (avg)'
-                , 185: '300-Mil Simple l3-log msgs'
-                , 216: '%d Mil simple log msgs: %luns/msg (avg)'
-                , 257: '/tmp/l3.c-small-test.dat'
-                , 282: 'Simple-log-msg-Args(1,2)'
+                        + ' %d Mil log msgs'
+                , 185: '300-Mil l3-log msgs'
+                , 216: '%d Mil log msgs: %luns/msg (avg)'
+                , 257: '/tmp/l3.c-test.dat'
+                , 282: 'Log-msg-Args(1,2)'
                 , 312: 'Potential memory overwrite (addr, size)'
                 , 352: 'Invalid buffer handle (addr)'
                 , 381: 'test string'
                }
+
     assert string_offs == exp_hash
 
 # #############################################################################
