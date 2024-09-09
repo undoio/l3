@@ -7,8 +7,8 @@ and usually involves acquiring a lock, so it becomes a kind of
 synchronisation point.
 
 The Lightweight Logging Library ([l3](./include/l3.h)) has a fast but limited `printf` API:
-- `l3_log_simple()`: Takes about 10ns (Intel Core i7-1365U)
-- `l3_log_fast()`: An even faster, but more limited interface, which takes about 7ns.
+the `l3_log()` function takes about 7ns on multi-threaded programs and as low as 1ns for
+single-threaded ones (Intel Core i7-1365U).
 
 Both routines are lockless implementations.
 
@@ -106,7 +106,7 @@ A sample output looks like follows:
 ```
 $ L3_LOC_ENABLED=1 ./l3_dump.py /tmp/l3.c-small-test.dat ./build/release/bin/test-use-cases/single-file-C-program
 
-tid=170657 single-file-C-program/test-main.c:85  'Simple-log-msg-Args(1,2)' arg1=1 arg2=2
+tid=170657 single-file-C-program/test-main.c:85  'Log-msg-Args(1,2)' arg1=1 arg2=2
 tid=170657 single-file-C-program/test-main.c:86  'Potential memory overwrite (addr, size)' arg1=3735927486 arg2=1024
 tid=170657 single-file-C-program/test-main.c:87  'Invalid buffer handle (addr)' arg1=3203378125 arg2=0
 ```

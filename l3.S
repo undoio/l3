@@ -1,8 +1,8 @@
-.globl l3__log_fast // l3__log_fast(msg)
+.globl l3_log_fn // l3_log_fn(msg)
 .extern l3_log
 .extern __libc_single_threaded
 
-l3__log_fast:
+l3_log_fn:
     mov %fs:l3_my_tid@tpoff,%eax // Fetch the TLS-stashed TID into %eax
     cmp $0, %eax            // Is the TID already stashed?
     jnz .tid_stashed        // yes: skip the call to gettid
@@ -27,14 +27,14 @@ l3__log_fast:
     mov %eax, (%r8)         // The tid is in %eax from the call to to gettid above.
 #ifdef L3_LOC_ENABLED
     add $4, %r8             // Point r8 at the loc field of the slot.
-    mov %edi, (%r8)         // Stash the LOC value.
+    mov %ecx, (%r8)         // Stash the LOC value.
     add $4, %r8             // Point r8 at the msg field of the slot.
 #else
     add $8, %r8             // Point r8 at the msg field of the slot.
 #endif // L3_LOC_ENABLED
-    mov %rsi, (%r8)         // Stash the msg arg in the slot.
+    mov %rdi, (%r8)         // Stash the msg arg in the slot.
     add $8, %r8             // Point r8 at the arg1 field in the slot.
-    movq %rdx, (%r8)        // Stash arg1 in the slot
+    movq %rsi, (%r8)        // Stash arg1 in the slot
     add $8, %r8             // Point r8 at the arg2 field in the slot.
-    movq %rcx, (%r8)        // Stash arg2 in the slot.
+    movq %rdx, (%r8)        // Stash arg2 in the slot.
     ret

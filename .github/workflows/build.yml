@@ -221,7 +221,7 @@ jobs:
       run: |
         BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-baseline
         BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-l3-log
-        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-fast-log-no-LOC
+        BUILD_MODE=${{ matrix.build_type }} ./tests/test.sh test-build-and-run-csperf-l3-log-no-LOC
 
     #! -------------------------------------------------------------------------
     #  This test will build-and-run client-server perf-test, with L3-Logging

@@ -96,7 +96,7 @@ Hex dump of section '.rodata':
     On Mac/OSX, the output will be something like:
 
 Hex dump of section '__cstring':
-0x100003e94 2f746d70 2f6c332e 632d736d 616c6c2d /tmp/l3.c-small-
+0x100003e94 2f746d70 2f6c332e 632d736d 616c6c2d /tmp/l3.c-unit
 
   ^^^^^^^^^^
 
@@ -152,13 +152,13 @@ def parse_rodata_string_offsets(program_bin:str) -> dict:
     We are parsing the following sample hexdump output on Linux:
 
 String dump of section '.rodata':
-  [     8]  /tmp/l3.c-small-unit-test.dat
-  [    26]  Simple-log-msg-Args(1,2)
-  [    3f]  Simple-log-msg-Args(3,4)
+  [     8]  /tmp/l3.c-unit-test.dat
+  [    26]  Log-msg-Args(1,2)
+  [    3f]  Log-msg-Args(3,4)
 
     Build a dictionary from 'int-offset' -> string; i.e.
-        [ 8] : "/tmp/l3.c-small-unit-test.dat"
-        [38] : "Simple-log-msg-Args(1,2)"
+        [ 8] : "/tmp/l3.c-unit-test.dat"
+        [38] : "Log-msg-Args(1,2)"
 
     ... and so on.
     """
@@ -196,9 +196,9 @@ def parse_string_offsets(input_str:str) -> (dict,int):
     The expected convention is that the strings are null-terminated in the
     hexdump output. We only want to parse lines that list string offsets, like:
 
-  [     8]  /tmp/l3.c-small-unit-test.dat
-  [    26]  Simple-log-msg-Args(1,2)
-  [    3f]  Simple-log-msg-Args(3,4)
+  [     8]  /tmp/l3.c-unit-test.dat
+  [    26]  Log-msg-Args(1,2)
+  [    3f]  Log-msg-Args(3,4)
 
     Returns: Dictionary mapping {offset: string} and # of valid-lines parsed.
     """

@@ -115,8 +115,7 @@ typedef struct l3_log
 } L3_LOG;
 
 
-L3_LOG *l3_log = NULL;      // L3_LOG_MMAP: Also referenced in l3.S for
-                            // fast-logging.
+L3_LOG *l3_log = NULL;      // L3_LOG_MMAP: Also referenced in l3.S.
 
 /**
  * The L3-dump script expects a specific layout and its parsing routines
@@ -228,7 +227,7 @@ l3_init(const char *path)
  * DEBUG version of the caller-macro using printf(), for argument v/s print-
  * format specifiers in 'msg'.
  */
-void
+void __attribute__((weak))
 #ifdef L3_LOC_ENABLED
 l3_log_fn(const char *msg, const uint64_t arg1, const uint64_t arg2,
             loc_t loc)

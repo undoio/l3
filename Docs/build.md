@@ -129,7 +129,7 @@ See, e.g., `loc=65620` in the output below.
 
 ```
 $ ./l3_dump.py /tmp/l3.cc-small-test.dat ./build/release/bin/test-use-cases/single-file-CC-program
-tid=10550 loc=65620 'Simple-log-msg-Args(1,2)' arg1=1 arg2=2
+tid=10550 loc=65620 'Log-msg-Args(1,2)' arg1=1 arg2=2
 tid=10550 loc=65621 'Potential memory overwrite (addr, size)' arg1=3735927486 arg2=1024
 tid=10550 loc=65622 'Invalid buffer handle (addr)' arg1=3203378125 arg2=0
 ```
@@ -146,7 +146,7 @@ See the decoded `single-file-CC-program/test-main.cc:84` in the output below:
 
 ```
 $ L3_LOC_ENABLED=1 ./l3_dump.py /tmp/l3.cc-small-test.dat ./build/release/bin/test-use-cases/single-file-CC-program
-tid=10550 single-file-CC-program/test-main.cc:84  'Simple-log-msg-Args(1,2)' arg1=1 arg2=2
+tid=10550 single-file-CC-program/test-main.cc:84  'Log-msg-Args(1,2)' arg1=1 arg2=2
 tid=10550 single-file-CC-program/test-main.cc:85  'Potential memory overwrite (addr, size)' arg1=3735927486 arg2=1024
 tid=10550 single-file-CC-program/test-main.cc:86  'Invalid buffer handle (addr)' arg1=3203378125 arg2=0
 ```
