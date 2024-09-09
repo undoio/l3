@@ -86,7 +86,7 @@ int l3_deinit(void);
 
     #define l3_log(msg, arg1, arg2)                                     \
             if (1) {                                                    \
-                l3_log_mmap((msg),                                      \
+                l3_log_fn((msg),                                      \
                             (uint64_t) (arg1), (uint64_t) (arg2),       \
                             __LOC__);                                   \
             } else if (0) {                                             \
@@ -97,7 +97,7 @@ int l3_deinit(void);
 
     #  define l3_log(msg, arg1, arg2)                                   \
             if (1) {                                                    \
-                l3_log_mmap((msg),                                      \
+                l3_log_fn((msg),                                      \
                             (uint64_t) (arg1), (uint64_t) (arg2),       \
                             L3_ARG_UNUSED);                             \
             } else if (0) {                                             \
@@ -111,13 +111,13 @@ int l3_deinit(void);
   #ifdef L3_LOC_ENABLED
 
     #define l3_log(msg, arg1, arg2)                                     \
-            l3_log_mmap((msg),                                          \
+            l3_log_fn((msg),                                          \
                         (uint64_t) (arg1), (uint64_t) (arg2),           \
                         __LOC__)
 
     #else
     #define l3_log(msg, arg1, arg2)                                     \
-            l3_log_mmap((msg),                                          \
+            l3_log_fn((msg),                                          \
                         (uint64_t) (arg1), (uint64_t) (arg2),           \
                         L3_ARG_UNUSED)
 
@@ -142,10 +142,10 @@ extern "C" {
 #endif
 
 #ifdef L3_LOC_ENABLED
-void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+void l3_log_fn(const char *msg, const uint64_t arg1, const uint64_t arg2,
                  const loc_t loc);
 #else
-void l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+void l3_log_fn(const char *msg, const uint64_t arg1, const uint64_t arg2,
                  const uint32_t loc);
 #endif  // L3_LOC_ENABLED
 

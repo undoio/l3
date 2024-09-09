@@ -221,7 +221,7 @@ l3_init(const char *path)
 // ****************************************************************************
 
 /**
- * l3_log_mmap() - 'C' interface to "slow" L3-logging.
+ * l3_log_fn() - 'C' implementation of L3-logging.
  *
  * As 'loc' is an argument synthesized by the caller-macro, under conditional
  * compilation, keep it as the last argument. This makes it possible to define
@@ -230,10 +230,10 @@ l3_init(const char *path)
  */
 void
 #ifdef L3_LOC_ENABLED
-l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+l3_log_fn(const char *msg, const uint64_t arg1, const uint64_t arg2,
             loc_t loc)
 #else
-l3_log_mmap(const char *msg, const uint64_t arg1, const uint64_t arg2,
+l3_log_fn(const char *msg, const uint64_t arg1, const uint64_t arg2,
             uint32_t loc)
 #endif
 {
