@@ -386,8 +386,10 @@ def do_c_print(msg_text:str, arg1:int, arg2:int) -> str:
     """
     format_string = fmtstr_replace(msg_text)
     # DEBUG: print(f"{format_string=}")
-    msg_text = format_string % (arg1, arg2)
-    return msg_text
+    args = format_string.count("%")
+    if args == 1: return format_string % (arg1, arg2)
+    if args == 2: return format_string % (arg1, arg2)
+    return format_string
 
 ###############################################################################
 def fmtstr_replace(fmtstr:str) -> str:
