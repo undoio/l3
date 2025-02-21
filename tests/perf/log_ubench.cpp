@@ -159,8 +159,6 @@ main(int argc, char** argv)
     int e = pthread_barrier_init(&barrier, NULL, nthreads);
     assert(!e);
     
-    nmsgs /= nthreads;
-
     for (int i = 0; i < nthreads; i++)
     {
         pthread_create(&threads[i], NULL, fn, arg);
