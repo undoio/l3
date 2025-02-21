@@ -11,6 +11,7 @@
  * Usage: program-name [ <number-of-threads> ]
  * *****************************************************************************
  */
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -31,7 +32,7 @@ struct timeval tv0, tv1;
 int nthreads, completed, started;
 long nmsgs = (1024 * 1024);
 
-uintptr_t buffi;
+size_t *idx_ptr;
 const size_t max_msg_len = 128;
 const size_t buff_size = max_msg_len * L3_MAX_SLOTS;
 const size_t buff_mask = buff_size - 1;
@@ -71,6 +72,26 @@ time_spdlog(void * arg)
     return nullptr;
 }
 
+void
+do_sprintf(char *buffer, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    /* First compute the size we'll need, by doing vsnprintf into a zero-size buffer. */
+    size_t len = vsnprintf(buffer, 0, fmt, args);
+
+    /* Then reserve that many bytes so that we may log into it. */
+    uintptr_t i = __sync_fetch_and_add(idx_ptr, len-1) & buff_mask;
+    vsnprintf(((char*)buffer) + i, buff_size - i, fmt, args);
+
+    if (len > buff_size - i) {
+        /* If we wrapped around, we need to log the rest of the message at the beginning of the buffer. */
+        vsnprintf(buffer, i, fmt + len - (buff_size-i), args);
+    }
+    va_end(args);
+}
+
 void*
 time_sprintf(void *arg)
 {
@@ -79,9 +100,9 @@ time_sprintf(void *arg)
     assert(e == 0 || e == PTHREAD_BARRIER_SERIAL_THREAD);
     if (__sync_fetch_and_add(&started, 1) == 0) gettimeofday(&tv0, NULL);
 
-    for (int j = 0; j < nmsgs; j++) {
-        uintptr_t i = __sync_fetch_and_add(&buffi, max_msg_len) & buff_mask;
-        snprintf(((char*)arg) + i, max_msg_len, "%d: Hello, world! Here is argument one %d and argument two is %p\n", tid, j, arg);
+    for (int j = 0; j < nmsgs; j++)
+    {
+        do_sprintf((char*) arg, "%d: Hello, world! Here is argument one %d and argument two is %p\n", tid, j, arg);
     }
 
     if (__sync_fetch_and_add(&completed, 1) == nthreads - 1) gettimeofday(&tv1, NULL);
@@ -96,7 +117,7 @@ time_l3(void *arg)
     if (__sync_fetch_and_add(&started, 1) == 0) gettimeofday(&tv0, NULL);
 
     for (int j = 0; j < nmsgs; j++) {
-        l3_log("Hello, world! Here is argument one %d and argument two is %p", j, arg);
+        l3_log("Hello, world! Here is argument one %d and argument two is %d", j, nmsgs);
     }
 
     if (__sync_fetch_and_add(&completed, 1) == nthreads - 1) gettimeofday(&tv1, NULL);
@@ -135,13 +156,14 @@ main(int argc, char** argv)
         nmsgs *= 8;
         int fd = open("/tmp/sprintf.log", O_RDWR | O_CREAT, 0666);
         assert( fd>=0);
-        char page[4096];
-        for (int i = 0; i < buff_size; i+=sizeof(page)) {
+        char page[sysconf(_SC_PAGE_SIZE)];
+        for (int i = 0; i < buff_size + sysconf(_SC_PAGE_SIZE); i+=sizeof(page)) {
             int r = write(fd, page, sizeof(page));
             assert(r== sizeof(page));
         }
-        arg = mmap(NULL, buff_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_PRIVATE, fd, 0);
+        arg = mmap(NULL, buff_size + sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         assert(arg != MAP_FAILED);
+        idx_ptr = (size_t*)(((char*)arg) + buff_size);
         fn = time_sprintf;
     }
     else if (!strcmp(argv[1], "l3"))
