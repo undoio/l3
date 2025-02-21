@@ -1,0 +1,20 @@
+for mode in fprintf spdlog sprintf l3
+do
+    echo
+    echo $mode
+    for threads in 1 2 4 6 8 10 12 14 16
+    do
+	best=10000000000
+	for rep in 1 2 3 4
+	do
+	    t=$(./a.out $mode $threads)
+	    if [ $t -le $best ]
+	    then
+		best=$t
+	    fi
+        done
+	echo $best
+    done
+done
+
+
