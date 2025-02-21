@@ -156,7 +156,7 @@ main(int argc, char** argv)
     nthreads = ((argc > 2) ? atoi(argv[2]) : 10);
 
     pthread_t threads[nthreads];
-    int e = pthread_barrier_init(&barrier, NULL, nthreads+1);
+    int e = pthread_barrier_init(&barrier, NULL, nthreads);
     assert(!e);
     
     nmsgs /= nthreads;
@@ -165,9 +165,9 @@ main(int argc, char** argv)
     {
         pthread_create(&threads[i], NULL, fn, arg);
     }
-    pthread_barrier_wait(&barrier);
 
-    for (int i = 0; i < nthreads; i++) {
+    for (int i = 0; i < nthreads; i++)
+    {
         pthread_join(threads[i], NULL);
     }
     long us = (tv1.tv_sec * 1000000 + tv1.tv_usec) - (tv0.tv_sec * 1000000 + tv0.tv_usec);
