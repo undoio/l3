@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <sys/time.h>
 
 
 // Micro perf benchmarking workload parameter defaults
@@ -61,10 +62,15 @@ int main(int argc, char** argv) {
     }
 #if !defined(_POSIX_BARRIERS) || _POSIX_BARRIERS > 0
     pthread_barrier_wait(&barrier);
+    struct timeval tv0, tv1;
+    gettimeofday(&tv0, NULL);
 #endif
 
     for (int i = 0; i < nthreads; i++) {
         pthread_join(threads[i], NULL);
     }
+    gettimeofday(&tv1, NULL);
+    long us = (tv1.tv_sec * 1000000 + tv1.tv_usec) - (tv0.tv_sec * 1000000 + tv0.tv_usec);
+    printf("%d,%02.2f\n", nthreads, (double)us / L3_PERF_UBM_NMSGS);
     return 0;
 }

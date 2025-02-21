@@ -1,12 +1,12 @@
 /**
  * *****************************************************************************
- * \file perf/mt_ubench_l3.cpp
+ * \file perf/mt_ubench_fprintf.cpp
  * \author Greg Law
- * \brief L3: Fast-logging micro perf-benchmarking
+ * \brief fprintf micro perf-benchmarking
  * \version 0.1
- * \date 2024-06-25
+ * \date 2025-02-21
  *
- * \copyright Copyright (c) 2024
+ * \copyright Copyright (c) 2025
  *
  * Usage: program-name [ <number-of-threads> ]
  * *****************************************************************************
@@ -18,8 +18,6 @@
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <pthread.h>
-
-#include "l3.h"
 
 // Micro perf benchmarking workload parameter defaults
 constexpr int L3_PERF_UBM_NTHREADS = 10;
@@ -33,24 +31,27 @@ int main(int argc, char** argv) {
     int nthreads = ((argc > 1) ? atoi(argv[1]) : L3_PERF_UBM_NTHREADS);
     // int nmsgs = ((argc > 2) ? atoi(argv[2]) : L3_PERF_UBM_NMSGS);
 
+    FILE *f = fopen("/tmp/fprintf.log", "w");
+    assert(f);
+
     pthread_t threads[nthreads];
 #if !defined(_POSIX_BARRIERS) || _POSIX_BARRIERS > 0
     int e = pthread_barrier_init(&barrier, NULL, nthreads+1);
     assert(!e);
 #endif
 
-    l3_init("/tmp/l3.log");
     for (int i = 0; i < nthreads; i++) {
-        pthread_create(&threads[i], NULL, [](void *) -> void * {
+        pthread_create(&threads[i], NULL, [](void *p) -> void * {
 #if !defined(_POSIX_BARRIERS) || _POSIX_BARRIERS > 0
             int e = pthread_barrier_wait(&barrier);
             assert(e == 0 || e == PTHREAD_BARRIER_SERIAL_THREAD);
 #endif
+            FILE *f = (FILE *)p;
             for (int j = 0; j < L3_PERF_UBM_NMSGS; j++) {
-                l3_log("Hello, world! %d %d", 0, j);
+                fprintf(f, "Hello, world! %d %d", 0, j);
             }
             return nullptr;
-        }, nullptr);
+        }, f);
     }
 #if !defined(_POSIX_BARRIERS) || _POSIX_BARRIERS > 0
     pthread_barrier_wait(&barrier);
@@ -64,5 +65,6 @@ int main(int argc, char** argv) {
     gettimeofday(&tv1, NULL);
     long us = (tv1.tv_sec * 1000000 + tv1.tv_usec) - (tv0.tv_sec * 1000000 + tv0.tv_usec);
     printf("%d,%02.2f\n", nthreads, (double)us / L3_PERF_UBM_NMSGS);
+    fclose(f);
     return 0;
 }

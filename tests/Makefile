@@ -506,12 +506,18 @@ FPRINTF_PERF_UNIT_TEST_BIN  := $(BINDIR)/$(UNIT_DIR)/l3-fprintf-perf-test
 WRITE_PERF_UNIT_TEST_BIN    := $(BINDIR)/$(UNIT_DIR)/l3-write-perf-test
 
 # ##############################################################################
-# Rules to build and run stand-alone L3 and spdlog multi-threaded u-benchmarks
+# Rules to build and run stand-alone frpintf, L3 and spdlog multi-threaded u-benchmarks
 # ##############################################################################
 PERF_UBM_PROG_L3 := $(BINDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_l3
 
 $(PERF_UBM_PROG_L3): $(OBJDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_l3.o \
                      $(L3_OBJS)
+
+PERF_UBM_PROG_FPRINTF := $(BINDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_fprintf
+$(PERF_UBM_PROG_FPRINTF): $(OBJDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_fprintf.o
+
+PERF_UBM_PROG_SPRINTF := $(BINDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_sprintf
+$(PERF_UBM_PROG_SPRINTF): $(OBJDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_sprintf.o
 
 PERF_UBM_PROG_SPDLOG := $(BINDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_spdlog
 $(PERF_UBM_PROG_SPDLOG): $(OBJDIR)/$(PERF_UBM_TESTS_DIR)/mt_ubench_spdlog.o
@@ -521,7 +527,10 @@ $(PERF_UBM_PROG_SPDLOG): LIBS += $(SPD_LIBS_PATH) -l spdlog -l fmt
 
 all-mt-ubench: LIBS += -l pthread
 all-mt-ubench: CPPFLAGS = --std=c++11
-all-mt-ubench: $(PERF_UBM_PROG_L3) $(PERF_UBM_PROG_SPDLOG)
+all-mt-ubench: $(PERF_UBM_PROG_L3) $(PERF_UBM_PROG_SPDLOG) $(PERF_UBM_PROG_FPRINTF) $(PERF_UBM_PROG_SPRINTF)
+
+# ##############################################################################
+# Generate symbols and dependencies to build unit-test sources
 
 # ##############################################################################
 # Generate symbols and dependencies to build unit-test sources

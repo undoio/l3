@@ -1,37 +1,43 @@
 /**
  * *****************************************************************************
- * \file perf/mt_ubench_l3.cpp
+ * \file perf/mt_ubench_fprintf.cpp
  * \author Greg Law
- * \brief L3: Fast-logging micro perf-benchmarking
+ * \brief fprintf micro perf-benchmarking
  * \version 0.1
- * \date 2024-06-25
+ * \date 2025-02-21
  *
- * \copyright Copyright (c) 2024
+ * \copyright Copyright (c) 2025
  *
  * Usage: program-name [ <number-of-threads> ]
  * *****************************************************************************
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <assert.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <pthread.h>
 
-#include "l3.h"
-
 // Micro perf benchmarking workload parameter defaults
 constexpr int L3_PERF_UBM_NTHREADS = 10;
 constexpr int L3_PERF_UBM_NMSGS = (1000 * 1000);
+constexpr int MAX_MSG_LEN = 64;
 
 #if !defined(_POSIX_BARRIERS) || _POSIX_BARRIERS > 0
 pthread_barrier_t barrier;
 #endif
 
+uintptr_t buffi;
+
 int main(int argc, char** argv) {
     int nthreads = ((argc > 1) ? atoi(argv[1]) : L3_PERF_UBM_NTHREADS);
     // int nmsgs = ((argc > 2) ? atoi(argv[2]) : L3_PERF_UBM_NMSGS);
+
+    char *buff = (char* )malloc(MAX_MSG_LEN * nthreads * L3_PERF_UBM_NMSGS);
+    assert(buff);
+    buffi = (uintptr_t) buff;
 
     pthread_t threads[nthreads];
 #if !defined(_POSIX_BARRIERS) || _POSIX_BARRIERS > 0
@@ -39,7 +45,6 @@ int main(int argc, char** argv) {
     assert(!e);
 #endif
 
-    l3_init("/tmp/l3.log");
     for (int i = 0; i < nthreads; i++) {
         pthread_create(&threads[i], NULL, [](void *) -> void * {
 #if !defined(_POSIX_BARRIERS) || _POSIX_BARRIERS > 0
@@ -47,7 +52,8 @@ int main(int argc, char** argv) {
             assert(e == 0 || e == PTHREAD_BARRIER_SERIAL_THREAD);
 #endif
             for (int j = 0; j < L3_PERF_UBM_NMSGS; j++) {
-                l3_log("Hello, world! %d %d", 0, j);
+                uintptr_t i = __sync_fetch_and_add(&buffi, 64);
+                sprintf((char *)i, "Hello, world! %d %d", 0, j);
             }
             return nullptr;
         }, nullptr);
