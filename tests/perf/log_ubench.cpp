@@ -21,6 +21,7 @@
 #include <pthread.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <sys/mman.h>
 
 #include "../../l3.h"
 
@@ -31,7 +32,8 @@ int nthreads, completed, started;
 long nmsgs = (1024 * 1024);
 
 uintptr_t buffi;
-const size_t buff_size = 64 * L3_MAX_SLOTS;
+const size_t max_msg_len = 128;
+const size_t buff_size = max_msg_len * L3_MAX_SLOTS;
 const size_t buff_mask = buff_size - 1;
 
 std::shared_ptr<spdlog::logger> logger;
@@ -78,8 +80,8 @@ time_sprintf(void *arg)
     if (__sync_fetch_and_add(&started, 1) == 0) gettimeofday(&tv0, NULL);
 
     for (int j = 0; j < nmsgs; j++) {
-        uintptr_t i = __sync_fetch_and_add(&buffi, 64) & buff_mask;
-        sprintf(((char*)arg) + i, "%d: Hello, world! Here is argument one %d and argument two is %p", tid, j, arg);
+        uintptr_t i = __sync_fetch_and_add(&buffi, max_msg_len) & buff_mask;
+        snprintf(((char*)arg) + i, max_msg_len, "%d: Hello, world! Here is argument one %d and argument two is %p", tid, j, arg);
     }
 
     if (__sync_fetch_and_add(&completed, 1) == nthreads - 1) gettimeofday(&tv1, NULL);
@@ -130,12 +132,21 @@ main(int argc, char** argv)
     }
     else if (!strcmp(argv[1], "sprintf"))
     {
-        arg = malloc(buff_size);
-        assert(arg);
+        nmsgs *= 8;
+        int fd = open("/tmp/sprintf.log", O_RDWR | O_CREAT, 0666);
+        assert( fd>=0);
+        char page[4096];
+        for (int i = 0; i < buff_size; i+=sizeof(page)) {
+            int r = write(fd, page, sizeof(page));
+            assert(r== sizeof(page));
+        }
+        arg = mmap(NULL, buff_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_PRIVATE, fd, 0);
+        assert(arg != MAP_FAILED);
         fn = time_sprintf;
     }
     else if (!strcmp(argv[1], "l3"))
     {
+        nmsgs *= 8;
         l3_init("/tmp/l3.log");
         fn = time_l3;
     }
