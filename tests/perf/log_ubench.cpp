@@ -48,7 +48,7 @@ time_fprintf(void * arg)
     if (__sync_fetch_and_add(&started, 1) == 0) gettimeofday(&tv0, NULL);
 
     for (int j = 0; j < nmsgs; j++) {
-        fprintf(f, "%d: Hello, world! Here is argument one %d and argument two is %p", tid, j, arg);
+        fprintf(f, "%d: Hello, world! Here is argument one %d and argument two is %p\n", tid, j, arg);
     }
 
     if (__sync_fetch_and_add(&completed, 1) == nthreads - 1) gettimeofday(&tv1, NULL);
@@ -64,7 +64,7 @@ time_spdlog(void * arg)
     if (__sync_fetch_and_add(&started, 1) == 0) gettimeofday(&tv0, NULL);
 
     for (int j = 0; j < nmsgs; j++) {
-        logger->info("{}: Hello, world! Here is argument one {} and argument two is {}", tid, j, arg);
+        logger->info("{}: Hello, world! Here is argument one {} and argument two is {}\n", tid, j, arg);
     }
 
     if (__sync_fetch_and_add(&completed, 1) == nthreads - 1) gettimeofday(&tv1, NULL);
@@ -81,7 +81,7 @@ time_sprintf(void *arg)
 
     for (int j = 0; j < nmsgs; j++) {
         uintptr_t i = __sync_fetch_and_add(&buffi, max_msg_len) & buff_mask;
-        snprintf(((char*)arg) + i, max_msg_len, "%d: Hello, world! Here is argument one %d and argument two is %p", tid, j, arg);
+        snprintf(((char*)arg) + i, max_msg_len, "%d: Hello, world! Here is argument one %d and argument two is %p\n", tid, j, arg);
     }
 
     if (__sync_fetch_and_add(&completed, 1) == nthreads - 1) gettimeofday(&tv1, NULL);
