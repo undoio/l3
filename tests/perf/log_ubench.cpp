@@ -24,27 +24,23 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <sys/mman.h>
 
+#include <fstream>
+
 #include "../../l3.h"
 
-pthread_barrier_t barrier;
-
-struct timeval tv0, tv1;
-int nthreads, completed, started;
-long nmsgs = 4 * 1024 * 1024;
-
-char *buffer;
-size_t *idx_ptr;
-const size_t max_msg_len = 128;
-const size_t buff_size = max_msg_len * L3_MAX_SLOTS;
-const size_t buff_mask = buff_size - 1;
-FILE *f;
-
-std::shared_ptr<spdlog::logger> logger;
+static pthread_barrier_t barrier;
+static struct timeval tv0, tv1;
+static int nthreads, completed, started;
+static const long nmsgs = 1024 * 1024;
+static const size_t max_msg_len = 128;
+static const size_t buff_size = max_msg_len * L3_MAX_SLOTS;
 
 static void
 many_fprintf(void)
 {
     int tid = syscall(SYS_gettid);
+
+    FILE *f = fopen("/tmp/log", "w+");
     assert(f);
 
     for (int j = 0; j < nmsgs; j++)
@@ -56,8 +52,22 @@ many_fprintf(void)
 }
 
 static void
+many_stream(void)
+{
+    int tid = syscall(SYS_gettid);
+    std::ofstream fout("/tmp/stream");
+    for (int j = 0; j < nmsgs; j++)
+    {
+        fout << tid << ": Hello, world! Here is argument one " << j << " and argument two is " << &j << '\n';
+    }
+}
+
+std::shared_ptr<spdlog::logger> logger;
+static void
 many_spdlog(void)
 {
+    logger = spdlog::basic_logger_mt("file_logger", "/tmp/logger.txt", true);
+    logger->enable_backtrace(buff_size);
     assert(logger);
     int tid = syscall(SYS_gettid);
     for (int j = 0; j < nmsgs; j++)
@@ -67,7 +77,7 @@ many_spdlog(void)
 }
 
 static void
-do_sprintf(char *buffer, const char *fmt, ...)
+do_sprintf(char *buffer, size_t *idx_ptr, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -90,16 +100,27 @@ do_sprintf(char *buffer, const char *fmt, ...)
 static void
 many_sprintf(void)
 {
+    int fd = open("/tmp/sprintf.log", O_RDWR | O_CREAT, 0666);
+    assert( fd>=0);
+    char page[sysconf(_SC_PAGE_SIZE)];
+    for (int i = 0; i < buff_size + sysconf(_SC_PAGE_SIZE); i+=sizeof(page)) {
+        int r = write(fd, page, sizeof(page));
+        assert(r== sizeof(page));
+    }
+    char *buffer = (char *) mmap(NULL, buff_size + sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    assert(buffer != MAP_FAILED);
+    size_t *idx_ptr = (size_t*)(((char*)buffer) + buff_size);
     int tid = syscall(SYS_gettid);
     for (long j = 0; j < nmsgs; j++)
     {
-        do_sprintf((char*) buffer, "%d: Hello, world! Here is argument one %ld and argument two is %p\n", tid, j, &j);
+        do_sprintf(buffer, idx_ptr, "%d: Hello, world! Here is argument one %ld and argument two is %p\n", tid, j, &j);
     }
 }
 
 static void
 many_l3(void)
 {
+    l3_init("/tmp/l3.log");
     for (int j = 0; j < nmsgs; j++)
     {
         l3_log("Hello, world! Here is argument one %d and argument two is %p", j, &j);
@@ -138,32 +159,21 @@ main(int argc, char** argv)
     if (!strcmp(argv[1], "fprintf"))
     {
         fn = many_fprintf;
-        f = fopen("/tmp/log", "w+");
-        assert(f);
+    }
+    else if (!strcmp(argv[1], "stream"))
+    {
+        fn = many_stream;
     }
     else if(!strcmp(argv[1], "spdlog"))
     {
-        logger = spdlog::basic_logger_mt("file_logger", "/tmp/logger.txt", true);
-        logger->enable_backtrace(buff_size);
         fn = many_spdlog;
     }
     else if (!strcmp(argv[1], "sprintf"))
     {
-        int fd = open("/tmp/sprintf.log", O_RDWR | O_CREAT, 0666);
-        assert( fd>=0);
-        char page[sysconf(_SC_PAGE_SIZE)];
-        for (int i = 0; i < buff_size + sysconf(_SC_PAGE_SIZE); i+=sizeof(page)) {
-            int r = write(fd, page, sizeof(page));
-            assert(r== sizeof(page));
-        }
-        buffer = (char *) mmap(NULL, buff_size + sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        assert(buffer != MAP_FAILED);
-        idx_ptr = (size_t*)(((char*)buffer) + buff_size);
         fn = many_sprintf;
     }
     else if (!strcmp(argv[1], "l3"))
     {
-        l3_init("/tmp/l3.log");
         fn = many_l3;
     }
     else
