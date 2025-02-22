@@ -66,7 +66,7 @@ many_spdlog(void)
     }
 }
 
-static inline void
+static void
 do_sprintf(char *buffer, const char *fmt, ...)
 {
     va_list args;
@@ -76,7 +76,8 @@ do_sprintf(char *buffer, const char *fmt, ...)
     size_t len = vsnprintf(buffer, 0, fmt, args);
 
     /* Then reserve that many bytes so that we may log into it. */
-    uintptr_t i = __sync_fetch_and_add(idx_ptr, len-1) & buff_mask;
+    uintptr_t i = __sync_fetch_and_add(idx_ptr, len) % buff_size;
+    va_start(args, fmt);
     vsnprintf(((char*)buffer) + i, buff_size - i, fmt, args);
 
     if (len > buff_size - i) {
@@ -90,9 +91,9 @@ static void
 many_sprintf(void)
 {
     int tid = syscall(SYS_gettid);
-    for (int j = 0; j < nmsgs; j++)
+    for (long j = 0; j < nmsgs; j++)
     {
-        do_sprintf((char*) buffer, "%d: Hello, world! Here is argument one %d and argument two is %p\n", tid, j, &j);
+        do_sprintf((char*) buffer, "%d: Hello, world! Here is argument one %ld and argument two is %p\n", tid, j, &j);
     }
 }
 
