@@ -170,20 +170,26 @@ main(int argc, char** argv)
 
     nthreads = ((argc > 2) ? atoi(argv[2]) : 10);
 
-    pthread_t threads[nthreads - 1];
     int e = pthread_barrier_init(&barrier, NULL, nthreads);
     assert(!e);
-    
-    for (int i = 0; i < nthreads - 1; i++)
+
+    if (nthreads == 1)
     {
-        pthread_create(&threads[i], NULL, go, (void *) fn);
+        go((void *)fn);
     }
-
-    go((void *) fn);
-
-    for (int i = 0; i < nthreads - 1; i++)
+    else
     {
-        pthread_join(threads[i], NULL);
+        pthread_t threads[nthreads];
+
+        for (int i = 0; i < nthreads; i++)
+        {
+            pthread_create(&threads[i], NULL, go, (void *) fn);
+        }
+
+        for (int i = 0; i < nthreads; i++)
+        {
+            pthread_join(threads[i], NULL);
+        }
     }
     long us = (tv1.tv_sec * 1000000 + tv1.tv_usec) - (tv0.tv_sec * 1000000 + tv0.tv_usec);
     printf("%ld\n", us * 1000 / nmsgs);
