@@ -30,7 +30,7 @@ pthread_barrier_t barrier;
 
 struct timeval tv0, tv1;
 int nthreads, completed, started;
-long nmsgs = (1024 * 1024);
+long nmsgs = 4 * 1024 * 1024;
 
 char *buffer;
 size_t *idx_ptr;
