@@ -24,8 +24,9 @@
 
 /**
  * Size of circular ring-buffer to track log entries.
+ * A message occupies 1 slot, and 1 more for each 3 arguments.
  */
-#define L3_MAX_SLOTS (16384)
+#define L3_MAX_SLOTS (32768)
 
 /**
  * Error codes returned by API / interfaces.
@@ -72,6 +73,20 @@ int l3_deinit(void);
 }
 #endif
 
+#define L3_PREFIX_CAST(x) ((uint64_t)(x))
+
+#define L3_MACRO_NARGS_IMPL(_0,_1,_2,_3,_4,_5,_6,_7,_8,_9,N,...) N
+#define L3_MACRO_NARGS(...) L3_MACRO_NARGS_IMPL(_, ##__VA_ARGS__, 9,8,7,6,5,4,3,2,1,0) // GCC/Clang extension
+// Deeply nested macro expansion such that it appears recursive
+#define L3_MACRO_EXPAND(...)  L3_MACRO_EXPAND2(L3_MACRO_EXPAND2(L3_MACRO_EXPAND2(L3_MACRO_EXPAND2(__VA_ARGS__))))
+#define L3_MACRO_EXPAND2(...) L3_MACRO_EXPAND1(L3_MACRO_EXPAND1(L3_MACRO_EXPAND1(L3_MACRO_EXPAND1(__VA_ARGS__))))
+#define L3_MACRO_EXPAND1(...) __VA_ARGS__
+#define L3_MACRO_PARENS ()
+#define L3_MACRO_FOR_EACH(macro, ...) __VA_OPT__(L3_MACRO_EXPAND(L3_MACRO_FOR_EACH_LOOP(macro, __VA_ARGS__)))
+#define L3_MACRO_FOR_EACH_LOOP(macro, a1, ...) macro(a1) __VA_OPT__(, L3_MACRO_FOR_EACH_LOOP2 L3_MACRO_PARENS (macro, __VA_ARGS__))
+#define L3_MACRO_FOR_EACH_LOOP2() L3_MACRO_FOR_EACH_LOOP
+#define L3_PREFIX_MULTI(...) L3_MACRO_FOR_EACH(L3_PREFIX_CAST, __VA_ARGS__)
+
 /**
  * \brief Caller-macro to invoke L3 logging.
  *
@@ -86,22 +101,18 @@ int l3_deinit(void);
 
     #define l3_log(msg, arg1, arg2)                                     \
             if (1) {                                                    \
-                l3_log_fn((msg),                                      \
-                            (uint64_t) (arg1), (uint64_t) (arg2),       \
-                            __LOC__);                                   \
+                l3_log_fn((msg), __LOC__, L3_MACRO_NARGS(__VA_ARGS__) __VA_OPT__(,) L3_PREFIX_MULTI(__VA_ARGS__));\
             } else if (0) {                                             \
-                printf((msg), (arg1), (arg2));                          \
+                printf((msg), L3_PREFIX_MULTI(__VA_ARGS__));                          \
             } else
 
    #else   // L3_LOC_ENABLED
 
     #  define l3_log(msg, arg1, arg2)                                   \
             if (1) {                                                    \
-                l3_log_fn((msg),                                      \
-                            (uint64_t) (arg1), (uint64_t) (arg2),       \
-                            L3_ARG_UNUSED);                             \
+                l3_log_fn((msg), L3_ARG_UNUSED, L3_MACRO_NARGS(__VA_ARGS__) __VA_OPT__(,) L3_PREFIX_MULTI(__VA_ARGS__));\
             } else if (0) {                                             \
-                printf((msg), (arg1), (arg2));                          \
+                printf((msg), L3_PREFIX_MULTI(__VA_ARGS__));                          \
             } else
 
   #endif  // L3_LOC_ENABLED
@@ -111,15 +122,11 @@ int l3_deinit(void);
   #ifdef L3_LOC_ENABLED
 
     #define l3_log(msg, arg1, arg2)                                     \
-            l3_log_fn((msg),                                          \
-                        (uint64_t) (arg1), (uint64_t) (arg2),           \
-                        __LOC__)
+            l3_log_fn((msg), __LOC__, L3_MACRO_NARGS(__VA_ARGS__) __VA_OPT__(,) L3_PREFIX_MULTI(__VA_ARGS__))
 
     #else
-    #define l3_log(msg, arg1, arg2)                                     \
-            l3_log_fn((msg),                                          \
-                        (uint64_t) (arg1), (uint64_t) (arg2),           \
-                        L3_ARG_UNUSED)
+    #define l3_log(msg, ...) \
+            l3_log_fn((msg), L3_ARG_UNUSED, L3_MACRO_NARGS(__VA_ARGS__) __VA_OPT__(,) L3_PREFIX_MULTI(__VA_ARGS__))
 
   #endif  // L3_LOC_ENABLED
 
@@ -142,11 +149,9 @@ extern "C" {
 #endif
 
 #ifdef L3_LOC_ENABLED
-void l3_log_fn(const char *msg, const uint64_t arg1, const uint64_t arg2,
-                 const loc_t loc);
+void l3_log_fn(const char *msg, loc_t loc, int nargs, ...);
 #else
-void l3_log_fn(const char *msg, const uint64_t arg1, const uint64_t arg2,
-                 const uint32_t loc);
+void l3_log_fn(const char *msg, uint32_t loc, int nargs, ...);
 #endif  // L3_LOC_ENABLED
 
 #ifdef __cplusplus

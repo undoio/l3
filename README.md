@@ -38,24 +38,24 @@ struct {
     pid_t tid;          // User thread-ID
     int32_t loc;        // (Optional) Line-of-Code ID
     const char *msg;    // Diagnostic message literal
-    uint64_t arg1;      // Argument value-1
-    uint64_t arg2;      // Argument value-2
+    uint64_t argsN;     // Number of arguments
 };
 ```
+
+Where arguments (if present) are stored directly before their corresponding `struct`.
 
 The array is backed by a memory-mapped file, filename given by `l3_init()`.
 The logging routines simply do an atomic fetch-and-increment of a
 global index to get a slot into the array, and then update that slot
-with the calling thread ID, a pointer to a message string, and up to
-two 64-bit arguments. (We store just the pointer to the string rather than
-string itself because this is usually a lot faster and, of course, consumes
-less storage space.)
+with the calling thread ID, a pointer to a message string, and the accompanying
+arguments. (We store just the pointer to the string rather thanstring itself because
+this is usually a lot faster and, of course, consumes less storage space.)
 
 **The address must be a pointer to a string literal.**
 
 The `l3_dump.py` utility will map the pointer to find the string
 literal to which it points from the executable, to generate a human-readable
-dump of the log.
+dump of the log (with the most recent messages printed first).
 
 ------
 

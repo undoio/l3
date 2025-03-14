@@ -14,12 +14,15 @@ import shutil
 import re
 import shlex
 import argparse
+import io
 
 # ##############################################################################
 # Constants that tie the unpacking logic to L3's core structure's layout
 # ##############################################################################
 L3_LOG_HEADER_SZ = 32  # bytes; offsetof(L3_LOG, slots)
-L3_ENTRY_SZ = 32       # bytes; sizeof(L3_ENTRY)
+L3_ENTRY_SZ = 24       # bytes; sizeof(L3_ENTRY)
+L3_ARGS_PER_ENTRY = L3_ENTRY_SZ // 8  # sizeof(L3_ENTRY) / sizeof(u64)
+L3_ARGS_DECODE_STR = "<" + "Q"*L3_ARGS_PER_ENTRY
 
 # #############################################################################
 PROGRAM_BIN = 'unknown'
@@ -232,18 +235,23 @@ def parse_string_offsets(input_str:str) -> (dict,int):
     # Return # of valid-lines-parsed count, so pytests can verify it.
     return (_strings, nlines)
 
+def wrapping_sub(x: int, y: int, wrap: int) -> tuple[int, bool]:
+    wrapping = x < y
+    result = (x - y) % wrap
+    return (result, wrapping)
+
 # #############################################################################
-def l3_unpack_loghdr(file_hdl) -> (int, int, int):
+def l3_unpack_loghdr(file_hdl: io.BufferedReader) -> tuple[int, int, int, int, int]:
     """
     Unpack the header struct of a L3-log file and identify key fields.
     We are unpacking a struct laid out like the following:
 
     typedef struct l3_log
     {
-        uint64_t        idx;
+        uint64_t        idx; // Contains the index 1-past-the-end of the final log entry
         uint64_t        fbase_addr;
-        uint32_t        pad0;
-        uint16_t        log_size;   // # of log-entries == L3_MAX_SLOTS
+        uint32_t        slot_count; // Corresponds to file size
+        uint16_t        pad2;
         uint8_t         platform;
         uint8_t         loc_type;
         uint64_t        pad1;
@@ -260,7 +268,11 @@ def l3_unpack_loghdr(file_hdl) -> (int, int, int):
     # '<' => byte-order of the header is little-endian
     # See: https://docs.python.org/3/library/struct.html
     # pylint: disable-next=unused-variable
-    (_, fibase, pad0, pad2, l3_platform, loc_type, pad1) = struct.unpack('<QQihBBQ', data)
+    (idx_end, fibase, slot_count, pad2, l3_platform, loc_type, pad1) = struct.unpack('<QQIHBBQ', data)
+
+    # Find the start index (the oldest log entry) by tracing back from the newest.
+    idx_back = idx_end % slot_count
+    # print(f"The last slot is {idx_back}, of {slot_count} total. Indeterminate number of entries.")
 
     # Interpret LOC-encoding scheme flag as loc-encoding type-ID
     if loc_type == L3_LOG_LOC_ENCODING:
@@ -271,7 +283,7 @@ def l3_unpack_loghdr(file_hdl) -> (int, int, int):
         decode_loc_id = L3_LOC_UNSET
 
     # DEBUG: print(f"{l3_platform=}, {decode_loc_id=}")
-    return (fibase, l3_platform, decode_loc_id)
+    return (fibase, l3_platform, decode_loc_id, idx_back, slot_count)
 
 
 # #############################################################################
@@ -375,7 +387,7 @@ def mac_get__cstring_offset(program_bin:str) -> int:
     return offset
 
 ###############################################################################
-def do_c_print(msg_text:str, arg1:int, arg2:int) -> str:
+def do_c_print(msg_text:str, args:list[int]) -> str:
     """
     Parse an input C-style format-string to convert it to a form that is
     accepted by Python. Invoke C-style printing using provided arguments.
@@ -386,9 +398,8 @@ def do_c_print(msg_text:str, arg1:int, arg2:int) -> str:
     """
     format_string = fmtstr_replace(msg_text)
     # DEBUG: print(f"{format_string=}")
-    args = format_string.count("%")
-    if args == 1: return format_string % (arg1, arg2)
-    if args == 2: return format_string % (arg1, arg2)
+    percents = format_string.count("%")
+    if percents > 0: return format_string % tuple(args)
     return format_string
 
 ###############################################################################
@@ -459,13 +470,12 @@ def do_main(args:list, return_logentry_lists:bool = False):
     tid_list = []
     loc_list = []
     msg_list = []
-    arg1_list = []
-    arg2_list = []
+    args_list = []
 
     with open(l3_logfile, 'rb') as file:
         # Unpack the 1st n-bytes as an L3_LOG{} struct to get a hold
         # of the fbase-address stashed by the l3_init() call.
-        (fibase, _, decode_loc_id) = l3_unpack_loghdr(file)
+        (fibase, _, decode_loc_id, entry_last, slot_count) = l3_unpack_loghdr(file)
 
         loc_decoder_bin = select_loc_decoder_bin(decode_loc_id,
                                                  program_bin,
@@ -473,36 +483,63 @@ def do_main(args:list, return_logentry_lists:bool = False):
         # pylint: disable=invalid-name
         nentries = 0
         loc_prev = 0
-        # Keep reading chunks of log-entries from file ...
-        while True:
-            row = file.read(L3_ENTRY_SZ)
-            len_row = len(row)
 
-            # Deal with eof
-            if not row or len_row == 0 or len_row < L3_ENTRY_SZ:
-                break
+        RING_START = L3_ENTRY_SZ * (entry_last - 1)
+        ring_pos = RING_START
+        wrapped = False
+        ring_size = L3_ENTRY_SZ * slot_count
+        file_pos = lambda: ring_pos + L3_LOG_HEADER_SZ
+        def step_back(file):
+            nonlocal ring_pos, wrapped
+            ring_pos, iswrap = wrapping_sub(ring_pos, L3_ENTRY_SZ, ring_size)
+            wrapped |= iswrap
+            file.seek(file_pos())
+        def finish_check():
+            nonlocal wrapped, ring_pos, RING_START
+            if wrapped and ring_pos <= RING_START:
+                print(f"Finished reaching the end of the ring buffer")
+                return True
+            return False
 
-            tid, loc, msgptr, arg1, arg2 = struct.unpack('<iiQQQ', row)
-
-            # If no entry was logged, ptr to message's string is expected to be NULL
+        # Read entry chunks, print them, and wrap when appropriate.
+        file.seek(file_pos())
+        while not finish_check():
+            # We are reading backwards, so the footer comes first
+            tid, loc, msgptr, argsN = struct.unpack('<IIQQ', file.read(L3_ENTRY_SZ))
+            step_back(file)
             if msgptr == 0:
+                print(f"Finished encountering a null entry (ringpos = {ring_pos//L3_ENTRY_SZ})")
                 break
 
-            # print(f"{msgptr=}, {fibase=}, {rodata_offs=}")
+            # Then we read the argument chunks in groups of 3 and prepend each chunk.
+            nchunks = (argsN + L3_ARGS_PER_ENTRY - 1) // L3_ARGS_PER_ENTRY
+            # print(f"Got entry with {argsN} args ({nchunks} chunks) (ringpos = {ring_pos//L3_ENTRY_SZ})")
+            args = []
+            break_multi = False
+            for i in range(nchunks):
+                # Check here to make sure the arguments exist. The only time they might not is if the
+                # oldest entry's args are overwritten by the most recent entry but not the old metadata.
+                # If this is the case, we exit the loop, since there's nothing more to find.
+                if finish_check():
+                    break_multi = True
+                    break
 
+                chunk = struct.unpack(L3_ARGS_DECODE_STR, file.read(L3_ENTRY_SZ))
+                step_back(file)
+                args = list(chunk) + args
+            if break_multi: break
+            del args[argsN:] # remove the padding args from the back of our list
+            # print(args)
+
+            offs = 0
             if OS_UNAME_S == 'Linux':
                 offs = msgptr - fibase - rodata_offs
-
             elif OS_UNAME_S == 'Darwin':
                 offs = msgptr - fibase - cstring_off
-
-            else:
-                offs = 0
-
             # print(f"{msgptr=:x}, {fibase=:x}, {rodata_offs=:x}, {offs=}")
 
             # Generate C-style sprintf() output on message-string.
-            msg_text = do_c_print(strings[offs], arg1, arg2)
+            msg_text = do_c_print(strings[offs], args)
 
             # No location-ID will be recorded in log-files if L3_LOC_ENABLED is OFF.
             UNPACK_LOC = ''
@@ -552,13 +589,12 @@ def do_main(args:list, return_logentry_lists:bool = False):
                 loc_list.append(UNPACK_LOC.rstrip())
 
                 msg_list.append(msg_text)
-                arg1_list.append(arg1)
-                arg2_list.append(arg2)
+                args_list.append(args)
 
             nentries += 1
 
     print(f"Unpacked {nentries=} log-entries.")
-    return (nentries, tid_list, loc_list, msg_list, arg1_list, arg2_list)
+    return (nentries, tid_list, loc_list, msg_list, args_list)
 
 # #############################################################################
 def l3_parse_args(args:list):
