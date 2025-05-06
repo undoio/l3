@@ -102,13 +102,11 @@ many_sprintf(void)
 {
     int fd = open("/tmp/sprintf.log", O_RDWR | O_CREAT, 0666);
     assert( fd>=0);
-    char page[sysconf(_SC_PAGE_SIZE)];
-    for (int i = 0; i < buff_size + sysconf(_SC_PAGE_SIZE); i+=sizeof(page)) {
-        int r = write(fd, page, sizeof(page));
-        assert(r== sizeof(page));
-    }
+    int r = ftruncate(fd, buff_size + sysconf(_SC_PAGE_SIZE));
+    assert(r == 0);
     char *buffer = (char *) mmap(NULL, buff_size + sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     assert(buffer != MAP_FAILED);
+    madvise(buffer, buff_size + sysconf(_SC_PAGE_SIZE), MADV_POPULATE_WRITE);
     size_t *idx_ptr = (size_t*)(((char*)buffer) + buff_size);
     int tid = syscall(SYS_gettid);
     for (long j = 0; j < nmsgs; j++)
