@@ -178,6 +178,8 @@ l3_init(const char *path)
         return -1;
     }
 
+    madvise(l3_log, sizeof(*l3_log), MADV_POPULATE_WRITE); // Pre-populate the pages.
+
     // Technically, this is not needed as mmap() is guaranteed to return
     // zero-filled pages. We do this just to be clear where the idx begins.
     l3_log->idx = 0;
