@@ -29,11 +29,12 @@ L3_INCDIR   := $(L3_ROOTDIR)
 L3_SRC      := $(L3_SRCDIR)/l3.c
 
 # Currently, assembly-coded extra-fast-logging is only supported on x86 64-bit Linux.
-ifeq ($(UNAME_S),Linux)
-    ifeq ($(UNAME_P), x86_64)
-        L3_ASSEMBLY := $(L3_ROOTDIR)/l3.S
-    endif
-endif
+# NOTE (Icedude907): My changes have not been converted to assembly.
+# ifeq ($(UNAME_S),Linux)
+#     ifeq ($(UNAME_P), x86_64)
+#         L3_ASSEMBLY := $(L3_ROOTDIR)/l3.S
+#     endif
+# endif
 
 # Hard-coded name of L3 log-file created in main(). This is not really needed
 # for builds to work, but is made visible here for documentation purposes.

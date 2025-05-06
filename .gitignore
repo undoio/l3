@@ -1,9 +1,13 @@
 *.swp
-# Skip build/ areas
+# Skip build artifacts
 build*
+*.o
 # Skip LOC-generated files
 loc*h
 loc_filenames.c
 
 # Skip pytests cached files
 *__pycache__*
+
+# Skip samples
+*-sample*
