@@ -9,7 +9,8 @@
  * \copyright Copyright (c) 2023
  * *****************************************************************************
  */
-#include <dlfcn.h> // Makefile supplies required -D_GNU_SOURCE flag.
+#define _GNU_SOURCE
+#include <dlfcn.h>
 
 #include <stddef.h>
 #include <errno.h>
